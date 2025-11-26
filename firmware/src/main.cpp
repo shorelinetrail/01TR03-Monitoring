@@ -189,9 +189,17 @@ void displayTemperatures() {
 
 void initSensors() {
     // MAX6675 needs a moment to stabilize after power-on
-    delay(500);
+    delay(1000);
+
+    // Do a few dummy reads to stabilize
+    for (int i = 0; i < 3; i++) {
+        thermoMainTank.readCelsius();
+        delay(300);
+        thermoTapChanger.readCelsius();
+        delay(300);
+    }
+
     Serial.println("MAX6675 sensors initialized");
-    Serial.println("Waiting for first reading...");
 }
 
 void readSensors() {
@@ -214,8 +222,8 @@ void readSensors() {
         }
     }
 
-    // Small delay between readings (MAX6675 needs ~220ms between reads)
-    delay(250);
+    // Small delay between readings (MAX6675 needs ~250ms between reads)
+    delay(300);
 
     // Read Tap Changer temperature
     reading = thermoTapChanger.readCelsius();
