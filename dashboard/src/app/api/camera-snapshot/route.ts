@@ -49,7 +49,7 @@ function generateDigestAuth(
       .digest('hex');
   }
 
-  let authHeader = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", response="${response}"`;
+  let authHeader = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", algorithm=MD5, response="${response}"`;
   if (qop) {
     authHeader += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}"`;
   }
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
 
         const digestHeader = generateDigestAuth(username, password, 'GET', uri, challenge);
         console.log('Generated Digest header:', digestHeader);
-        console.log('Using username:', username, 'password length:', password.length);
+        console.log('Using username:', username, 'password length:', password.length, 'first char:', password[0]);
         headers['Authorization'] = digestHeader;
 
         response = await fetch(targetUrl, {
