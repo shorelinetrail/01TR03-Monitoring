@@ -173,22 +173,35 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - use http module with digest auth
-          try {
-            const camUrl = `http://${host}/ISAPI/Streaming/channels/1/picture`;
-            console.log('Trying camera URL with digest auth:', camUrl);
-            const result = await fetchWithDigestAuth(camUrl, username, password);
-            return new NextResponse(result.data, {
-              headers: {
-                'Content-Type': result.contentType,
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Access-Control-Allow-Origin': '*',
-              },
-            });
-          } catch (err) {
-            console.error('Annke fetch error:', err);
+          // Hikvision/Annke - try multiple endpoints
+          {
+            const endpoints = [
+              '/ISAPI/Streaming/channels/101/picture',
+              '/ISAPI/Streaming/channels/1/picture',
+              '/Streaming/channels/1/picture',
+            ];
+
+            for (const endpoint of endpoints) {
+              try {
+                const camUrl = `http://${host}${endpoint}`;
+                console.log('Trying endpoint:', camUrl);
+                const result = await fetchWithDigestAuth(camUrl, username, password);
+                console.log('Success! Got', result.data.length, 'bytes');
+                return new NextResponse(result.data, {
+                  headers: {
+                    'Content-Type': result.contentType,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Access-Control-Allow-Origin': '*',
+                  },
+                });
+              } catch (err) {
+                console.log('Endpoint failed:', endpoint, '-', err instanceof Error ? err.message : err);
+                continue;
+              }
+            }
+
             return NextResponse.json(
-              { error: `Camera error: ${err instanceof Error ? err.message : 'Unknown'}` },
+              { error: 'All camera endpoints failed' },
               { status: 500 }
             );
           }
