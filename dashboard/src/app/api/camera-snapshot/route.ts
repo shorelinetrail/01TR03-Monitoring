@@ -24,20 +24,38 @@ export async function GET(request: NextRequest) {
 
     // If cameraId provided, construct URL from environment variables
     if (cameraId && !url) {
-      const host = process.env[`REOLINK_CAM${cameraId}_HOST`];
-      const username = process.env[`REOLINK_CAM${cameraId}_USERNAME`] || 'admin';
-      const password = process.env[`REOLINK_CAM${cameraId}_PASSWORD`];
+      const host = process.env[`CAM${cameraId}_HOST`];
+      const username = process.env[`CAM${cameraId}_USERNAME`] || 'admin';
+      const password = process.env[`CAM${cameraId}_PASSWORD`];
+      const type = process.env[`CAM${cameraId}_TYPE`] || 'hikvision';
 
-      if (!host || !password) {
+      if (!host) {
         return NextResponse.json(
           { error: `Camera ${cameraId} not configured` },
           { status: 404 }
         );
       }
 
-      // Reolink snapshot URL format
-      // For direct HTTP access: http://{host}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=randomstring&user={user}&password={pass}
-      targetUrl = `http://${host}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${Date.now()}&user=${username}&password=${password}`;
+      // Build URL based on camera type
+      switch (type.toLowerCase()) {
+        case 'hikvision':
+        case 'annke':
+          // Hikvision/Annke ISAPI snapshot
+          targetUrl = `http://${username}:${password}@${host}/ISAPI/Streaming/channels/101/picture`;
+          break;
+        case 'reolink':
+          targetUrl = `http://${host}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${Date.now()}&user=${username}&password=${password}`;
+          break;
+        case 'dahua':
+          targetUrl = `http://${username}:${password}@${host}/cgi-bin/snapshot.cgi`;
+          break;
+        case 'onvif':
+          targetUrl = `http://${username}:${password}@${host}/onvif-http/snapshot`;
+          break;
+        default:
+          // Generic - try direct URL with auth
+          targetUrl = `http://${username}:${password}@${host}/snapshot.jpg`;
+      }
     }
 
     if (!targetUrl) {
