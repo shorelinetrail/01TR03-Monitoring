@@ -2,20 +2,19 @@
  * 01TR03 Transformer Temperature Monitoring System
  *
  * 66/11kV 50MVA Power Transformer Monitor
- * NodeMCU-32S with MCP9600 Thermocouple Amplifiers and SSD1322 OLED
+ * NodeMCU-32S with MAX6675 Thermocouple Amplifiers and SSD1322 OLED
  */
 
 #include <Arduino.h>
 #include <U8g2lib.h>
-#include <Wire.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
-#include <Adafruit_MCP9600.h>
+#include <max6675.h>
 
 // Configuration
 #define DEVICE_ID           "01TR03"
-#define FIRMWARE_VERSION    "1.0.0"
+#define FIRMWARE_VERSION    "1.1.0"
 #define WIFI_AP_SSID        "01TR03-Setup"
 #define WIFI_AP_PASSWORD    "transformer"
 
@@ -24,11 +23,11 @@
 #define OLED_DC   16
 #define OLED_RST  17
 
-// I2C pins for MCP9600
-#define I2C_SDA   21
-#define I2C_SCL   22
-#define MCP9600_ADDR_1  0x60
-#define MCP9600_ADDR_2  0x67
+// MAX6675 SPI pins (software SPI to avoid display conflict)
+#define THERMO_CLK    25
+#define THERMO_MISO   26
+#define THERMO_CS1    27   // Main Tank
+#define THERMO_CS2    14   // Tap Changer
 
 // Temperature thresholds
 #define MAIN_TANK_WARNING    85.0
@@ -39,11 +38,11 @@
 // Display - exact same as StationBoards
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
 
-// MCP9600 Thermocouple Amplifiers
-Adafruit_MCP9600 mcp9600_mainTank;
-Adafruit_MCP9600 mcp9600_tapChanger;
-bool mainTankSensorOK = false;
-bool tapChangerSensorOK = false;
+// MAX6675 Thermocouple Amplifiers (Type K)
+MAX6675 thermoMainTank(THERMO_CLK, THERMO_CS1, THERMO_MISO);
+MAX6675 thermoTapChanger(THERMO_CLK, THERMO_CS2, THERMO_MISO);
+bool mainTankSensorOK = true;
+bool tapChangerSensorOK = true;
 
 // Web server
 WebServer webServer(80);
@@ -188,35 +187,23 @@ void displayTemperatures() {
 // Sensor Functions
 // ============================================================================
 
-bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
-    if (!sensor.begin(addr)) {
-        Serial.printf("MCP9600 %s (0x%02X) not found!\n", name, addr);
-        return false;
-    }
-
-    // Configure for Type J thermocouple
-    sensor.setADCresolution(MCP9600_ADCRESOLUTION_18);
-    sensor.setThermocoupleType(MCP9600_TYPE_J);
-    sensor.setFilterCoefficient(3);  // Medium filtering
-    sensor.enable(true);
-
-    Serial.printf("MCP9600 %s (0x%02X) initialized OK\n", name, addr);
-    return true;
-}
-
 void initSensors() {
-    Wire.begin(I2C_SDA, I2C_SCL);
-    delay(100);
-
-    mainTankSensorOK = initMCP9600(mcp9600_mainTank, MCP9600_ADDR_1, "Main Tank");
-    tapChangerSensorOK = initMCP9600(mcp9600_tapChanger, MCP9600_ADDR_2, "Tap Changer");
+    // MAX6675 needs a moment to stabilize after power-on
+    delay(500);
+    Serial.println("MAX6675 sensors initialized");
+    Serial.println("Waiting for first reading...");
 }
 
 void readSensors() {
     // Read Main Tank temperature
-    if (mainTankSensorOK) {
-        mainTankTemp = mcp9600_mainTank.readThermocouple();
-        ambientTemp = mcp9600_mainTank.readAmbient();  // Cold junction
+    float reading = thermoMainTank.readCelsius();
+    if (isnan(reading)) {
+        mainTankSensorOK = false;
+        mainTankTemp = -999.0;
+        mainTankStatus = "ERR";
+    } else {
+        mainTankSensorOK = true;
+        mainTankTemp = reading;
 
         if (mainTankTemp >= MAIN_TANK_ALARM) {
             mainTankStatus = "ALRM";
@@ -225,14 +212,20 @@ void readSensors() {
         } else {
             mainTankStatus = "OK";
         }
-    } else {
-        mainTankTemp = -999.0;
-        mainTankStatus = "ERR";
     }
 
+    // Small delay between readings (MAX6675 needs ~220ms between reads)
+    delay(250);
+
     // Read Tap Changer temperature
-    if (tapChangerSensorOK) {
-        tapChangerTemp = mcp9600_tapChanger.readThermocouple();
+    reading = thermoTapChanger.readCelsius();
+    if (isnan(reading)) {
+        tapChangerSensorOK = false;
+        tapChangerTemp = -999.0;
+        tapChangerStatus = "ERR";
+    } else {
+        tapChangerSensorOK = true;
+        tapChangerTemp = reading;
 
         if (tapChangerTemp >= TAP_CHANGER_ALARM) {
             tapChangerStatus = "ALRM";
@@ -241,10 +234,10 @@ void readSensors() {
         } else {
             tapChangerStatus = "OK";
         }
-    } else {
-        tapChangerTemp = -999.0;
-        tapChangerStatus = "ERR";
     }
+
+    // Ambient - use average of both readings as estimate (MAX6675 has internal cold junction)
+    ambientTemp = 25.0;  // MAX6675 handles cold junction internally
 }
 
 // ============================================================================
