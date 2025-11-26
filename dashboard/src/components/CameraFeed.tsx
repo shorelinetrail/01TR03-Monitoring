@@ -28,8 +28,7 @@ export default function CameraFeed({
       // Add timestamp to prevent caching
       const url = `${snapshotUrl}${snapshotUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
-      // For Reolink cameras, we might need to go through a proxy API
-      const response = await fetch(`/api/camera-snapshot?url=${encodeURIComponent(url)}`);
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch snapshot');
