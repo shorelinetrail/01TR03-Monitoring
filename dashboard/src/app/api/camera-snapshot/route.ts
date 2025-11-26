@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
     let username = '';
     let password = '';
     let useDigestAuth = false;
+    let useBasicAuth = false;
 
     // If cameraId provided, construct URL from environment variables
     if (cameraId && !url) {
@@ -98,9 +99,10 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - credentials in URL for httpPreview
-          targetUrl = `http://${username}:${password}@${host}/Streaming/channels/102/httpPreview`;
-          useDigestAuth = false; // Auth is in URL
+          // Hikvision/Annke - httpPreview with Basic Auth first, digest fallback
+          targetUrl = `http://${host}/Streaming/channels/102/httpPreview`;
+          useBasicAuth = true;
+          useDigestAuth = true; // Fall back to digest if Basic fails
           break;
         case 'reolink':
           // Reolink uses query params for auth
@@ -131,7 +133,12 @@ export async function GET(request: NextRequest) {
       'Accept': 'image/jpeg,image/png,image/*',
     };
 
-    // First request - no auth to get digest challenge (or with basic auth for cameras that support it)
+    // Add Basic Auth if configured
+    if (useBasicAuth && username && password) {
+      headers['Authorization'] = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+    }
+
+    // First request - with basic auth if set, or no auth to get digest challenge
     let response = await fetch(targetUrl, {
       headers,
       redirect: 'follow',
