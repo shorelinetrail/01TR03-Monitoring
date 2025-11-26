@@ -41,10 +41,7 @@ namespace Display {
      */
     inline bool init() {
         u8g2.begin();
-        u8g2.setContrast(255);              // Full brightness
-        u8g2.setFont(FONT_NORMAL);
-        u8g2.clearBuffer();
-        u8g2.sendBuffer();
+        u8g2.setFont(u8g2_font_helvB08_tr);  // Match StationBoards exactly
         return true;
     }
 

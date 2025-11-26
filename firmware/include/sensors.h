@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <SPI.h>
 #include "config.h"
 #include "types.h"
 #include "constants.h"
