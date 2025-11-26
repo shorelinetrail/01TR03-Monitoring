@@ -22,11 +22,14 @@ export async function GET(request: NextRequest) {
   try {
     let targetUrl = url;
 
+    // Build auth header for cameras that need it
+    let authHeader: string | null = null;
+
     // If cameraId provided, construct URL from environment variables
     if (cameraId && !url) {
       const host = process.env[`CAM${cameraId}_HOST`];
       const username = process.env[`CAM${cameraId}_USERNAME`] || 'admin';
-      const password = process.env[`CAM${cameraId}_PASSWORD`];
+      const password = process.env[`CAM${cameraId}_PASSWORD`] || '';
       const type = process.env[`CAM${cameraId}_TYPE`] || 'hikvision';
 
       if (!host) {
@@ -36,25 +39,30 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Create Basic Auth header
+      authHeader = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+
       // Build URL based on camera type
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
           // Hikvision/Annke ISAPI snapshot
-          targetUrl = `http://${username}:${password}@${host}/ISAPI/Streaming/channels/101/picture`;
+          targetUrl = `http://${host}/ISAPI/Streaming/channels/101/picture`;
           break;
         case 'reolink':
+          // Reolink uses query params for auth
           targetUrl = `http://${host}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${Date.now()}&user=${username}&password=${password}`;
+          authHeader = null; // Reolink uses URL params
           break;
         case 'dahua':
-          targetUrl = `http://${username}:${password}@${host}/cgi-bin/snapshot.cgi`;
+          targetUrl = `http://${host}/cgi-bin/snapshot.cgi`;
           break;
         case 'onvif':
-          targetUrl = `http://${username}:${password}@${host}/onvif-http/snapshot`;
+          targetUrl = `http://${host}/onvif-http/snapshot`;
           break;
         default:
-          // Generic - try direct URL with auth
-          targetUrl = `http://${username}:${password}@${host}/snapshot.jpg`;
+          // Generic - try direct URL
+          targetUrl = `http://${host}/snapshot.jpg`;
       }
     }
 
@@ -65,11 +73,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Build headers
+    const headers: Record<string, string> = {
+      'Accept': 'image/jpeg,image/png,image/*',
+    };
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     // Fetch the image from the camera
     const response = await fetch(targetUrl, {
-      headers: {
-        'Accept': 'image/jpeg,image/png,image/*',
-      },
+      headers,
       // Don't follow redirects automatically
       redirect: 'follow',
       // Set a reasonable timeout
