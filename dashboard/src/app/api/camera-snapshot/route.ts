@@ -99,10 +99,10 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - httpPreview with Basic Auth first, digest fallback
-          targetUrl = `http://${host}/Streaming/channels/102/httpPreview`;
+          // Hikvision/Annke - ISAPI picture with channel 1 (not 101)
+          targetUrl = `http://${host}/ISAPI/Streaming/channels/1/picture`;
           useBasicAuth = true;
-          useDigestAuth = true; // Fall back to digest if Basic fails
+          useDigestAuth = true;
           break;
         case 'reolink':
           // Reolink uses query params for auth
