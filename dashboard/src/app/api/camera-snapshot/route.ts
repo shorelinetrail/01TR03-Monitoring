@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import http from 'http';
 
 /**
  * Camera Snapshot Proxy API
@@ -7,6 +8,53 @@ import crypto from 'crypto';
  * This endpoint proxies camera snapshot requests to handle CORS and authentication.
  * Supports Basic Auth and Digest Auth for Hikvision/Annke cameras.
  */
+
+// Helper to fetch with credentials in URL (Node's http module supports this)
+function fetchWithAuth(urlWithAuth: string, timeout = 10000): Promise<{ data: Buffer; contentType: string }> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('Request timeout'));
+    }, timeout);
+
+    const req = http.get(urlWithAuth, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        clearTimeout(timeoutId);
+        const location = res.headers.location;
+        if (location) {
+          fetchWithAuth(location, timeout).then(resolve).catch(reject);
+        } else {
+          reject(new Error(`Redirect without location`));
+        }
+        return;
+      }
+
+      if (res.statusCode !== 200) {
+        clearTimeout(timeoutId);
+        reject(new Error(`HTTP ${res.statusCode}`));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        clearTimeout(timeoutId);
+        resolve({
+          data: Buffer.concat(chunks),
+          contentType: res.headers['content-type'] || 'image/jpeg',
+        });
+      });
+      res.on('error', (err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+    });
+
+    req.on('error', (err) => {
+      clearTimeout(timeoutId);
+      reject(err);
+    });
+  });
+}
 
 // Parse WWW-Authenticate header for Digest auth
 function parseDigestChallenge(header: string): Record<string, string> {
@@ -99,11 +147,25 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - ISAPI picture with channel 1 (not 101)
-          targetUrl = `http://${host}/ISAPI/Streaming/channels/1/picture`;
-          useBasicAuth = true;
-          useDigestAuth = true;
-          break;
+          // Hikvision/Annke - use http module with credentials in URL
+          try {
+            const authUrl = `http://${username}:${password}@${host}/ISAPI/Streaming/channels/1/picture`;
+            console.log('Trying auth URL:', authUrl.replace(password, '***'));
+            const result = await fetchWithAuth(authUrl);
+            return new NextResponse(result.data, {
+              headers: {
+                'Content-Type': result.contentType,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Access-Control-Allow-Origin': '*',
+              },
+            });
+          } catch (err) {
+            console.error('Annke fetch error:', err);
+            return NextResponse.json(
+              { error: `Camera error: ${err instanceof Error ? err.message : 'Unknown'}` },
+              { status: 500 }
+            );
+          }
         case 'reolink':
           // Reolink uses query params for auth
           targetUrl = `http://${host}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${Date.now()}&user=${username}&password=${password}`;
