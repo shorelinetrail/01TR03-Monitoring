@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke snapshot - matches BlueIris path /Streaming/Channels/101
-          targetUrl = `http://${host}/Streaming/Channels/101/picture`;
+          // Hikvision/Annke ISAPI snapshot endpoint (channel 101 = main stream of ch1)
+          targetUrl = `http://${host}/ISAPI/Streaming/channels/101/picture`;
           // Basic Auth header is used (set above)
           break;
         case 'reolink':
