@@ -11,7 +11,6 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
-#include <ArduinoJson.h>
 
 // Configuration
 #define DEVICE_ID           "01TR03"
