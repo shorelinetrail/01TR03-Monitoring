@@ -11,6 +11,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include <Adafruit_MCP9600.h>
 
 // Configuration
 #define DEVICE_ID           "01TR03"
@@ -37,6 +38,12 @@
 
 // Display - exact same as StationBoards
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
+
+// MCP9600 Thermocouple Amplifiers
+Adafruit_MCP9600 mcp9600_mainTank;
+Adafruit_MCP9600 mcp9600_tapChanger;
+bool mainTankSensorOK = false;
+bool tapChangerSensorOK = false;
 
 // Web server
 WebServer webServer(80);
@@ -132,7 +139,11 @@ void displayTemperatures() {
     u8g2.drawStr(5, 30, "Main Tank:");
 
     char tempStr[16];
-    snprintf(tempStr, sizeof(tempStr), "%.1f C", mainTankTemp);
+    if (mainTankSensorOK) {
+        snprintf(tempStr, sizeof(tempStr), "%.1f C", mainTankTemp);
+    } else {
+        snprintf(tempStr, sizeof(tempStr), "---");
+    }
     u8g2.setFont(u8g2_font_helvB10_tr);
     u8g2.drawStr(100, 30, tempStr);
 
@@ -143,7 +154,11 @@ void displayTemperatures() {
     u8g2.setFont(u8g2_font_helvB08_tr);
     u8g2.drawStr(5, 46, "Tap Changer:");
 
-    snprintf(tempStr, sizeof(tempStr), "%.1f C", tapChangerTemp);
+    if (tapChangerSensorOK) {
+        snprintf(tempStr, sizeof(tempStr), "%.1f C", tapChangerTemp);
+    } else {
+        snprintf(tempStr, sizeof(tempStr), "---");
+    }
     u8g2.setFont(u8g2_font_helvB10_tr);
     u8g2.drawStr(100, 46, tempStr);
 
@@ -170,31 +185,65 @@ void displayTemperatures() {
 }
 
 // ============================================================================
-// Sensor Functions (Simulated for now - add MCP9600 later)
+// Sensor Functions
 // ============================================================================
 
-void readSensors() {
-    // TODO: Add actual MCP9600 reading
-    // For now, simulate with random values
-    mainTankTemp = 45.0 + random(-20, 20) / 10.0;
-    tapChangerTemp = 38.0 + random(-20, 20) / 10.0;
-    ambientTemp = 22.0 + random(-10, 10) / 10.0;
-
-    // Update status
-    if (mainTankTemp >= MAIN_TANK_ALARM) {
-        mainTankStatus = "ALRM";
-    } else if (mainTankTemp >= MAIN_TANK_WARNING) {
-        mainTankStatus = "WARN";
-    } else {
-        mainTankStatus = "OK";
+bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
+    if (!sensor.begin(addr)) {
+        Serial.printf("MCP9600 %s (0x%02X) not found!\n", name, addr);
+        return false;
     }
 
-    if (tapChangerTemp >= TAP_CHANGER_ALARM) {
-        tapChangerStatus = "ALRM";
-    } else if (tapChangerTemp >= TAP_CHANGER_WARNING) {
-        tapChangerStatus = "WARN";
+    // Configure for Type J thermocouple
+    sensor.setADCresolution(MCP9600_ADCRESOLUTION_18);
+    sensor.setThermocoupleType(MCP9600_TYPE_J);
+    sensor.setFilterCoefficient(3);  // Medium filtering
+    sensor.enable(true);
+
+    Serial.printf("MCP9600 %s (0x%02X) initialized OK\n", name, addr);
+    return true;
+}
+
+void initSensors() {
+    Wire.begin(I2C_SDA, I2C_SCL);
+    delay(100);
+
+    mainTankSensorOK = initMCP9600(mcp9600_mainTank, MCP9600_ADDR_1, "Main Tank");
+    tapChangerSensorOK = initMCP9600(mcp9600_tapChanger, MCP9600_ADDR_2, "Tap Changer");
+}
+
+void readSensors() {
+    // Read Main Tank temperature
+    if (mainTankSensorOK) {
+        mainTankTemp = mcp9600_mainTank.readThermocouple();
+        ambientTemp = mcp9600_mainTank.readAmbient();  // Cold junction
+
+        if (mainTankTemp >= MAIN_TANK_ALARM) {
+            mainTankStatus = "ALRM";
+        } else if (mainTankTemp >= MAIN_TANK_WARNING) {
+            mainTankStatus = "WARN";
+        } else {
+            mainTankStatus = "OK";
+        }
     } else {
-        tapChangerStatus = "OK";
+        mainTankTemp = -999.0;
+        mainTankStatus = "ERR";
+    }
+
+    // Read Tap Changer temperature
+    if (tapChangerSensorOK) {
+        tapChangerTemp = mcp9600_tapChanger.readThermocouple();
+
+        if (tapChangerTemp >= TAP_CHANGER_ALARM) {
+            tapChangerStatus = "ALRM";
+        } else if (tapChangerTemp >= TAP_CHANGER_WARNING) {
+            tapChangerStatus = "WARN";
+        } else {
+            tapChangerStatus = "OK";
+        }
+    } else {
+        tapChangerTemp = -999.0;
+        tapChangerStatus = "ERR";
     }
 }
 
@@ -323,6 +372,10 @@ void setup() {
     // Load config
     displayBoot(30, "Loading config...");
     loadConfig();
+
+    // Initialize sensors
+    displayBoot(40, "Init sensors...");
+    initSensors();
 
     // Try WiFi connection
     displayBoot(50, "Connecting WiFi...");
