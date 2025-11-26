@@ -10,6 +10,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include <HTTPClient.h>
 #include <max6675.h>
 
 // Configuration
@@ -58,6 +59,8 @@ String mainTankStatus = "---";
 String tapChangerStatus = "---";
 unsigned long lastSensorRead = 0;
 unsigned long lastDisplayUpdate = 0;
+unsigned long lastDataUpload = 0;
+const unsigned long UPLOAD_INTERVAL = 30000;  // Upload every 30 seconds
 
 // Configuration
 String wifiSSID = "";
@@ -249,6 +252,63 @@ void readSensors() {
 }
 
 // ============================================================================
+// Supabase Data Upload
+// ============================================================================
+
+void uploadToSupabase() {
+    if (!wifiConnected || supabaseUrl.length() == 0 || supabaseKey.length() == 0) {
+        Serial.println("Skipping upload - not configured");
+        return;
+    }
+
+    // Don't upload error readings
+    if (!mainTankSensorOK && !tapChangerSensorOK) {
+        Serial.println("Skipping upload - no valid sensor data");
+        return;
+    }
+
+    HTTPClient http;
+    String url = supabaseUrl + "/rest/v1/temperature_readings";
+
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", supabaseKey);
+    http.addHeader("Authorization", "Bearer " + supabaseKey);
+    http.addHeader("Prefer", "return=minimal");
+
+    // Build JSON payload
+    String json = "{";
+    json += "\"device_id\":\"" + String(DEVICE_ID) + "\",";
+    json += "\"main_tank_temp\":" + String(mainTankSensorOK ? mainTankTemp : 0, 1) + ",";
+    json += "\"tap_changer_temp\":" + String(tapChangerSensorOK ? tapChangerTemp : 0, 1) + ",";
+    json += "\"ambient_temp\":" + String(ambientTemp, 1) + ",";
+
+    // Convert status for database
+    String mtStatus = (mainTankStatus == "ALRM") ? "alarm" :
+                      (mainTankStatus == "WARN") ? "warning" :
+                      (mainTankStatus == "ERR") ? "error" : "normal";
+    String tcStatus = (tapChangerStatus == "ALRM") ? "alarm" :
+                      (tapChangerStatus == "WARN") ? "warning" :
+                      (tapChangerStatus == "ERR") ? "error" : "normal";
+
+    json += "\"main_tank_status\":\"" + mtStatus + "\",";
+    json += "\"tap_changer_status\":\"" + tcStatus + "\"";
+    json += "}";
+
+    Serial.println("Uploading to Supabase...");
+    int httpCode = http.POST(json);
+
+    if (httpCode == 201 || httpCode == 200) {
+        Serial.println("Upload successful!");
+    } else {
+        Serial.printf("Upload failed! HTTP code: %d\n", httpCode);
+        Serial.println(http.getString());
+    }
+
+    http.end();
+}
+
+// ============================================================================
 // WiFi & Web Server
 // ============================================================================
 
@@ -408,6 +468,12 @@ void loop() {
         Serial.printf("Main: %.1f°C (%s), Tap: %.1f°C (%s)\n",
             mainTankTemp, mainTankStatus.c_str(),
             tapChangerTemp, tapChangerStatus.c_str());
+    }
+
+    // Upload to Supabase periodically
+    if (now - lastDataUpload >= UPLOAD_INTERVAL) {
+        uploadToSupabase();
+        lastDataUpload = now;
     }
 
     // Update display every second
