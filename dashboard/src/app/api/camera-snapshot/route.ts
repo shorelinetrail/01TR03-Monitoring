@@ -9,50 +9,76 @@ import http from 'http';
  * Supports Basic Auth and Digest Auth for Hikvision/Annke cameras.
  */
 
-// Helper to fetch with credentials in URL (Node's http module supports this)
-function fetchWithAuth(urlWithAuth: string, timeout = 10000): Promise<{ data: Buffer; contentType: string }> {
+// Helper to make HTTP request with digest auth support
+function fetchWithDigestAuth(
+  targetUrl: string,
+  username: string,
+  password: string,
+  timeout = 10000
+): Promise<{ data: Buffer; contentType: string }> {
   return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error('Request timeout'));
-    }, timeout);
+    const urlObj = new URL(targetUrl);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 80,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      timeout,
+    };
 
-    const req = http.get(urlWithAuth, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302) {
-        clearTimeout(timeoutId);
-        const location = res.headers.location;
-        if (location) {
-          fetchWithAuth(location, timeout).then(resolve).catch(reject);
+    // First request to get digest challenge
+    const req1 = http.request(options, (res1) => {
+      if (res1.statusCode === 401) {
+        const wwwAuth = res1.headers['www-authenticate'];
+        if (wwwAuth && wwwAuth.toLowerCase().startsWith('digest')) {
+          // Parse digest challenge and retry
+          const challenge = parseDigestChallenge(wwwAuth);
+          const uri = urlObj.pathname + urlObj.search;
+          const digestHeader = generateDigestAuth(username, password, 'GET', uri, challenge);
+
+          const options2 = {
+            ...options,
+            headers: { 'Authorization': digestHeader },
+          };
+
+          const req2 = http.request(options2, (res2) => {
+            if (res2.statusCode !== 200) {
+              reject(new Error(`HTTP ${res2.statusCode} after digest auth`));
+              return;
+            }
+            const chunks: Buffer[] = [];
+            res2.on('data', (chunk) => chunks.push(chunk));
+            res2.on('end', () => {
+              resolve({
+                data: Buffer.concat(chunks),
+                contentType: res2.headers['content-type'] || 'image/jpeg',
+              });
+            });
+          });
+          req2.on('error', reject);
+          req2.on('timeout', () => reject(new Error('Request timeout')));
+          req2.end();
         } else {
-          reject(new Error(`Redirect without location`));
+          reject(new Error('Camera requires unsupported auth type'));
         }
-        return;
-      }
-
-      if (res.statusCode !== 200) {
-        clearTimeout(timeoutId);
-        reject(new Error(`HTTP ${res.statusCode}`));
-        return;
-      }
-
-      const chunks: Buffer[] = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => {
-        clearTimeout(timeoutId);
-        resolve({
-          data: Buffer.concat(chunks),
-          contentType: res.headers['content-type'] || 'image/jpeg',
+      } else if (res1.statusCode === 200) {
+        // No auth needed
+        const chunks: Buffer[] = [];
+        res1.on('data', (chunk) => chunks.push(chunk));
+        res1.on('end', () => {
+          resolve({
+            data: Buffer.concat(chunks),
+            contentType: res1.headers['content-type'] || 'image/jpeg',
+          });
         });
-      });
-      res.on('error', (err) => {
-        clearTimeout(timeoutId);
-        reject(err);
-      });
+      } else {
+        reject(new Error(`HTTP ${res1.statusCode}`));
+      }
     });
 
-    req.on('error', (err) => {
-      clearTimeout(timeoutId);
-      reject(err);
-    });
+    req1.on('error', reject);
+    req1.on('timeout', () => reject(new Error('Request timeout')));
+    req1.end();
   });
 }
 
@@ -147,11 +173,11 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - use http module with credentials in URL
+          // Hikvision/Annke - use http module with digest auth
           try {
-            const authUrl = `http://${username}:${password}@${host}/ISAPI/Streaming/channels/1/picture`;
-            console.log('Trying auth URL:', authUrl.replace(password, '***'));
-            const result = await fetchWithAuth(authUrl);
+            const camUrl = `http://${host}/ISAPI/Streaming/channels/1/picture`;
+            console.log('Trying camera URL with digest auth:', camUrl);
+            const result = await fetchWithDigestAuth(camUrl, username, password);
             return new NextResponse(result.data, {
               headers: {
                 'Content-Type': result.contentType,
