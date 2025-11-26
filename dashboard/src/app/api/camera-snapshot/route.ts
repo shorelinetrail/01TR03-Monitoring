@@ -98,9 +98,9 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - try CGI snapshot endpoint
-          targetUrl = `http://${host}/cgi-bin/snapshot.cgi?channel=1`;
-          useDigestAuth = true;
+          // Hikvision/Annke - credentials in URL for httpPreview
+          targetUrl = `http://${username}:${password}@${host}/Streaming/channels/102/httpPreview`;
+          useDigestAuth = false; // Auth is in URL
           break;
         case 'reolink':
           // Reolink uses query params for auth
