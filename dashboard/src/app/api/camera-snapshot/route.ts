@@ -98,9 +98,8 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - try MJPEG stream (sub-stream, channel 102)
-          // This often has simpler auth than the ISAPI snapshot endpoint
-          targetUrl = `http://${host}/ISAPI/Streaming/channels/102/httpPreview`;
+          // Hikvision/Annke - use path that works in BlueIris (no ISAPI prefix)
+          targetUrl = `http://${host}/Streaming/channels/101/httpPreview`;
           useDigestAuth = true;
           break;
         case 'reolink':
