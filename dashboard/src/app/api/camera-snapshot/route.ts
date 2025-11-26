@@ -98,9 +98,10 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke ISAPI snapshot endpoint (channel 101 = main stream of ch1)
-          targetUrl = `http://${host}/ISAPI/Streaming/channels/101/picture`;
-          useDigestAuth = true; // These cameras typically use Digest Auth
+          // Hikvision/Annke - try MJPEG stream (sub-stream, channel 102)
+          // This often has simpler auth than the ISAPI snapshot endpoint
+          targetUrl = `http://${host}/ISAPI/Streaming/channels/102/httpPreview`;
+          useDigestAuth = true;
           break;
         case 'reolink':
           // Reolink uses query params for auth
@@ -182,9 +183,70 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the image data
-    const imageBuffer = await response.arrayBuffer();
+    // Get content type to check if it's MJPEG stream
     const contentType = response.headers.get('content-type') || 'image/jpeg';
+    console.log('Response content-type:', contentType);
+
+    // Handle MJPEG stream (multipart/x-mixed-replace)
+    if (contentType.includes('multipart')) {
+      console.log('Detected MJPEG stream, extracting first frame...');
+      const reader = response.body?.getReader();
+      if (!reader) {
+        return NextResponse.json({ error: 'No response body' }, { status: 500 });
+      }
+
+      // Read chunks until we get a complete JPEG frame
+      const chunks: Uint8Array[] = [];
+      let totalSize = 0;
+      const maxSize = 5 * 1024 * 1024; // 5MB max
+
+      while (totalSize < maxSize) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        totalSize += value.length;
+
+        // Check if we have a complete JPEG (look for FFD8 start and FFD9 end)
+        const combined = new Uint8Array(totalSize);
+        let offset = 0;
+        for (const chunk of chunks) {
+          combined.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        // Find JPEG markers
+        let jpegStart = -1;
+        let jpegEnd = -1;
+        for (let i = 0; i < combined.length - 1; i++) {
+          if (combined[i] === 0xFF && combined[i + 1] === 0xD8) {
+            jpegStart = i;
+          }
+          if (jpegStart >= 0 && combined[i] === 0xFF && combined[i + 1] === 0xD9) {
+            jpegEnd = i + 2;
+            break;
+          }
+        }
+
+        if (jpegStart >= 0 && jpegEnd > jpegStart) {
+          reader.cancel();
+          const jpegData = combined.slice(jpegStart, jpegEnd);
+          console.log('Extracted JPEG frame:', jpegData.length, 'bytes');
+          return new NextResponse(jpegData, {
+            headers: {
+              'Content-Type': 'image/jpeg',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Access-Control-Allow-Origin': '*',
+            },
+          });
+        }
+      }
+
+      reader.cancel();
+      return NextResponse.json({ error: 'Could not extract JPEG from stream' }, { status: 500 });
+    }
+
+    // Regular image response
+    const imageBuffer = await response.arrayBuffer();
 
     // Return the image with appropriate headers
     return new NextResponse(imageBuffer, {
