@@ -144,11 +144,16 @@ export async function GET(request: NextRequest) {
 
       if (wwwAuth && wwwAuth.toLowerCase().startsWith('digest')) {
         console.log('Camera requires Digest Auth, retrying...');
+        console.log('WWW-Authenticate:', wwwAuth);
         const challenge = parseDigestChallenge(wwwAuth);
+        console.log('Parsed challenge:', JSON.stringify(challenge));
         const urlObj = new URL(targetUrl);
         const uri = urlObj.pathname + urlObj.search;
+        console.log('URI for digest:', uri);
 
         const digestHeader = generateDigestAuth(username, password, 'GET', uri, challenge);
+        console.log('Generated Digest header:', digestHeader);
+        console.log('Using username:', username, 'password length:', password.length);
         headers['Authorization'] = digestHeader;
 
         response = await fetch(targetUrl, {
