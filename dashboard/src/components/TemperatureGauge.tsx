@@ -1,0 +1,165 @@
+'use client';
+
+import React from 'react';
+
+interface TemperatureGaugeProps {
+  label: string;
+  value: number | null;
+  status: 'normal' | 'warning' | 'alarm' | 'error' | 'offline';
+  warningThreshold: number;
+  alarmThreshold: number;
+  minValue?: number;
+  maxValue?: number;
+  unit?: string;
+}
+
+export default function TemperatureGauge({
+  label,
+  value,
+  status,
+  warningThreshold,
+  alarmThreshold,
+  minValue = 0,
+  maxValue = 120,
+  unit = '°C',
+}: TemperatureGaugeProps) {
+  const normalizedValue = value !== null
+    ? Math.min(Math.max((value - minValue) / (maxValue - minValue), 0), 1)
+    : 0;
+
+  // SVG arc calculations
+  const radius = 80;
+  const circumference = 2 * Math.PI * radius;
+  const arcLength = circumference * 0.75; // 270 degrees
+  const dashOffset = arcLength * (1 - normalizedValue);
+
+  // Color based on status
+  const getStatusColor = () => {
+    switch (status) {
+      case 'normal':
+        return '#4caf50';
+      case 'warning':
+        return '#ff9800';
+      case 'alarm':
+        return '#f44336';
+      case 'error':
+      case 'offline':
+      default:
+        return '#9e9e9e';
+    }
+  };
+
+  const getStatusClass = () => {
+    switch (status) {
+      case 'alarm':
+        return 'alarm-pulse';
+      case 'warning':
+        return 'warning-pulse';
+      default:
+        return '';
+    }
+  };
+
+  // Calculate threshold positions on the gauge
+  const warningPos = (warningThreshold - minValue) / (maxValue - minValue);
+  const alarmPos = (alarmThreshold - minValue) / (maxValue - minValue);
+
+  return (
+    <div className={`flex flex-col items-center ${getStatusClass()}`}>
+      <div className="relative w-48 h-40">
+        <svg
+          viewBox="0 0 200 150"
+          className="w-full h-full"
+        >
+          {/* Background arc */}
+          <path
+            d="M 20 130 A 80 80 0 1 1 180 130"
+            fill="none"
+            stroke="rgba(255,255,255,0.1)"
+            strokeWidth="12"
+            strokeLinecap="round"
+          />
+
+          {/* Warning zone indicator */}
+          <path
+            d="M 20 130 A 80 80 0 1 1 180 130"
+            fill="none"
+            stroke="rgba(255,152,0,0.2)"
+            strokeWidth="12"
+            strokeLinecap="round"
+            strokeDasharray={`${arcLength * (1 - warningPos)} ${arcLength * warningPos}`}
+            strokeDashoffset={-arcLength * warningPos}
+          />
+
+          {/* Alarm zone indicator */}
+          <path
+            d="M 20 130 A 80 80 0 1 1 180 130"
+            fill="none"
+            stroke="rgba(244,67,54,0.2)"
+            strokeWidth="12"
+            strokeLinecap="round"
+            strokeDasharray={`${arcLength * (1 - alarmPos)} ${arcLength * alarmPos}`}
+            strokeDashoffset={-arcLength * alarmPos}
+          />
+
+          {/* Value arc */}
+          <path
+            d="M 20 130 A 80 80 0 1 1 180 130"
+            fill="none"
+            stroke={getStatusColor()}
+            strokeWidth="12"
+            strokeLinecap="round"
+            strokeDasharray={arcLength}
+            strokeDashoffset={dashOffset}
+            className="gauge-circle transition-all duration-500"
+            style={{
+              filter: status === 'alarm' ? 'drop-shadow(0 0 8px rgba(244,67,54,0.5))' : undefined,
+            }}
+          />
+
+          {/* Center text */}
+          <text
+            x="100"
+            y="95"
+            textAnchor="middle"
+            className="fill-white text-3xl font-bold"
+          >
+            {value !== null ? value.toFixed(1) : '---'}
+          </text>
+          <text
+            x="100"
+            y="115"
+            textAnchor="middle"
+            className="fill-gray-400 text-sm"
+          >
+            {unit}
+          </text>
+        </svg>
+      </div>
+
+      {/* Label */}
+      <div className="text-center mt-2">
+        <h3 className="text-lg font-semibold text-white">{label}</h3>
+        <span
+          className={`badge ${
+            status === 'normal'
+              ? 'badge-normal'
+              : status === 'warning'
+              ? 'badge-warning'
+              : status === 'alarm'
+              ? 'badge-alarm'
+              : 'badge-offline'
+          }`}
+        >
+          {status.toUpperCase()}
+        </span>
+      </div>
+
+      {/* Thresholds */}
+      <div className="flex justify-between w-full mt-3 text-xs text-gray-500">
+        <span>Warn: {warningThreshold}{unit}</span>
+        <span>Alarm: {alarmThreshold}{unit}</span>
+      </div>
+    </div>
+  );
+}
