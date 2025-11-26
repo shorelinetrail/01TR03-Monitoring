@@ -98,8 +98,8 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - use path that works in BlueIris (no ISAPI prefix)
-          targetUrl = `http://${host}/Streaming/channels/101/httpPreview`;
+          // Hikvision/Annke - try CGI snapshot endpoint
+          targetUrl = `http://${host}/cgi-bin/snapshot.cgi?channel=1`;
           useDigestAuth = true;
           break;
         case 'reolink':
