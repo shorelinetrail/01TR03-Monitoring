@@ -1,11 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 /**
  * Camera Snapshot Proxy API
  *
  * This endpoint proxies camera snapshot requests to handle CORS and authentication.
- * For Reolink cameras, it supports both direct HTTP access and Reolink Cloud.
+ * Supports Basic Auth and Digest Auth for Hikvision/Annke cameras.
  */
+
+// Parse WWW-Authenticate header for Digest auth
+function parseDigestChallenge(header: string): Record<string, string> {
+  const params: Record<string, string> = {};
+  const regex = /(\w+)=(?:"([^"]+)"|([^\s,]+))/g;
+  let match;
+  while ((match = regex.exec(header)) !== null) {
+    params[match[1]] = match[2] || match[3];
+  }
+  return params;
+}
+
+// Generate Digest Auth response
+function generateDigestAuth(
+  username: string,
+  password: string,
+  method: string,
+  uri: string,
+  challenge: Record<string, string>
+): string {
+  const { realm, nonce, qop, opaque } = challenge;
+  const nc = '00000001';
+  const cnonce = crypto.randomBytes(8).toString('hex');
+
+  // HA1 = MD5(username:realm:password)
+  const ha1 = crypto.createHash('md5').update(`${username}:${realm}:${password}`).digest('hex');
+
+  // HA2 = MD5(method:uri)
+  const ha2 = crypto.createHash('md5').update(`${method}:${uri}`).digest('hex');
+
+  // Response = MD5(HA1:nonce:nc:cnonce:qop:HA2) if qop is present
+  let response: string;
+  if (qop) {
+    response = crypto.createHash('md5')
+      .update(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`)
+      .digest('hex');
+  } else {
+    response = crypto.createHash('md5')
+      .update(`${ha1}:${nonce}:${ha2}`)
+      .digest('hex');
+  }
+
+  let authHeader = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", response="${response}"`;
+  if (qop) {
+    authHeader += `, qop=${qop}, nc=${nc}, cnonce="${cnonce}"`;
+  }
+  if (opaque) {
+    authHeader += `, opaque="${opaque}"`;
+  }
+
+  return authHeader;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -22,14 +75,16 @@ export async function GET(request: NextRequest) {
   try {
     let targetUrl = url;
 
-    // Build auth header for cameras that need it
-    let authHeader: string | null = null;
+    // Store credentials for potential digest auth retry
+    let username = '';
+    let password = '';
+    let useDigestAuth = false;
 
     // If cameraId provided, construct URL from environment variables
     if (cameraId && !url) {
       const host = process.env[`CAM${cameraId}_HOST`];
-      const username = process.env[`CAM${cameraId}_USERNAME`] || 'admin';
-      const password = process.env[`CAM${cameraId}_PASSWORD`] || '';
+      username = process.env[`CAM${cameraId}_USERNAME`] || 'admin';
+      password = process.env[`CAM${cameraId}_PASSWORD`] || '';
       const type = process.env[`CAM${cameraId}_TYPE`] || 'hikvision';
 
       if (!host) {
@@ -39,24 +94,21 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Create Basic Auth header
-      authHeader = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
-
       // Build URL based on camera type
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
           // Hikvision/Annke ISAPI snapshot endpoint (channel 101 = main stream of ch1)
           targetUrl = `http://${host}/ISAPI/Streaming/channels/101/picture`;
-          // Basic Auth header is used (set above)
+          useDigestAuth = true; // These cameras typically use Digest Auth
           break;
         case 'reolink':
           // Reolink uses query params for auth
           targetUrl = `http://${host}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=${Date.now()}&user=${username}&password=${password}`;
-          authHeader = null; // Reolink uses URL params
           break;
         case 'dahua':
           targetUrl = `http://${host}/cgi-bin/snapshot.cgi`;
+          useDigestAuth = true;
           break;
         case 'onvif':
           targetUrl = `http://${host}/onvif-http/snapshot`;
@@ -78,18 +130,44 @@ export async function GET(request: NextRequest) {
     const headers: Record<string, string> = {
       'Accept': 'image/jpeg,image/png,image/*',
     };
-    if (authHeader) {
-      headers['Authorization'] = authHeader;
-    }
 
-    // Fetch the image from the camera
-    const response = await fetch(targetUrl, {
+    // First request - no auth to get digest challenge (or with basic auth for cameras that support it)
+    let response = await fetch(targetUrl, {
       headers,
-      // Don't follow redirects automatically
       redirect: 'follow',
-      // Set a reasonable timeout
       signal: AbortSignal.timeout(10000),
     });
+
+    // If 401 and WWW-Authenticate header present, try Digest Auth
+    if (response.status === 401 && useDigestAuth) {
+      const wwwAuth = response.headers.get('WWW-Authenticate');
+
+      if (wwwAuth && wwwAuth.toLowerCase().startsWith('digest')) {
+        console.log('Camera requires Digest Auth, retrying...');
+        const challenge = parseDigestChallenge(wwwAuth);
+        const urlObj = new URL(targetUrl);
+        const uri = urlObj.pathname + urlObj.search;
+
+        const digestHeader = generateDigestAuth(username, password, 'GET', uri, challenge);
+        headers['Authorization'] = digestHeader;
+
+        response = await fetch(targetUrl, {
+          headers,
+          redirect: 'follow',
+          signal: AbortSignal.timeout(10000),
+        });
+      } else if (wwwAuth && wwwAuth.toLowerCase().startsWith('basic')) {
+        // Try Basic Auth
+        console.log('Camera requires Basic Auth, retrying...');
+        headers['Authorization'] = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+
+        response = await fetch(targetUrl, {
+          headers,
+          redirect: 'follow',
+          signal: AbortSignal.timeout(10000),
+        });
+      }
+    }
 
     if (!response.ok) {
       console.error(`Camera fetch failed: ${response.status} ${response.statusText}`);
