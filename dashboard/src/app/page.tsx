@@ -5,7 +5,6 @@ import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
 import CameraFeed from '@/components/CameraFeed';
 import AlertPanel from '@/components/AlertPanel';
-import GrafanaEmbed from '@/components/GrafanaEmbed';
 import {
   supabase,
   TemperatureReading,
@@ -219,20 +218,6 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
-
-        {/* Grafana Embed (Optional) */}
-        {process.env.NEXT_PUBLIC_GRAFANA_URL && (
-          <section className="mb-8">
-            <div className="card">
-              <div className="card-header">
-                <h2 className="text-lg font-semibold text-white">Grafana Analytics</h2>
-              </div>
-              <div className="card-body">
-                <GrafanaEmbed height={400} />
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Camera Feeds and Alerts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
