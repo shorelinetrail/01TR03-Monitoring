@@ -407,6 +407,41 @@ void uploadToSupabase() {
     http.end();
 }
 
+void updateDeviceStatus() {
+    if (!wifiConnected || supabaseUrl.length() == 0 || supabaseKey.length() == 0) {
+        return;
+    }
+
+    HTTPClient http;
+    // Use PATCH to update existing device record
+    String url = supabaseUrl + "/rest/v1/devices?device_id=eq." + String(DEVICE_ID);
+
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", supabaseKey);
+    http.addHeader("Authorization", "Bearer " + supabaseKey);
+    http.addHeader("Prefer", "return=minimal");
+
+    // Build JSON payload with device info
+    String json = "{";
+    json += "\"firmware_version\":\"" + String(FIRMWARE_VERSION) + "\",";
+    json += "\"ip_address\":\"" + WiFi.localIP().toString() + "\",";
+    json += "\"mac_address\":\"" + WiFi.macAddress() + "\",";
+    json += "\"is_online\":true,";
+    json += "\"last_seen\":\"" + String("now()") + "\"";
+    json += "}";
+
+    int httpCode = http.PATCH(json);
+
+    if (httpCode == 200 || httpCode == 204) {
+        Serial.println("Device status updated");
+    } else {
+        Serial.printf("Device status update failed: %d\n", httpCode);
+    }
+
+    http.end();
+}
+
 // ============================================================================
 // WiFi & Web Server
 // ============================================================================
@@ -543,6 +578,8 @@ void setup() {
         displayBoot(70, "Starting AP...");
         startAP();
     } else {
+        displayBoot(90, "Registering...");
+        updateDeviceStatus();  // Update device info in Supabase
         displayBoot(100, "Ready!");
         delay(500);
     }
