@@ -11,6 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
+  Brush,
 } from 'recharts';
 import { format } from 'date-fns';
 import { TemperatureReading } from '@/lib/supabase';
@@ -60,11 +61,11 @@ export default function TemperatureChart({ data, thresholds, yAxisMin, yAxisMax 
   };
 
   return (
-    <div className="w-full h-80">
+    <div className="w-full h-96">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 5, right: 30, left: 20, bottom: 30 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
           <XAxis
@@ -120,6 +121,15 @@ export default function TemperatureChart({ data, thresholds, yAxisMin, yAxisMax 
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6 }}
+          />
+
+          {/* X-axis range slider */}
+          <Brush
+            dataKey="time"
+            height={30}
+            stroke="rgba(255,255,255,0.3)"
+            fill="rgba(30,30,30,0.8)"
+            tickFormatter={formatXAxis}
           />
         </LineChart>
       </ResponsiveContainer>
