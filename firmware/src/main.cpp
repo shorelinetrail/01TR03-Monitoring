@@ -277,7 +277,14 @@ void initSensors() {
 #ifdef USE_MCP9600
     Serial.printf("\n=== I2C Setup ===\n");
     Serial.printf("SDA: GPIO%d, SCL: GPIO%d\n", I2C_SDA, I2C_SCL);
+
+    // Enable internal pull-ups
+    pinMode(I2C_SDA, INPUT_PULLUP);
+    pinMode(I2C_SCL, INPUT_PULLUP);
+    delay(10);
+
     Wire.begin(I2C_SDA, I2C_SCL);
+    Wire.setClock(100000);  // 100kHz I2C speed
     delay(100);
 
     // Scan I2C bus
