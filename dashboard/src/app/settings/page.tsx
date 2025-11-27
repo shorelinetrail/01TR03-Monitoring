@@ -17,6 +17,12 @@ const DEFAULT_SETTINGS = {
   main_tank_label: 'Main Tank',
   tap_changer_label: 'Tap Changer Cover',
   differential_label: 'Differential (Tank - Tap)',
+  main_tank_min: 0,
+  main_tank_max: 120,
+  tap_changer_min: 0,
+  tap_changer_max: 120,
+  differential_min: -30,
+  differential_max: 30,
   telegram_enabled: false,
   telegram_bot_token: '',
   telegram_chat_id: '',
@@ -49,6 +55,12 @@ export default function Settings() {
           main_tank_label: config.main_tank_label ?? DEFAULT_SETTINGS.main_tank_label,
           tap_changer_label: config.tap_changer_label ?? DEFAULT_SETTINGS.tap_changer_label,
           differential_label: config.differential_label ?? DEFAULT_SETTINGS.differential_label,
+          main_tank_min: config.main_tank_min ?? DEFAULT_SETTINGS.main_tank_min,
+          main_tank_max: config.main_tank_max ?? DEFAULT_SETTINGS.main_tank_max,
+          tap_changer_min: config.tap_changer_min ?? DEFAULT_SETTINGS.tap_changer_min,
+          tap_changer_max: config.tap_changer_max ?? DEFAULT_SETTINGS.tap_changer_max,
+          differential_min: config.differential_min ?? DEFAULT_SETTINGS.differential_min,
+          differential_max: config.differential_max ?? DEFAULT_SETTINGS.differential_max,
           telegram_enabled: config.telegram_enabled ?? DEFAULT_SETTINGS.telegram_enabled,
           telegram_bot_token: config.telegram_bot_token ?? DEFAULT_SETTINGS.telegram_bot_token,
           telegram_chat_id: config.telegram_chat_id ?? DEFAULT_SETTINGS.telegram_chat_id,
@@ -196,6 +208,94 @@ export default function Settings() {
                   onChange={(e) => handleTextChange('differential_label', e.target.value)}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                 />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Gauge Ranges */}
+        <section className="mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-lg font-semibold text-white">Gauge Ranges</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Configure the minimum and maximum values displayed on each gauge.
+              </p>
+            </div>
+            <div className="card-body space-y-6">
+              {/* Main Tank Range */}
+              <div>
+                <h3 className="text-md font-medium text-white mb-3">{settings.main_tank_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.main_tank_min}
+                      onChange={(e) => handleNumberChange('main_tank_min', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.main_tank_max}
+                      onChange={(e) => handleNumberChange('main_tank_max', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tap Changer Range */}
+              <div>
+                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.tap_changer_min}
+                      onChange={(e) => handleNumberChange('tap_changer_min', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.tap_changer_max}
+                      onChange={(e) => handleNumberChange('tap_changer_max', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Differential Range */}
+              <div>
+                <h3 className="text-md font-medium text-white mb-3">{settings.differential_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.differential_min}
+                      onChange={(e) => handleNumberChange('differential_min', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.differential_max}
+                      onChange={(e) => handleNumberChange('differential_max', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -45,6 +45,16 @@ const DEFAULT_TELEGRAM = {
   cooldownMinutes: 15,
 };
 
+// Default gauge ranges
+const DEFAULT_RANGES = {
+  mainTankMin: 0,
+  mainTankMax: 120,
+  tapChangerMin: 0,
+  tapChangerMax: 120,
+  differentialMin: -30,
+  differentialMax: 30,
+};
+
 // Convert time range to hours
 const getHoursFromRange = (range: string): number => {
   switch (range) {
@@ -67,6 +77,7 @@ export default function Dashboard() {
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
   const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
+  const [ranges, setRanges] = useState(DEFAULT_RANGES);
 
   // Track last alert times to implement cooldown
   const lastAlertTimes = useRef<Record<string, number>>({});
@@ -103,6 +114,14 @@ export default function Dashboard() {
           alertOnWarning: configData.telegram_alert_on_warning ?? DEFAULT_TELEGRAM.alertOnWarning,
           alertOnAlarm: configData.telegram_alert_on_alarm ?? DEFAULT_TELEGRAM.alertOnAlarm,
           cooldownMinutes: configData.telegram_cooldown_minutes ?? DEFAULT_TELEGRAM.cooldownMinutes,
+        });
+        setRanges({
+          mainTankMin: configData.main_tank_min ?? DEFAULT_RANGES.mainTankMin,
+          mainTankMax: configData.main_tank_max ?? DEFAULT_RANGES.mainTankMax,
+          tapChangerMin: configData.tap_changer_min ?? DEFAULT_RANGES.tapChangerMin,
+          tapChangerMax: configData.tap_changer_max ?? DEFAULT_RANGES.tapChangerMax,
+          differentialMin: configData.differential_min ?? DEFAULT_RANGES.differentialMin,
+          differentialMax: configData.differential_max ?? DEFAULT_RANGES.differentialMax,
         });
       }
       setLatestReading(reading);
@@ -344,6 +363,8 @@ export default function Dashboard() {
                 status={getMainTankStatus()}
                 warningThreshold={thresholds.mainTankWarning}
                 alarmThreshold={thresholds.mainTankAlarm}
+                minValue={ranges.mainTankMin}
+                maxValue={ranges.mainTankMax}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
@@ -354,6 +375,8 @@ export default function Dashboard() {
                 status={getTapChangerStatus()}
                 warningThreshold={thresholds.tapChangerWarning}
                 alarmThreshold={thresholds.tapChangerAlarm}
+                minValue={ranges.tapChangerMin}
+                maxValue={ranges.tapChangerMax}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
@@ -364,8 +387,8 @@ export default function Dashboard() {
                 status={getDifferentialStatus()}
                 warningThreshold={thresholds.differentialWarning}
                 alarmThreshold={thresholds.differentialAlarm}
-                minValue={-30}
-                maxValue={30}
+                minValue={ranges.differentialMin}
+                maxValue={ranges.differentialMax}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
@@ -461,15 +484,7 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold text-white">Device Information</h2>
             </div>
             <div className="card-body">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-400">Ambient Temp</p>
-                  <p className="text-white font-medium text-lg">
-                    {latestReading?.ambient_temp !== null && latestReading?.ambient_temp !== undefined
-                      ? `${latestReading.ambient_temp.toFixed(1)}°C`
-                      : '---'}
-                  </p>
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-gray-400">Device ID</p>
                   <p className="text-white font-medium">{device?.device_id || DEVICE_ID}</p>

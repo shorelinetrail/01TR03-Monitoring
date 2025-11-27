@@ -58,6 +58,13 @@ export interface DeviceConfig {
   main_tank_label: string;
   tap_changer_label: string;
   differential_label: string;
+  // Gauge range settings
+  main_tank_min: number;
+  main_tank_max: number;
+  tap_changer_min: number;
+  tap_changer_max: number;
+  differential_min: number;
+  differential_max: number;
   report_interval: number;
   display_update_interval: number;
   display_brightness: number;

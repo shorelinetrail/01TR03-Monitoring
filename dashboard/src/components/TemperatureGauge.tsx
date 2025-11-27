@@ -144,6 +144,24 @@ export default function TemperatureGauge({
           >
             {unit}
           </text>
+
+          {/* Min/Max labels */}
+          <text
+            x="25"
+            y="145"
+            textAnchor="middle"
+            className="fill-gray-500 text-xs"
+          >
+            {minValue}
+          </text>
+          <text
+            x="175"
+            y="145"
+            textAnchor="middle"
+            className="fill-gray-500 text-xs"
+          >
+            {maxValue}
+          </text>
         </svg>
       </div>
 
