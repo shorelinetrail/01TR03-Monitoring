@@ -224,16 +224,33 @@ void displayTemperatures() {
 
 #ifdef USE_MCP9600
 bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
-    if (!sensor.begin(addr)) {
-        Serial.printf("MCP9600 %s (0x%02X) not found!\n", name, addr);
+    Serial.printf("\n--- Initializing MCP9600 %s at 0x%02X ---\n", name, addr);
+
+    // Check if device responds on I2C
+    Wire.beginTransmission(addr);
+    uint8_t error = Wire.endTransmission();
+    if (error != 0) {
+        Serial.printf("I2C error %d - no device at 0x%02X\n", error, addr);
         return false;
     }
+    Serial.printf("I2C device found at 0x%02X\n", addr);
+
+    if (!sensor.begin(addr)) {
+        Serial.printf("MCP9600 %s (0x%02X) begin() failed!\n", name, addr);
+        return false;
+    }
+    Serial.printf("MCP9600 begin() OK\n");
 
     // Configure for Type J thermocouple
     sensor.setADCresolution(MCP9600_ADCRESOLUTION_18);
     sensor.setThermocoupleType(MCP9600_TYPE_J);
     sensor.setFilterCoefficient(3);  // Medium filtering
     sensor.enable(true);
+
+    // Test read
+    float testTemp = sensor.readThermocouple();
+    float testAmbient = sensor.readAmbient();
+    Serial.printf("Test read - Thermocouple: %.1f C, Ambient: %.1f C\n", testTemp, testAmbient);
 
     Serial.printf("MCP9600 %s (0x%02X) initialized OK\n", name, addr);
     return true;
@@ -258,12 +275,29 @@ void initSensors() {
 #endif
 
 #ifdef USE_MCP9600
+    Serial.printf("\n=== I2C Setup ===\n");
+    Serial.printf("SDA: GPIO%d, SCL: GPIO%d\n", I2C_SDA, I2C_SCL);
     Wire.begin(I2C_SDA, I2C_SCL);
     delay(100);
 
+    // Scan I2C bus
+    Serial.println("\nScanning I2C bus...");
+    int deviceCount = 0;
+    for (byte addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+            Serial.printf("  Found device at 0x%02X\n", addr);
+            deviceCount++;
+        }
+    }
+    Serial.printf("Scan complete. Found %d device(s)\n\n", deviceCount);
+
     mainTankSensorOK = initMCP9600(mcp9600_mainTank, MCP9600_ADDR_1, "Main Tank");
     tapChangerSensorOK = initMCP9600(mcp9600_tapChanger, MCP9600_ADDR_2, "Tap Changer");
-    Serial.println("MCP9600 sensors initialized");
+
+    Serial.printf("\n=== Sensor Status ===\n");
+    Serial.printf("Main Tank: %s\n", mainTankSensorOK ? "OK" : "FAILED");
+    Serial.printf("Tap Changer: %s\n", tapChangerSensorOK ? "OK" : "FAILED");
 #endif
 }
 
