@@ -55,6 +55,12 @@ const DEFAULT_RANGES = {
   differentialMax: 30,
 };
 
+// Default chart settings
+const DEFAULT_CHART = {
+  yMin: null as number | null,
+  yMax: null as number | null,
+};
+
 // Convert time range to hours
 const getHoursFromRange = (range: string): number => {
   switch (range) {
@@ -78,6 +84,7 @@ export default function Dashboard() {
   const [labels, setLabels] = useState(DEFAULT_LABELS);
   const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
+  const [chart, setChart] = useState(DEFAULT_CHART);
 
   // Track last alert times to implement cooldown
   const lastAlertTimes = useRef<Record<string, number>>({});
@@ -122,6 +129,10 @@ export default function Dashboard() {
           tapChangerMax: configData.tap_changer_max ?? DEFAULT_RANGES.tapChangerMax,
           differentialMin: configData.differential_min ?? DEFAULT_RANGES.differentialMin,
           differentialMax: configData.differential_max ?? DEFAULT_RANGES.differentialMax,
+        });
+        setChart({
+          yMin: configData.chart_y_min ?? DEFAULT_CHART.yMin,
+          yMax: configData.chart_y_max ?? DEFAULT_CHART.yMax,
         });
       }
       setLatestReading(reading);
@@ -420,6 +431,8 @@ export default function Dashboard() {
               <TemperatureChart
                 data={historicalData}
                 thresholds={thresholds}
+                yAxisMin={chart.yMin}
+                yAxisMax={chart.yMax}
               />
             </div>
           </div>

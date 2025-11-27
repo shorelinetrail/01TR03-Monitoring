@@ -23,6 +23,8 @@ const DEFAULT_SETTINGS = {
   tap_changer_max: 120,
   differential_min: -30,
   differential_max: 30,
+  chart_y_min: null as number | null,
+  chart_y_max: null as number | null,
   telegram_enabled: false,
   telegram_bot_token: '',
   telegram_chat_id: '',
@@ -61,6 +63,8 @@ export default function Settings() {
           tap_changer_max: config.tap_changer_max ?? DEFAULT_SETTINGS.tap_changer_max,
           differential_min: config.differential_min ?? DEFAULT_SETTINGS.differential_min,
           differential_max: config.differential_max ?? DEFAULT_SETTINGS.differential_max,
+          chart_y_min: config.chart_y_min ?? DEFAULT_SETTINGS.chart_y_min,
+          chart_y_max: config.chart_y_max ?? DEFAULT_SETTINGS.chart_y_max,
           telegram_enabled: config.telegram_enabled ?? DEFAULT_SETTINGS.telegram_enabled,
           telegram_bot_token: config.telegram_bot_token ?? DEFAULT_SETTINGS.telegram_bot_token,
           telegram_chat_id: config.telegram_chat_id ?? DEFAULT_SETTINGS.telegram_chat_id,
@@ -89,6 +93,18 @@ export default function Settings() {
 
   const handleBooleanChange = (field: keyof typeof settings, value: boolean) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
+    setSaved(false);
+  };
+
+  const handleNullableNumberChange = (field: keyof typeof settings, value: string) => {
+    if (value === '') {
+      setSettings((prev) => ({ ...prev, [field]: null }));
+    } else {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        setSettings((prev) => ({ ...prev, [field]: numValue }));
+      }
+    }
     setSaved(false);
   };
 
@@ -295,6 +311,43 @@ export default function Settings() {
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Chart Settings */}
+        <section className="mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-lg font-semibold text-white">Chart Settings</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Configure the temperature trend chart. Leave blank for auto-scaling.
+              </p>
+            </div>
+            <div className="card-body">
+              <h3 className="text-md font-medium text-white mb-3">Y-Axis Range</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                  <input
+                    type="number"
+                    value={settings.chart_y_min ?? ''}
+                    onChange={(e) => handleNullableNumberChange('chart_y_min', e.target.value)}
+                    placeholder="Auto"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                  <input
+                    type="number"
+                    value={settings.chart_y_max ?? ''}
+                    onChange={(e) => handleNullableNumberChange('chart_y_max', e.target.value)}
+                    placeholder="Auto"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  />
                 </div>
               </div>
             </div>

@@ -23,9 +23,11 @@ interface TemperatureChartProps {
     tapChangerWarning: number;
     tapChangerAlarm: number;
   };
+  yAxisMin?: number | null;
+  yAxisMax?: number | null;
 }
 
-export default function TemperatureChart({ data, thresholds }: TemperatureChartProps) {
+export default function TemperatureChart({ data, thresholds, yAxisMin, yAxisMax }: TemperatureChartProps) {
   // Transform data for recharts
   const chartData = data.map((reading) => ({
     time: new Date(reading.recorded_at).getTime(),
@@ -74,7 +76,7 @@ export default function TemperatureChart({ data, thresholds }: TemperatureChartP
           <YAxis
             stroke="rgba(255,255,255,0.5)"
             tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
-            domain={['auto', 'auto']}
+            domain={[yAxisMin ?? 'auto', yAxisMax ?? 'auto']}
             unit="°C"
           />
           <Tooltip content={<CustomTooltip />} />

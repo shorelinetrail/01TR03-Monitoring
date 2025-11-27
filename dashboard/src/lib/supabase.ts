@@ -65,6 +65,9 @@ export interface DeviceConfig {
   tap_changer_max: number;
   differential_min: number;
   differential_max: number;
+  // Chart settings
+  chart_y_min: number | null;
+  chart_y_max: number | null;
   report_interval: number;
   display_update_interval: number;
   display_brightness: number;
