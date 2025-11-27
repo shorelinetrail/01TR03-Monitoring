@@ -26,6 +26,12 @@ const DEFAULT_THRESHOLDS = {
   tapChangerAlarm: 85,
 };
 
+// Differential thresholds (Tank - Tap Changer)
+const DIFFERENTIAL_THRESHOLDS = {
+  warning: 15,  // Warning if difference > 15°C
+  alarm: 25,    // Alarm if difference > 25°C
+};
+
 // Convert time range to hours
 const getHoursFromRange = (range: string): number => {
   switch (range) {
@@ -119,6 +125,26 @@ export default function Dashboard() {
     return 'normal';
   };
 
+  // Calculate temperature differential and status
+  const getDifferential = (): number | null => {
+    if (latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined ||
+        latestReading?.tap_changer_temp === null || latestReading?.tap_changer_temp === undefined) {
+      return null;
+    }
+    return latestReading.main_tank_temp - latestReading.tap_changer_temp;
+  };
+
+  const getDifferentialStatus = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
+    const diff = getDifferential();
+    if (!device?.is_online || diff === null) {
+      return 'offline';
+    }
+    const absDiff = Math.abs(diff);
+    if (absDiff >= DIFFERENTIAL_THRESHOLDS.alarm) return 'alarm';
+    if (absDiff >= DIFFERENTIAL_THRESHOLDS.warning) return 'warning';
+    return 'normal';
+  };
+
   // Generate client-side alerts based on current readings
   const getActiveAlerts = () => {
     const clientAlerts: Array<{ id: string; message: string; severity: 'warning' | 'critical' }> = [];
@@ -153,6 +179,25 @@ export default function Dashboard() {
           message: `Tap Changer temperature WARNING: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerWarning}°C)`,
           severity: 'warning',
         });
+      }
+
+      // Differential alerts
+      const diff = getDifferential();
+      if (diff !== null) {
+        const absDiff = Math.abs(diff);
+        if (absDiff >= DIFFERENTIAL_THRESHOLDS.alarm) {
+          clientAlerts.push({
+            id: 'differential-alarm',
+            message: `Temperature differential ALARM: ${diff.toFixed(1)}°C (threshold: ±${DIFFERENTIAL_THRESHOLDS.alarm}°C)`,
+            severity: 'critical',
+          });
+        } else if (absDiff >= DIFFERENTIAL_THRESHOLDS.warning) {
+          clientAlerts.push({
+            id: 'differential-warning',
+            message: `Temperature differential WARNING: ${diff.toFixed(1)}°C (threshold: ±${DIFFERENTIAL_THRESHOLDS.warning}°C)`,
+            severity: 'warning',
+          });
+        }
       }
     }
 
@@ -234,12 +279,13 @@ export default function Dashboard() {
             </div>
             <div className="card card-body">
               <TemperatureGauge
-                label="Ambient"
-                value={latestReading?.ambient_temp ?? null}
-                minValue={-10}
-                maxValue={60}
-                showThresholds={false}
-                showStatus={false}
+                label="Differential (Tank - Tap)"
+                value={getDifferential()}
+                status={getDifferentialStatus()}
+                warningThreshold={DIFFERENTIAL_THRESHOLDS.warning}
+                alarmThreshold={DIFFERENTIAL_THRESHOLDS.alarm}
+                minValue={-30}
+                maxValue={50}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
@@ -335,7 +381,15 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold text-white">Device Information</h2>
             </div>
             <div className="card-body">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-400">Ambient Temp</p>
+                  <p className="text-white font-medium text-lg">
+                    {latestReading?.ambient_temp !== null && latestReading?.ambient_temp !== undefined
+                      ? `${latestReading.ambient_temp.toFixed(1)}°C`
+                      : '---'}
+                  </p>
+                </div>
                 <div>
                   <p className="text-gray-400">Device ID</p>
                   <p className="text-white font-medium">{device?.device_id || DEVICE_ID}</p>
