@@ -1,0 +1,16 @@
+[Unit]
+Description=Camera Snapshot Uploader
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/camera-uploader
+EnvironmentFile=/home/pi/camera-uploader/.env
+ExecStart=/home/pi/camera-uploader/venv/bin/python camera_uploader.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

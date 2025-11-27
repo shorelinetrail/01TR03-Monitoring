@@ -277,6 +277,45 @@ export async function GET(request: NextRequest) {
 
       // Build URL based on camera type
       switch (type.toLowerCase()) {
+        case 'supabase':
+          // Fetch from Supabase Storage (for remote/cloud deployment)
+          {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const bucketName = process.env.CAMERA_BUCKET_NAME || 'camera-snapshots';
+            if (!supabaseUrl) {
+              return NextResponse.json(
+                { error: 'Supabase URL not configured' },
+                { status: 500 }
+              );
+            }
+            // host contains the camera ID for supabase type (e.g., "cam1")
+            const storageUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${host}/latest.jpg?t=${Date.now()}`;
+            console.log('Fetching from Supabase Storage:', storageUrl);
+
+            try {
+              const response = await fetch(storageUrl);
+              if (!response.ok) {
+                return NextResponse.json(
+                  { error: `Storage fetch failed: ${response.status}` },
+                  { status: response.status }
+                );
+              }
+              const imageBuffer = await response.arrayBuffer();
+              return new NextResponse(imageBuffer, {
+                headers: {
+                  'Content-Type': 'image/jpeg',
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Access-Control-Allow-Origin': '*',
+                },
+              });
+            } catch (err) {
+              console.error('Supabase Storage error:', err);
+              return NextResponse.json(
+                { error: 'Failed to fetch from storage' },
+                { status: 500 }
+              );
+            }
+          }
         case 'hikvision':
         case 'annke':
           // Hikvision/Annke - use curl with digest auth and retry for busy camera
