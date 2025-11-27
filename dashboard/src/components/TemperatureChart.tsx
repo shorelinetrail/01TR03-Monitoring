@@ -31,7 +31,6 @@ export default function TemperatureChart({ data, thresholds }: TemperatureChartP
     time: new Date(reading.recorded_at).getTime(),
     mainTank: reading.main_tank_temp,
     tapChanger: reading.tap_changer_temp,
-    ambient: reading.ambient_temp,
   }));
 
   const formatXAxis = (timestamp: number) => {
@@ -119,16 +118,6 @@ export default function TemperatureChart({ data, thresholds }: TemperatureChartP
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6 }}
-          />
-          <Line
-            type="monotone"
-            dataKey="ambient"
-            name="Ambient"
-            stroke="#4caf50"
-            strokeWidth={1}
-            dot={false}
-            strokeDasharray="5 5"
-            activeDot={{ r: 4 }}
           />
         </LineChart>
       </ResponsiveContainer>

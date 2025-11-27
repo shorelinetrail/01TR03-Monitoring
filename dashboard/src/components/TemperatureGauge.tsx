@@ -147,18 +147,20 @@ export default function TemperatureGauge({
 
           {/* Min/Max labels */}
           <text
-            x="25"
-            y="145"
+            x="30"
+            y="148"
             textAnchor="middle"
-            className="fill-gray-500 text-xs"
+            className="fill-gray-500"
+            style={{ fontSize: '10px' }}
           >
             {minValue}
           </text>
           <text
-            x="175"
-            y="145"
+            x="170"
+            y="148"
             textAnchor="middle"
-            className="fill-gray-500 text-xs"
+            className="fill-gray-500"
+            style={{ fontSize: '10px' }}
           >
             {maxValue}
           </text>
