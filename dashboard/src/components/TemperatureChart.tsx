@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -29,12 +29,21 @@ interface TemperatureChartProps {
 }
 
 export default function TemperatureChart({ data, thresholds, yAxisMin, yAxisMax }: TemperatureChartProps) {
+  // Track brush indices to persist across re-renders
+  const [brushIndices, setBrushIndices] = useState<{ startIndex?: number; endIndex?: number }>({});
+
   // Transform data for recharts
   const chartData = data.map((reading) => ({
     time: new Date(reading.recorded_at).getTime(),
     mainTank: reading.main_tank_temp,
     tapChanger: reading.tap_changer_temp,
   }));
+
+  const handleBrushChange = (newIndex: { startIndex?: number; endIndex?: number }) => {
+    if (newIndex.startIndex !== undefined && newIndex.endIndex !== undefined) {
+      setBrushIndices(newIndex);
+    }
+  };
 
   const formatXAxis = (timestamp: number) => {
     return format(new Date(timestamp), 'HH:mm');
@@ -130,6 +139,9 @@ export default function TemperatureChart({ data, thresholds, yAxisMin, yAxisMax 
             stroke="rgba(255,255,255,0.3)"
             fill="rgba(30,30,30,0.8)"
             tickFormatter={formatXAxis}
+            startIndex={brushIndices.startIndex}
+            endIndex={brushIndices.endIndex}
+            onChange={handleBrushChange}
           />
         </LineChart>
       </ResponsiveContainer>
