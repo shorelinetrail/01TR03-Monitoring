@@ -137,59 +137,60 @@ export default function CameraFeed({
       {/* Expanded modal - rendered via portal to avoid z-index issues */}
       {isExpanded && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] bg-black/95 flex flex-col p-4"
           onClick={() => setIsExpanded(false)}
         >
-          <div className="relative max-w-6xl w-full" onClick={(e) => e.stopPropagation()}>
-            {/* Close button */}
-            <button
-              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
-              onClick={() => setIsExpanded(false)}
-            >
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            {/* Header */}
-            <div className="mb-4 flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-white">{name}</h2>
-                {description && <p className="text-gray-400">{description}</p>}
-              </div>
+          {/* Header bar */}
+          <div className="flex justify-between items-center mb-4" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <h2 className="text-2xl font-bold text-white">{name}</h2>
+              {description && <p className="text-gray-400">{description}</p>}
+            </div>
+            <div className="flex items-center gap-4">
               <span className={`badge ${isOnline ? 'badge-normal' : 'badge-offline'}`}>
                 {isOnline ? 'LIVE' : 'OFFLINE'}
               </span>
-            </div>
-
-            {/* Full-size image */}
-            <div className="aspect-video bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={name}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <p className="text-gray-500">No image available</p>
-                </div>
-              )}
-            </div>
-
-            {/* Controls */}
-            <div className="mt-4 flex justify-between items-center">
-              <p className="text-sm text-gray-400">
-                Auto-refresh: {refreshInterval / 1000}s
-                {lastUpdate && ` | Last update: ${lastUpdate.toLocaleTimeString()}`}
-              </p>
               <button
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
-                onClick={fetchSnapshot}
+                className="text-white hover:text-gray-300 transition-colors"
+                onClick={() => setIsExpanded(false)}
               >
-                Refresh Now
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
+          </div>
+
+          {/* Full-screen image container */}
+          <div
+            className="flex-1 flex items-center justify-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={name}
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <p className="text-gray-500">No image available</p>
+              </div>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div className="mt-4 flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm text-gray-400">
+              Auto-refresh: {refreshInterval / 1000}s
+              {lastUpdate && ` | Last update: ${lastUpdate.toLocaleTimeString()}`}
+            </p>
+            <button
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
+              onClick={fetchSnapshot}
+            >
+              Refresh Now
+            </button>
           </div>
         </div>,
         document.body
