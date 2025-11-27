@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
 import AlertPanel from '@/components/AlertPanel';
@@ -28,6 +29,20 @@ const DEFAULT_THRESHOLDS = {
   tapChangerAlarm: 85,
 };
 
+// Load thresholds from localStorage
+const loadThresholds = () => {
+  if (typeof window === 'undefined') return DEFAULT_THRESHOLDS;
+  const saved = localStorage.getItem('temperatureThresholds');
+  if (saved) {
+    try {
+      return { ...DEFAULT_THRESHOLDS, ...JSON.parse(saved) };
+    } catch {
+      return DEFAULT_THRESHOLDS;
+    }
+  }
+  return DEFAULT_THRESHOLDS;
+};
+
 export default function Dashboard() {
   const [device, setDevice] = useState<Device | null>(null);
   const [latestReading, setLatestReading] = useState<TemperatureReading | null>(null);
@@ -37,6 +52,12 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
+  const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
+
+  // Load thresholds from localStorage on mount
+  useEffect(() => {
+    setThresholds(loadThresholds());
+  }, []);
 
   const getHoursFromRange = (range: string): number => {
     switch (range) {
@@ -163,8 +184,8 @@ export default function Dashboard() {
                 label="Main Tank"
                 value={latestReading?.main_tank_temp ?? null}
                 status={getStatus(latestReading?.main_tank_status)}
-                warningThreshold={DEFAULT_THRESHOLDS.mainTankWarning}
-                alarmThreshold={DEFAULT_THRESHOLDS.mainTankAlarm}
+                warningThreshold={thresholds.mainTankWarning}
+                alarmThreshold={thresholds.mainTankAlarm}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
@@ -173,8 +194,8 @@ export default function Dashboard() {
                 label="Tap Changer Cover"
                 value={latestReading?.tap_changer_temp ?? null}
                 status={getStatus(latestReading?.tap_changer_status)}
-                warningThreshold={DEFAULT_THRESHOLDS.tapChangerWarning}
-                alarmThreshold={DEFAULT_THRESHOLDS.tapChangerAlarm}
+                warningThreshold={thresholds.tapChangerWarning}
+                alarmThreshold={thresholds.tapChangerAlarm}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
@@ -183,10 +204,9 @@ export default function Dashboard() {
                 label="Ambient"
                 value={latestReading?.ambient_temp ?? null}
                 status="normal"
-                warningThreshold={40}
-                alarmThreshold={50}
                 minValue={-10}
                 maxValue={60}
+                showThresholds={false}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
@@ -217,7 +237,7 @@ export default function Dashboard() {
             <div className="card-body">
               <TemperatureChart
                 data={historicalData}
-                thresholds={DEFAULT_THRESHOLDS}
+                thresholds={thresholds}
               />
             </div>
           </div>
@@ -271,8 +291,13 @@ export default function Dashboard() {
       {/* Footer */}
       <footer className="bg-gray-900/50 border-t border-gray-800 mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-gray-500 text-sm">
+          <p className="text-center text-gray-500 text-sm mb-3">
             01TR03 Transformer Monitoring System | 66/11kV 50MVA Power Transformer
+          </p>
+          <p className="text-center">
+            <Link href="/settings" className="text-primary-400 hover:text-primary-300 text-sm">
+              Settings
+            </Link>
           </p>
         </div>
       </footer>

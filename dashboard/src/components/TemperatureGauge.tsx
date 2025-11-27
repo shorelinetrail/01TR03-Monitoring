@@ -6,12 +6,13 @@ interface TemperatureGaugeProps {
   label: string;
   value: number | null;
   status: 'normal' | 'warning' | 'alarm' | 'error' | 'offline';
-  warningThreshold: number;
-  alarmThreshold: number;
+  warningThreshold?: number;
+  alarmThreshold?: number;
   minValue?: number;
   maxValue?: number;
   unit?: string;
   lastUpdate?: string | null;
+  showThresholds?: boolean;
 }
 
 export default function TemperatureGauge({
@@ -24,6 +25,7 @@ export default function TemperatureGauge({
   maxValue = 120,
   unit = '°C',
   lastUpdate,
+  showThresholds = true,
 }: TemperatureGaugeProps) {
   const normalizedValue = value !== null
     ? Math.min(Math.max((value - minValue) / (maxValue - minValue), 0), 1)
@@ -63,8 +65,8 @@ export default function TemperatureGauge({
   };
 
   // Calculate threshold positions on the gauge
-  const warningPos = (warningThreshold - minValue) / (maxValue - minValue);
-  const alarmPos = (alarmThreshold - minValue) / (maxValue - minValue);
+  const warningPos = warningThreshold !== undefined ? (warningThreshold - minValue) / (maxValue - minValue) : 0;
+  const alarmPos = alarmThreshold !== undefined ? (alarmThreshold - minValue) / (maxValue - minValue) : 0;
 
   return (
     <div className={`flex flex-col items-center ${getStatusClass()}`}>
@@ -83,26 +85,30 @@ export default function TemperatureGauge({
           />
 
           {/* Warning zone indicator */}
-          <path
-            d="M 20 130 A 80 80 0 1 1 180 130"
-            fill="none"
-            stroke="rgba(255,152,0,0.2)"
-            strokeWidth="12"
-            strokeLinecap="round"
-            strokeDasharray={`${arcLength * (1 - warningPos)} ${arcLength * warningPos}`}
-            strokeDashoffset={-arcLength * warningPos}
-          />
+          {showThresholds && warningThreshold !== undefined && (
+            <path
+              d="M 20 130 A 80 80 0 1 1 180 130"
+              fill="none"
+              stroke="rgba(255,152,0,0.2)"
+              strokeWidth="12"
+              strokeLinecap="round"
+              strokeDasharray={`${arcLength * (1 - warningPos)} ${arcLength * warningPos}`}
+              strokeDashoffset={-arcLength * warningPos}
+            />
+          )}
 
           {/* Alarm zone indicator */}
-          <path
-            d="M 20 130 A 80 80 0 1 1 180 130"
-            fill="none"
-            stroke="rgba(244,67,54,0.2)"
-            strokeWidth="12"
-            strokeLinecap="round"
-            strokeDasharray={`${arcLength * (1 - alarmPos)} ${arcLength * alarmPos}`}
-            strokeDashoffset={-arcLength * alarmPos}
-          />
+          {showThresholds && alarmThreshold !== undefined && (
+            <path
+              d="M 20 130 A 80 80 0 1 1 180 130"
+              fill="none"
+              stroke="rgba(244,67,54,0.2)"
+              strokeWidth="12"
+              strokeLinecap="round"
+              strokeDasharray={`${arcLength * (1 - alarmPos)} ${arcLength * alarmPos}`}
+              strokeDashoffset={-arcLength * alarmPos}
+            />
+          )}
 
           {/* Value arc */}
           <path
@@ -158,10 +164,12 @@ export default function TemperatureGauge({
       </div>
 
       {/* Thresholds */}
-      <div className="flex justify-between w-full mt-3 text-xs text-gray-500">
-        <span>Warn: {warningThreshold}{unit}</span>
-        <span>Alarm: {alarmThreshold}{unit}</span>
-      </div>
+      {showThresholds && warningThreshold !== undefined && alarmThreshold !== undefined && (
+        <div className="flex justify-between w-full mt-3 text-xs text-gray-500">
+          <span>Warn: {warningThreshold}{unit}</span>
+          <span>Alarm: {alarmThreshold}{unit}</span>
+        </div>
+      )}
 
       {/* Last Update */}
       {lastUpdate && (
