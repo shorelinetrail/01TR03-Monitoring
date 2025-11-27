@@ -135,6 +135,111 @@ function generateDigestAuth(
   return authHeader;
 }
 
+// Helper to sleep for retry backoff
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Fetch snapshot with curl and retry logic for 503 Device Busy
+async function fetchCameraSnapshot(
+  host: string,
+  username: string,
+  password: string,
+  maxRetries = 3
+): Promise<{ success: true; data: Buffer } | { success: false; error: string; status: number }> {
+  // Use channel 102 (substream) which is less resource-intensive than main stream
+  // Format: 1=main ch1, 101=main ch1 alt, 102=sub ch1
+  const camUrl = `http://${host}/ISAPI/Streaming/channels/102/picture`;
+  const delimiter = '---HTTP_CODE---';
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Fetching camera (attempt ${attempt}/${maxRetries}):`, camUrl);
+
+    try {
+      const resultWithCode = execSync(
+        `curl -s --digest -u "${username}:${password}" --max-time 10 -w "${delimiter}%{http_code}" "${camUrl}"`,
+        { maxBuffer: 10 * 1024 * 1024 }
+      );
+
+      // Extract HTTP status code from delimiter
+      const delimiterIndex = resultWithCode.lastIndexOf(delimiter);
+      let httpCode = '';
+      let result: Buffer;
+      if (delimiterIndex >= 0) {
+        httpCode = resultWithCode.subarray(delimiterIndex + delimiter.length).toString('utf-8').trim();
+        result = resultWithCode.subarray(0, delimiterIndex);
+      } else {
+        result = resultWithCode;
+      }
+      console.log('HTTP response code:', httpCode || 'unknown');
+
+      // Check for retryable errors (503 Device Busy)
+      if (httpCode === '503') {
+        console.log(`Camera busy (503), ${attempt < maxRetries ? 'retrying...' : 'giving up'}`);
+        if (attempt < maxRetries) {
+          await sleep(500 * attempt); // 500ms, 1000ms backoff
+          continue;
+        }
+        return { success: false, error: 'Camera busy - try reducing refresh rate or close other streams', status: 503 };
+      }
+
+      // Check for HTTP errors
+      if (httpCode === '401') {
+        return { success: false, error: 'Camera authentication failed - check username/password', status: 401 };
+      }
+      if (httpCode === '403') {
+        return { success: false, error: 'Camera access forbidden - check user permissions', status: 403 };
+      }
+
+      // Check for valid JPEG
+      if (result.length > 1000 && result[0] === 0xFF && result[1] === 0xD8) {
+        console.log('Got valid JPEG:', result.length, 'bytes');
+        return { success: true, data: result };
+      }
+
+      // Got response but not a JPEG
+      const text = result.toString('utf-8');
+      console.log('Non-JPEG response:', result.length, 'bytes');
+      console.log('Content:', text.substring(0, 300));
+
+      // Parse Hikvision XML error
+      if (text.includes('<statusString>')) {
+        const match = text.match(/<statusString>([^<]+)<\/statusString>/);
+        if (match) {
+          // Device Busy should retry
+          if (match[1].toLowerCase().includes('busy')) {
+            if (attempt < maxRetries) {
+              await sleep(500 * attempt);
+              continue;
+            }
+          }
+          return { success: false, error: `Camera: ${match[1]}`, status: 500 };
+        }
+      }
+
+      return { success: false, error: 'Camera returned invalid response', status: 500 };
+
+    } catch (err: unknown) {
+      const exitStatus = (err as { status?: number })?.status;
+
+      if (exitStatus === 28) {
+        return { success: false, error: 'Camera timeout - check if online and reachable', status: 504 };
+      }
+      if (exitStatus === 7) {
+        return { success: false, error: 'Could not connect - check IP and port', status: 503 };
+      }
+      if (exitStatus === 6) {
+        return { success: false, error: 'Could not resolve hostname', status: 503 };
+      }
+
+      console.error('Curl error:', err);
+      return { success: false, error: 'Camera connection failed', status: 500 };
+    }
+  }
+
+  return { success: false, error: 'Camera unavailable after retries', status: 503 };
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
@@ -174,103 +279,21 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - use curl for reliable digest auth
+          // Hikvision/Annke - use curl with digest auth and retry for busy camera
           {
-            const camUrl = `http://${host}/ISAPI/Streaming/channels/1/picture`;
-            console.log('Fetching with curl:', camUrl);
-            try {
-              // Use curl with digest auth - capture HTTP code with unique delimiter
-              // JPEGs end with FFD9, so this delimiter won't appear in image data
-              const delimiter = '---HTTP_CODE---';
-              const resultWithCode = execSync(
-                `curl -s --digest -u "${username}:${password}" --max-time 10 -w "${delimiter}%{http_code}" "${camUrl}"`,
-                { maxBuffer: 10 * 1024 * 1024 }
-              );
-
-              // Extract HTTP status code from delimiter
-              const delimiterIndex = resultWithCode.lastIndexOf(delimiter);
-              let httpCode = '';
-              let result: Buffer;
-              if (delimiterIndex >= 0) {
-                httpCode = resultWithCode.subarray(delimiterIndex + delimiter.length).toString('utf-8').trim();
-                result = resultWithCode.subarray(0, delimiterIndex);
-              } else {
-                result = resultWithCode;
-              }
-              console.log('HTTP response code:', httpCode || 'unknown');
-
-              // Check for HTTP errors first
-              if (httpCode === '401') {
-                console.error('Camera authentication failed (401)');
-                return NextResponse.json(
-                  { error: 'Camera authentication failed - check username/password in .env.local' },
-                  { status: 401 }
-                );
-              }
-
-              if (httpCode === '403') {
-                console.error('Camera access forbidden (403)');
-                return NextResponse.json(
-                  { error: 'Camera access forbidden - check user permissions on camera' },
-                  { status: 403 }
-                );
-              }
-
-              if (result.length > 1000 && result[0] === 0xFF && result[1] === 0xD8) {
-                // Valid JPEG (starts with FFD8 magic bytes)
-                console.log('Curl success! Got valid JPEG:', result.length, 'bytes');
-                return new NextResponse(result, {
-                  headers: {
-                    'Content-Type': 'image/jpeg',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Access-Control-Allow-Origin': '*',
-                  },
-                });
-              } else if (result.length > 0) {
-                // Got response but not a JPEG - parse as text to debug
-                const text = result.toString('utf-8');
-                console.log('Curl returned non-JPEG response:', result.length, 'bytes');
-                console.log('Content preview:', text.substring(0, 500));
-
-                // Try to extract error from Hikvision XML response
-                let errorMsg = 'Camera returned non-image response';
-                if (text.includes('<statusString>')) {
-                  const match = text.match(/<statusString>([^<]+)<\/statusString>/);
-                  if (match) {
-                    errorMsg = `Camera error: ${match[1]}`;
-                  }
-                } else if (text.includes('Unauthorized') || text.includes('401')) {
-                  errorMsg = 'Camera authentication failed - check username/password';
-                }
-
-                throw new Error(errorMsg);
-              } else {
-                throw new Error('Empty response from curl');
-              }
-            } catch (err: unknown) {
-              console.error('Curl error:', err);
-
-              // Check for curl exit codes
-              const exitStatus = (err as { status?: number })?.status;
-              let errorMsg = 'Camera connection failed';
-              let statusCode = 500;
-
-              if (exitStatus === 28) {
-                errorMsg = 'Camera connection timeout - check if camera is online and reachable';
-                statusCode = 504;
-              } else if (exitStatus === 7) {
-                errorMsg = 'Could not connect to camera - check IP address and port';
-                statusCode = 503;
-              } else if (exitStatus === 6) {
-                errorMsg = 'Could not resolve camera hostname';
-                statusCode = 503;
-              } else if (err instanceof Error) {
-                errorMsg = err.message;
-              }
-
+            const result = await fetchCameraSnapshot(host, username, password);
+            if (result.success) {
+              return new NextResponse(result.data, {
+                headers: {
+                  'Content-Type': 'image/jpeg',
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Access-Control-Allow-Origin': '*',
+                },
+              });
+            } else {
               return NextResponse.json(
-                { error: errorMsg },
-                { status: statusCode }
+                { error: result.error },
+                { status: result.status }
               );
             }
           }

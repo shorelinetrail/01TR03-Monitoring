@@ -230,7 +230,7 @@ export default function Dashboard() {
                   name="Oil & Winding Temperatures"
                   description="Temperature gauge monitoring"
                   snapshotUrl={`/api/camera-snapshot?camera=1`}
-                  refreshInterval={1000}
+                  refreshInterval={5000}
                 />
               </div>
               <div className="card card-body">
@@ -238,7 +238,7 @@ export default function Dashboard() {
                   name="Oil Level"
                   description="Oil level indicator monitoring"
                   snapshotUrl={`/api/camera-snapshot?camera=2`}
-                  refreshInterval={1000}
+                  refreshInterval={5000}
                 />
               </div>
             </div>
