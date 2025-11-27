@@ -15,8 +15,8 @@
 // ============================================================================
 // SENSOR SELECTION - Uncomment ONE of these
 // ============================================================================
-#define USE_MAX6675      // Type K, SPI, no cold junction readout
-// #define USE_MCP9600   // Type J/K, I2C, cold junction available
+// #define USE_MAX6675      // Type K, SPI, no cold junction readout
+#define USE_MCP9600   // Type J/K, I2C, cold junction available
 
 #ifdef USE_MAX6675
   #include <max6675.h>
@@ -349,10 +349,13 @@ void readSensors() {
 #endif
 
 #ifdef USE_MCP9600
+    Serial.println("\n--- Reading MCP9600 Sensors ---");
+
     // Read Main Tank temperature
     if (mainTankSensorOK) {
         mainTankTemp = mcp9600_mainTank.readThermocouple();
         ambientTemp = mcp9600_mainTank.readAmbient();  // Cold junction temperature!
+        Serial.printf("Main Tank: %.1f C (Ambient: %.1f C)\n", mainTankTemp, ambientTemp);
 
         if (mainTankTemp >= MAIN_TANK_ALARM) {
             mainTankStatus = "ALRM";
@@ -364,11 +367,13 @@ void readSensors() {
     } else {
         mainTankTemp = -999.0;
         mainTankStatus = "ERR";
+        Serial.println("Main Tank: SENSOR ERROR");
     }
 
     // Read Tap Changer temperature
     if (tapChangerSensorOK) {
         tapChangerTemp = mcp9600_tapChanger.readThermocouple();
+        Serial.printf("Tap Changer: %.1f C\n", tapChangerTemp);
 
         if (tapChangerTemp >= TAP_CHANGER_ALARM) {
             tapChangerStatus = "ALRM";
@@ -380,7 +385,10 @@ void readSensors() {
     } else {
         tapChangerTemp = -999.0;
         tapChangerStatus = "ERR";
+        Serial.println("Tap Changer: SENSOR ERROR");
     }
+
+    Serial.printf("Status - Main: %s, Tap: %s\n", mainTankStatus.c_str(), tapChangerStatus.c_str());
 #endif
 }
 
