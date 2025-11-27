@@ -166,6 +166,7 @@ export default function Dashboard() {
                 status={getStatus(latestReading?.main_tank_status)}
                 warningThreshold={DEFAULT_THRESHOLDS.mainTankWarning}
                 alarmThreshold={DEFAULT_THRESHOLDS.mainTankAlarm}
+                lastUpdate={latestReading?.recorded_at}
               />
             </div>
             <div className="card card-body">
@@ -175,6 +176,7 @@ export default function Dashboard() {
                 status={getStatus(latestReading?.tap_changer_status)}
                 warningThreshold={DEFAULT_THRESHOLDS.tapChangerWarning}
                 alarmThreshold={DEFAULT_THRESHOLDS.tapChangerAlarm}
+                lastUpdate={latestReading?.recorded_at}
               />
             </div>
             <div className="card card-body">
@@ -184,6 +186,11 @@ export default function Dashboard() {
                   {latestReading?.ambient_temp?.toFixed(1) ?? '---'}°C
                 </p>
                 <p className="text-gray-400 mt-2">Cold Junction Temperature</p>
+                {latestReading?.recorded_at && (
+                  <p className="text-xs text-gray-500 mt-3">
+                    Updated: {new Date(latestReading.recorded_at).toLocaleTimeString()}
+                  </p>
+                )}
               </div>
             </div>
           </div>

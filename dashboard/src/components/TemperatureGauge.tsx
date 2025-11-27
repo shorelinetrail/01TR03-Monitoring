@@ -11,6 +11,7 @@ interface TemperatureGaugeProps {
   minValue?: number;
   maxValue?: number;
   unit?: string;
+  lastUpdate?: string | null;
 }
 
 export default function TemperatureGauge({
@@ -22,6 +23,7 @@ export default function TemperatureGauge({
   minValue = 0,
   maxValue = 120,
   unit = '°C',
+  lastUpdate,
 }: TemperatureGaugeProps) {
   const normalizedValue = value !== null
     ? Math.min(Math.max((value - minValue) / (maxValue - minValue), 0), 1)
@@ -160,6 +162,13 @@ export default function TemperatureGauge({
         <span>Warn: {warningThreshold}{unit}</span>
         <span>Alarm: {alarmThreshold}{unit}</span>
       </div>
+
+      {/* Last Update */}
+      {lastUpdate && (
+        <p className="text-xs text-gray-500 mt-2">
+          Updated: {new Date(lastUpdate).toLocaleTimeString()}
+        </p>
+      )}
     </div>
   );
 }
