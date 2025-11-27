@@ -31,6 +31,17 @@ const DEFAULT_THRESHOLDS = {
   tapChangerAlarm: 85,
 };
 
+// Convert time range to hours
+const getHoursFromRange = (range: string): number => {
+  switch (range) {
+    case '1h': return 1;
+    case '6h': return 6;
+    case '24h': return 24;
+    case '7d': return 168;
+    default: return 24;
+  }
+};
+
 export default function Dashboard() {
   const [device, setDevice] = useState<Device | null>(null);
   const [latestReading, setLatestReading] = useState<TemperatureReading | null>(null);
@@ -41,16 +52,6 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
-
-  const getHoursFromRange = (range: string): number => {
-    switch (range) {
-      case '1h': return 1;
-      case '6h': return 6;
-      case '24h': return 24;
-      case '7d': return 168;
-      default: return 24;
-    }
-  };
 
   // Fetch all data
   const fetchData = useCallback(async () => {
