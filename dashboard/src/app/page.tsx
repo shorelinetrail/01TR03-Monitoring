@@ -10,10 +10,12 @@ import {
   TemperatureReading,
   Alert,
   Device,
+  DeviceConfig,
   getLatestReading,
   getReadings,
   getUnacknowledgedAlerts,
   getDevice,
+  getDeviceConfig,
   subscribeToReadings,
   subscribeToAlerts,
 } from '@/lib/supabase';
@@ -29,20 +31,6 @@ const DEFAULT_THRESHOLDS = {
   tapChangerAlarm: 85,
 };
 
-// Load thresholds from localStorage
-const loadThresholds = () => {
-  if (typeof window === 'undefined') return DEFAULT_THRESHOLDS;
-  const saved = localStorage.getItem('temperatureThresholds');
-  if (saved) {
-    try {
-      return { ...DEFAULT_THRESHOLDS, ...JSON.parse(saved) };
-    } catch {
-      return DEFAULT_THRESHOLDS;
-    }
-  }
-  return DEFAULT_THRESHOLDS;
-};
-
 export default function Dashboard() {
   const [device, setDevice] = useState<Device | null>(null);
   const [latestReading, setLatestReading] = useState<TemperatureReading | null>(null);
@@ -53,11 +41,6 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
-
-  // Load thresholds from localStorage on mount
-  useEffect(() => {
-    setThresholds(loadThresholds());
-  }, []);
 
   const getHoursFromRange = (range: string): number => {
     switch (range) {
@@ -72,14 +55,23 @@ export default function Dashboard() {
   // Fetch all data
   const fetchData = useCallback(async () => {
     try {
-      const [deviceData, reading, readings, alertsData] = await Promise.all([
+      const [deviceData, configData, reading, readings, alertsData] = await Promise.all([
         getDevice(DEVICE_ID),
+        getDeviceConfig(DEVICE_ID),
         getLatestReading(DEVICE_ID),
         getReadings(DEVICE_ID, getHoursFromRange(timeRange)),
         getUnacknowledgedAlerts(DEVICE_ID),
       ]);
 
       setDevice(deviceData);
+      if (configData) {
+        setThresholds({
+          mainTankWarning: configData.main_tank_warning,
+          mainTankAlarm: configData.main_tank_alarm,
+          tapChangerWarning: configData.tap_changer_warning,
+          tapChangerAlarm: configData.tap_changer_alarm,
+        });
+      }
       setLatestReading(reading);
       setHistoricalData(readings);
       setAlerts(alertsData);
@@ -203,10 +195,10 @@ export default function Dashboard() {
               <TemperatureGauge
                 label="Ambient"
                 value={latestReading?.ambient_temp ?? null}
-                status="normal"
                 minValue={-10}
                 maxValue={60}
                 showThresholds={false}
+                showStatus={false}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>

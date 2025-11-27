@@ -5,7 +5,7 @@ import React from 'react';
 interface TemperatureGaugeProps {
   label: string;
   value: number | null;
-  status: 'normal' | 'warning' | 'alarm' | 'error' | 'offline';
+  status?: 'normal' | 'warning' | 'alarm' | 'error' | 'offline';
   warningThreshold?: number;
   alarmThreshold?: number;
   minValue?: number;
@@ -13,12 +13,13 @@ interface TemperatureGaugeProps {
   unit?: string;
   lastUpdate?: string | null;
   showThresholds?: boolean;
+  showStatus?: boolean;
 }
 
 export default function TemperatureGauge({
   label,
   value,
-  status,
+  status = 'normal',
   warningThreshold,
   alarmThreshold,
   minValue = 0,
@@ -26,6 +27,7 @@ export default function TemperatureGauge({
   unit = '°C',
   lastUpdate,
   showThresholds = true,
+  showStatus = true,
 }: TemperatureGaugeProps) {
   const normalizedValue = value !== null
     ? Math.min(Math.max((value - minValue) / (maxValue - minValue), 0), 1)
@@ -148,19 +150,21 @@ export default function TemperatureGauge({
       {/* Label */}
       <div className="text-center mt-2">
         <h3 className="text-lg font-semibold text-white">{label}</h3>
-        <span
-          className={`badge ${
-            status === 'normal'
-              ? 'badge-normal'
-              : status === 'warning'
-              ? 'badge-warning'
-              : status === 'alarm'
-              ? 'badge-alarm'
-              : 'badge-offline'
-          }`}
-        >
-          {status.toUpperCase()}
-        </span>
+        {showStatus && (
+          <span
+            className={`badge ${
+              status === 'normal'
+                ? 'badge-normal'
+                : status === 'warning'
+                ? 'badge-warning'
+                : status === 'alarm'
+                ? 'badge-alarm'
+                : 'badge-offline'
+            }`}
+          >
+            {status.toUpperCase()}
+          </span>
+        )}
       </div>
 
       {/* Thresholds */}

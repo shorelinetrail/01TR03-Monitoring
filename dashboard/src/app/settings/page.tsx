@@ -2,29 +2,40 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getDeviceConfig, updateDeviceConfig, DeviceConfig } from '@/lib/supabase';
+
+const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 
 // Default thresholds
 const DEFAULT_THRESHOLDS = {
-  mainTankWarning: 85,
-  mainTankAlarm: 95,
-  tapChangerWarning: 70,
-  tapChangerAlarm: 85,
+  main_tank_warning: 85,
+  main_tank_alarm: 95,
+  tap_changer_warning: 70,
+  tap_changer_alarm: 85,
 };
 
 export default function Settings() {
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load thresholds from localStorage on mount
+  // Load thresholds from Supabase on mount
   useEffect(() => {
-    const savedThresholds = localStorage.getItem('temperatureThresholds');
-    if (savedThresholds) {
-      try {
-        setThresholds({ ...DEFAULT_THRESHOLDS, ...JSON.parse(savedThresholds) });
-      } catch {
-        // Use defaults
+    async function loadConfig() {
+      const config = await getDeviceConfig(DEVICE_ID);
+      if (config) {
+        setThresholds({
+          main_tank_warning: config.main_tank_warning,
+          main_tank_alarm: config.main_tank_alarm,
+          tap_changer_warning: config.tap_changer_warning,
+          tap_changer_alarm: config.tap_changer_alarm,
+        });
       }
+      setLoading(false);
     }
+    loadConfig();
   }, []);
 
   const handleChange = (field: keyof typeof thresholds, value: string) => {
@@ -35,17 +46,34 @@ export default function Settings() {
     }
   };
 
-  const handleSave = () => {
-    localStorage.setItem('temperatureThresholds', JSON.stringify(thresholds));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    const success = await updateDeviceConfig(DEVICE_ID, thresholds);
+    setSaving(false);
+    if (success) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } else {
+      setError('Failed to save settings');
+    }
   };
 
   const handleReset = () => {
     setThresholds(DEFAULT_THRESHOLDS);
-    localStorage.removeItem('temperatureThresholds');
     setSaved(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-400">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -84,8 +112,8 @@ export default function Settings() {
                     </label>
                     <input
                       type="number"
-                      value={thresholds.mainTankWarning}
-                      onChange={(e) => handleChange('mainTankWarning', e.target.value)}
+                      value={thresholds.main_tank_warning}
+                      onChange={(e) => handleChange('main_tank_warning', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
@@ -95,8 +123,8 @@ export default function Settings() {
                     </label>
                     <input
                       type="number"
-                      value={thresholds.mainTankAlarm}
-                      onChange={(e) => handleChange('mainTankAlarm', e.target.value)}
+                      value={thresholds.main_tank_alarm}
+                      onChange={(e) => handleChange('main_tank_alarm', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
@@ -113,8 +141,8 @@ export default function Settings() {
                     </label>
                     <input
                       type="number"
-                      value={thresholds.tapChangerWarning}
-                      onChange={(e) => handleChange('tapChangerWarning', e.target.value)}
+                      value={thresholds.tap_changer_warning}
+                      onChange={(e) => handleChange('tap_changer_warning', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
@@ -124,21 +152,27 @@ export default function Settings() {
                     </label>
                     <input
                       type="number"
-                      value={thresholds.tapChangerAlarm}
-                      onChange={(e) => handleChange('tapChangerAlarm', e.target.value)}
+                      value={thresholds.tap_changer_alarm}
+                      onChange={(e) => handleChange('tap_changer_alarm', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                 </div>
               </div>
 
+              {/* Error message */}
+              {error && (
+                <p className="text-red-400 text-sm">{error}</p>
+              )}
+
               {/* Buttons */}
               <div className="flex gap-3 pt-4 border-t border-gray-700">
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded transition-colors"
+                  disabled={saving}
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 text-white rounded transition-colors"
                 >
-                  Save Changes
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={handleReset}
@@ -153,15 +187,6 @@ export default function Settings() {
                 )}
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Info */}
-        <section>
-          <div className="card card-body">
-            <p className="text-sm text-gray-400">
-              These thresholds are stored locally in your browser and are used to display warning/alarm indicators on the dashboard gauges and charts.
-            </p>
           </div>
         </section>
       </main>

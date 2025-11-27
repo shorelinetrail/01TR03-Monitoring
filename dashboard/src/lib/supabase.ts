@@ -162,6 +162,38 @@ export async function getDevice(deviceId: string): Promise<Device | null> {
   return data;
 }
 
+export async function getDeviceConfig(deviceId: string): Promise<DeviceConfig | null> {
+  const { data, error } = await supabase
+    .from('device_config')
+    .select('*')
+    .eq('device_id', deviceId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching device config:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function updateDeviceConfig(
+  deviceId: string,
+  config: Partial<DeviceConfig>
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('device_config')
+    .update(config)
+    .eq('device_id', deviceId);
+
+  if (error) {
+    console.error('Error updating device config:', error);
+    return false;
+  }
+
+  return true;
+}
+
 export async function getCameras(): Promise<Camera[]> {
   const { data, error } = await supabase
     .from('cameras')
