@@ -185,8 +185,9 @@ export async function GET(request: NextRequest) {
                 { maxBuffer: 10 * 1024 * 1024 }
               );
 
-              if (result.length > 0) {
-                console.log('Curl success! Got', result.length, 'bytes');
+              if (result.length > 1000 && result[0] === 0xFF && result[1] === 0xD8) {
+                // Valid JPEG (starts with FFD8 magic bytes)
+                console.log('Curl success! Got valid JPEG:', result.length, 'bytes');
                 return new NextResponse(result, {
                   headers: {
                     'Content-Type': 'image/jpeg',
@@ -194,6 +195,12 @@ export async function GET(request: NextRequest) {
                     'Access-Control-Allow-Origin': '*',
                   },
                 });
+              } else if (result.length > 0) {
+                // Got response but not a JPEG - log first 500 chars to debug
+                const text = result.toString('utf-8').substring(0, 500);
+                console.log('Curl returned non-JPEG response:', result.length, 'bytes');
+                console.log('Content preview:', text);
+                throw new Error('Camera returned non-image response');
               } else {
                 throw new Error('Empty response from curl');
               }
