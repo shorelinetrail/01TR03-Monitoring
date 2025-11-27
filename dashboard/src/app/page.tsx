@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
-import CameraFeed from '@/components/CameraFeed';
 import AlertPanel from '@/components/AlertPanel';
 import {
   supabase,
@@ -180,18 +179,16 @@ export default function Dashboard() {
               />
             </div>
             <div className="card card-body">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-white mb-4">Ambient</h3>
-                <p className="text-4xl font-bold text-green-400">
-                  {latestReading?.ambient_temp?.toFixed(1) ?? '---'}°C
-                </p>
-                <p className="text-gray-400 mt-2">Cold Junction Temperature</p>
-                {latestReading?.recorded_at && (
-                  <p className="text-xs text-gray-500 mt-3">
-                    Updated: {new Date(latestReading.recorded_at).toLocaleTimeString()}
-                  </p>
-                )}
-              </div>
+              <TemperatureGauge
+                label="Ambient"
+                value={latestReading?.ambient_temp ?? null}
+                status="normal"
+                warningThreshold={40}
+                alarmThreshold={50}
+                minValue={-10}
+                maxValue={60}
+                lastUpdate={latestReading?.recorded_at}
+              />
             </div>
           </div>
         </section>
@@ -226,42 +223,16 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Camera Feeds and Alerts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Camera Feeds */}
-          <section className="lg:col-span-2">
-            <h2 className="text-lg font-semibold text-white mb-4">Camera Feeds</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="card card-body">
-                <CameraFeed
-                  name="Oil & Winding Temperatures"
-                  description="Temperature gauge monitoring"
-                  snapshotUrl={`/api/camera-snapshot?camera=1`}
-                  refreshInterval={5000}
-                />
-              </div>
-              <div className="card card-body">
-                <CameraFeed
-                  name="Oil Level"
-                  description="Oil level indicator monitoring"
-                  snapshotUrl={`/api/camera-snapshot?camera=2`}
-                  refreshInterval={5000}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Alerts Panel */}
-          <section>
-            <h2 className="text-lg font-semibold text-white mb-4">Active Alerts</h2>
-            <div className="card card-body">
-              <AlertPanel
-                alerts={alerts}
-                onAcknowledge={handleAlertAcknowledge}
-              />
-            </div>
-          </section>
-        </div>
+        {/* Alerts Panel */}
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-white mb-4">Active Alerts</h2>
+          <div className="card card-body">
+            <AlertPanel
+              alerts={alerts}
+              onAcknowledge={handleAlertAcknowledge}
+            />
+          </div>
+        </section>
 
         {/* Device Info */}
         <section className="mt-8">

@@ -55,11 +55,11 @@
   #define MCP9600_ADDR_2  0x67  // Tap Changer (ADDR pin to VCC)
 #endif
 
-// Temperature thresholds
-#define MAIN_TANK_WARNING    85.0
-#define MAIN_TANK_ALARM      95.0
-#define TAP_CHANGER_WARNING  70.0
-#define TAP_CHANGER_ALARM    85.0
+// Temperature thresholds (defaults, configurable via web interface)
+float mainTankWarning = 85.0;
+float mainTankAlarm = 95.0;
+float tapChangerWarning = 70.0;
+float tapChangerAlarm = 85.0;
 
 // Display - exact same as StationBoards
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
@@ -321,9 +321,9 @@ void readSensors() {
         mainTankSensorOK = true;
         mainTankTemp = reading;
 
-        if (mainTankTemp >= MAIN_TANK_ALARM) {
+        if (mainTankTemp >= mainTankAlarm) {
             mainTankStatus = "ALRM";
-        } else if (mainTankTemp >= MAIN_TANK_WARNING) {
+        } else if (mainTankTemp >= mainTankWarning) {
             mainTankStatus = "WARN";
         } else {
             mainTankStatus = "OK";
@@ -343,9 +343,9 @@ void readSensors() {
         tapChangerSensorOK = true;
         tapChangerTemp = reading;
 
-        if (tapChangerTemp >= TAP_CHANGER_ALARM) {
+        if (tapChangerTemp >= tapChangerAlarm) {
             tapChangerStatus = "ALRM";
-        } else if (tapChangerTemp >= TAP_CHANGER_WARNING) {
+        } else if (tapChangerTemp >= tapChangerWarning) {
             tapChangerStatus = "WARN";
         } else {
             tapChangerStatus = "OK";
@@ -365,9 +365,9 @@ void readSensors() {
         ambientTemp = mcp9600_mainTank.readAmbient();  // Cold junction temperature!
         Serial.printf("Main Tank: %.1f C (Ambient: %.1f C)\n", mainTankTemp, ambientTemp);
 
-        if (mainTankTemp >= MAIN_TANK_ALARM) {
+        if (mainTankTemp >= mainTankAlarm) {
             mainTankStatus = "ALRM";
-        } else if (mainTankTemp >= MAIN_TANK_WARNING) {
+        } else if (mainTankTemp >= mainTankWarning) {
             mainTankStatus = "WARN";
         } else {
             mainTankStatus = "OK";
@@ -383,9 +383,9 @@ void readSensors() {
         tapChangerTemp = mcp9600_tapChanger.readThermocouple();
         Serial.printf("Tap Changer: %.1f C\n", tapChangerTemp);
 
-        if (tapChangerTemp >= TAP_CHANGER_ALARM) {
+        if (tapChangerTemp >= tapChangerAlarm) {
             tapChangerStatus = "ALRM";
-        } else if (tapChangerTemp >= TAP_CHANGER_WARNING) {
+        } else if (tapChangerTemp >= tapChangerWarning) {
             tapChangerStatus = "WARN";
         } else {
             tapChangerStatus = "OK";
@@ -502,6 +502,10 @@ void loadConfig() {
     wifiPassword = preferences.getString("wifi_pass", "");
     supabaseUrl = preferences.getString("supa_url", "");
     supabaseKey = preferences.getString("supa_key", "");
+    mainTankWarning = preferences.getFloat("mt_warn", 85.0);
+    mainTankAlarm = preferences.getFloat("mt_alarm", 95.0);
+    tapChangerWarning = preferences.getFloat("tc_warn", 70.0);
+    tapChangerAlarm = preferences.getFloat("tc_alarm", 85.0);
     preferences.end();
 }
 
@@ -511,45 +515,77 @@ void saveConfig() {
     preferences.putString("wifi_pass", wifiPassword);
     preferences.putString("supa_url", supabaseUrl);
     preferences.putString("supa_key", supabaseKey);
+    preferences.putFloat("mt_warn", mainTankWarning);
+    preferences.putFloat("mt_alarm", mainTankAlarm);
+    preferences.putFloat("tc_warn", tapChangerWarning);
+    preferences.putFloat("tc_alarm", tapChangerAlarm);
     preferences.end();
 }
 
 void handleRoot() {
-    String html = R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <style>
-        body { font-family: Arial; background: #1a1a2e; color: #fff; padding: 20px; }
-        .card { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; max-width: 400px; margin: 0 auto; }
-        h1 { text-align: center; }
-        input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #444; background: #333; color: #fff; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #4fc3f7; border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <div class='card'>
-        <h1>01TR03 Setup</h1>
-        <form action='/save' method='POST'>
-            <input type='text' name='ssid' placeholder='WiFi SSID'>
-            <input type='password' name='pass' placeholder='WiFi Password'>
-            <input type='text' name='supa_url' placeholder='Supabase URL'>
-            <input type='text' name='supa_key' placeholder='Supabase Key'>
-            <button type='submit'>Save & Connect</button>
-        </form>
-    </div>
-</body>
-</html>
-    )";
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+    html += "<style>";
+    html += "body { font-family: Arial; background: #1a1a2e; color: #fff; padding: 20px; }";
+    html += ".card { background: rgba(255,255,255,0.1); border-radius: 10px; padding: 20px; max-width: 500px; margin: 0 auto; }";
+    html += "h1, h3 { text-align: center; margin-top: 0; }";
+    html += "h3 { color: #4fc3f7; margin-top: 20px; }";
+    html += "label { display: block; margin-top: 10px; color: #aaa; font-size: 12px; }";
+    html += "input { width: 100%; padding: 10px; margin: 5px 0 10px 0; border-radius: 5px; border: 1px solid #444; background: #333; color: #fff; box-sizing: border-box; }";
+    html += ".row { display: flex; gap: 10px; }";
+    html += ".row > div { flex: 1; }";
+    html += "button { width: 100%; padding: 12px; background: #4fc3f7; border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; margin-top: 20px; }";
+    html += "</style></head><body>";
+    html += "<div class='card'>";
+    html += "<h1>01TR03 Setup</h1>";
+    html += "<form action='/save' method='POST'>";
+
+    // WiFi Settings
+    html += "<h3>WiFi Settings</h3>";
+    html += "<label>WiFi SSID</label>";
+    html += "<input type='text' name='ssid' value='" + wifiSSID + "'>";
+    html += "<label>WiFi Password</label>";
+    html += "<input type='password' name='pass' placeholder='Enter new password'>";
+
+    // Supabase Settings
+    html += "<h3>Cloud Settings</h3>";
+    html += "<label>Supabase URL</label>";
+    html += "<input type='text' name='supa_url' value='" + supabaseUrl + "'>";
+    html += "<label>Supabase Key</label>";
+    html += "<input type='text' name='supa_key' value='" + supabaseKey + "'>";
+
+    // Alarm Thresholds
+    html += "<h3>Main Tank Thresholds</h3>";
+    html += "<div class='row'>";
+    html += "<div><label>Warning (°C)</label><input type='number' name='mt_warn' step='0.1' value='" + String(mainTankWarning, 1) + "'></div>";
+    html += "<div><label>Alarm (°C)</label><input type='number' name='mt_alarm' step='0.1' value='" + String(mainTankAlarm, 1) + "'></div>";
+    html += "</div>";
+
+    html += "<h3>Tap Changer Thresholds</h3>";
+    html += "<div class='row'>";
+    html += "<div><label>Warning (°C)</label><input type='number' name='tc_warn' step='0.1' value='" + String(tapChangerWarning, 1) + "'></div>";
+    html += "<div><label>Alarm (°C)</label><input type='number' name='tc_alarm' step='0.1' value='" + String(tapChangerAlarm, 1) + "'></div>";
+    html += "</div>";
+
+    html += "<button type='submit'>Save & Restart</button>";
+    html += "</form></div></body></html>";
+
     webServer.send(200, "text/html", html);
 }
 
 void handleSave() {
     if (webServer.hasArg("ssid")) wifiSSID = webServer.arg("ssid");
-    if (webServer.hasArg("pass")) wifiPassword = webServer.arg("pass");
+    if (webServer.hasArg("pass") && webServer.arg("pass").length() > 0) {
+        wifiPassword = webServer.arg("pass");
+    }
     if (webServer.hasArg("supa_url")) supabaseUrl = webServer.arg("supa_url");
     if (webServer.hasArg("supa_key")) supabaseKey = webServer.arg("supa_key");
+
+    // Alarm thresholds
+    if (webServer.hasArg("mt_warn")) mainTankWarning = webServer.arg("mt_warn").toFloat();
+    if (webServer.hasArg("mt_alarm")) mainTankAlarm = webServer.arg("mt_alarm").toFloat();
+    if (webServer.hasArg("tc_warn")) tapChangerWarning = webServer.arg("tc_warn").toFloat();
+    if (webServer.hasArg("tc_alarm")) tapChangerAlarm = webServer.arg("tc_alarm").toFloat();
 
     saveConfig();
 
