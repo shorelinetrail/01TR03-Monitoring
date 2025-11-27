@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import http from 'http';
+import { execSync } from 'child_process';
 
 /**
  * Camera Snapshot Proxy API
@@ -173,37 +174,36 @@ export async function GET(request: NextRequest) {
       switch (type.toLowerCase()) {
         case 'hikvision':
         case 'annke':
-          // Hikvision/Annke - try multiple endpoints
+          // Hikvision/Annke - use curl for reliable digest auth
           {
-            const endpoints = [
-              '/ISAPI/Streaming/channels/101/picture',
-              '/ISAPI/Streaming/channels/1/picture',
-              '/Streaming/channels/1/picture',
-            ];
+            const camUrl = `http://${host}/ISAPI/Streaming/channels/1/picture`;
+            console.log('Fetching with curl:', camUrl);
+            try {
+              // Use curl with digest auth - it handles the auth dance properly
+              const result = execSync(
+                `curl -s --digest -u "${username}:${password}" --max-time 10 "${camUrl}"`,
+                { maxBuffer: 10 * 1024 * 1024 }
+              );
 
-            for (const endpoint of endpoints) {
-              try {
-                const camUrl = `http://${host}${endpoint}`;
-                console.log('Trying endpoint:', camUrl);
-                const result = await fetchWithDigestAuth(camUrl, username, password);
-                console.log('Success! Got', result.data.length, 'bytes');
-                return new NextResponse(result.data, {
+              if (result.length > 0) {
+                console.log('Curl success! Got', result.length, 'bytes');
+                return new NextResponse(result, {
                   headers: {
-                    'Content-Type': result.contentType,
+                    'Content-Type': 'image/jpeg',
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
                     'Access-Control-Allow-Origin': '*',
                   },
                 });
-              } catch (err) {
-                console.log('Endpoint failed:', endpoint, '-', err instanceof Error ? err.message : err);
-                continue;
+              } else {
+                throw new Error('Empty response from curl');
               }
+            } catch (err) {
+              console.error('Curl error:', err);
+              return NextResponse.json(
+                { error: `Camera error: ${err instanceof Error ? err.message : 'Unknown'}` },
+                { status: 500 }
+              );
             }
-
-            return NextResponse.json(
-              { error: 'All camera endpoints failed' },
-              { status: 500 }
-            );
           }
         case 'reolink':
           // Reolink uses query params for auth
