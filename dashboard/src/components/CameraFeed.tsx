@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface CameraFeedProps {
   name: string;
@@ -133,10 +134,10 @@ export default function CameraFeed({
         </div>
       </div>
 
-      {/* Expanded modal */}
-      {isExpanded && (
+      {/* Expanded modal - rendered via portal to avoid z-index issues */}
+      {isExpanded && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
           onClick={() => setIsExpanded(false)}
         >
           <div className="relative max-w-6xl w-full" onClick={(e) => e.stopPropagation()}>
@@ -190,7 +191,8 @@ export default function CameraFeed({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
