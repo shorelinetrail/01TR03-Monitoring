@@ -2,35 +2,45 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getDeviceConfig, updateDeviceConfig, DeviceConfig } from '@/lib/supabase';
+import { getDeviceConfig, updateDeviceConfig } from '@/lib/supabase';
 
 const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 
-// Default thresholds
-const DEFAULT_THRESHOLDS = {
+// Default settings
+const DEFAULT_SETTINGS = {
   main_tank_warning: 85,
   main_tank_alarm: 95,
   tap_changer_warning: 70,
   tap_changer_alarm: 85,
+  differential_warning: 15,
+  differential_alarm: 25,
+  main_tank_label: 'Main Tank',
+  tap_changer_label: 'Tap Changer Cover',
+  differential_label: 'Differential (Tank - Tap)',
 };
 
 export default function Settings() {
-  const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load thresholds from Supabase on mount
+  // Load settings from Supabase on mount
   useEffect(() => {
     async function loadConfig() {
       const config = await getDeviceConfig(DEVICE_ID);
       if (config) {
-        setThresholds({
-          main_tank_warning: config.main_tank_warning,
-          main_tank_alarm: config.main_tank_alarm,
-          tap_changer_warning: config.tap_changer_warning,
-          tap_changer_alarm: config.tap_changer_alarm,
+        setSettings({
+          main_tank_warning: config.main_tank_warning ?? DEFAULT_SETTINGS.main_tank_warning,
+          main_tank_alarm: config.main_tank_alarm ?? DEFAULT_SETTINGS.main_tank_alarm,
+          tap_changer_warning: config.tap_changer_warning ?? DEFAULT_SETTINGS.tap_changer_warning,
+          tap_changer_alarm: config.tap_changer_alarm ?? DEFAULT_SETTINGS.tap_changer_alarm,
+          differential_warning: config.differential_warning ?? DEFAULT_SETTINGS.differential_warning,
+          differential_alarm: config.differential_alarm ?? DEFAULT_SETTINGS.differential_alarm,
+          main_tank_label: config.main_tank_label ?? DEFAULT_SETTINGS.main_tank_label,
+          tap_changer_label: config.tap_changer_label ?? DEFAULT_SETTINGS.tap_changer_label,
+          differential_label: config.differential_label ?? DEFAULT_SETTINGS.differential_label,
         });
       }
       setLoading(false);
@@ -38,18 +48,23 @@ export default function Settings() {
     loadConfig();
   }, []);
 
-  const handleChange = (field: keyof typeof thresholds, value: string) => {
+  const handleNumberChange = (field: keyof typeof settings, value: string) => {
     const numValue = parseFloat(value);
     if (!isNaN(numValue)) {
-      setThresholds((prev) => ({ ...prev, [field]: numValue }));
+      setSettings((prev) => ({ ...prev, [field]: numValue }));
       setSaved(false);
     }
+  };
+
+  const handleTextChange = (field: keyof typeof settings, value: string) => {
+    setSettings((prev) => ({ ...prev, [field]: value }));
+    setSaved(false);
   };
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    const success = await updateDeviceConfig(DEVICE_ID, thresholds);
+    const success = await updateDeviceConfig(DEVICE_ID, settings);
     setSaving(false);
     if (success) {
       setSaved(true);
@@ -60,7 +75,7 @@ export default function Settings() {
   };
 
   const handleReset = () => {
-    setThresholds(DEFAULT_THRESHOLDS);
+    setSettings(DEFAULT_SETTINGS);
     setSaved(false);
   };
 
@@ -92,6 +107,47 @@ export default function Settings() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Gauge Labels */}
+        <section className="mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-lg font-semibold text-white">Gauge Labels</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Customize the display labels for each gauge.
+              </p>
+            </div>
+            <div className="card-body space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Main Tank Label</label>
+                <input
+                  type="text"
+                  value={settings.main_tank_label}
+                  onChange={(e) => handleTextChange('main_tank_label', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Tap Changer Label</label>
+                <input
+                  type="text"
+                  value={settings.tap_changer_label}
+                  onChange={(e) => handleTextChange('tap_changer_label', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Differential Label</label>
+                <input
+                  type="text"
+                  value={settings.differential_label}
+                  onChange={(e) => handleTextChange('differential_label', e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Alarm Thresholds */}
         <section className="mb-8">
           <div className="card">
@@ -104,27 +160,23 @@ export default function Settings() {
             <div className="card-body space-y-6">
               {/* Main Tank */}
               <div>
-                <h3 className="text-md font-medium text-white mb-3">Main Tank</h3>
+                <h3 className="text-md font-medium text-white mb-3">{settings.main_tank_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">
-                      Warning Threshold (°C)
-                    </label>
+                    <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
                     <input
                       type="number"
-                      value={thresholds.main_tank_warning}
-                      onChange={(e) => handleChange('main_tank_warning', e.target.value)}
+                      value={settings.main_tank_warning}
+                      onChange={(e) => handleNumberChange('main_tank_warning', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">
-                      Alarm Threshold (°C)
-                    </label>
+                    <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
                     <input
                       type="number"
-                      value={thresholds.main_tank_alarm}
-                      onChange={(e) => handleChange('main_tank_alarm', e.target.value)}
+                      value={settings.main_tank_alarm}
+                      onChange={(e) => handleNumberChange('main_tank_alarm', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
@@ -133,27 +185,48 @@ export default function Settings() {
 
               {/* Tap Changer */}
               <div>
-                <h3 className="text-md font-medium text-white mb-3">Tap Changer Cover</h3>
+                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">
-                      Warning Threshold (°C)
-                    </label>
+                    <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
                     <input
                       type="number"
-                      value={thresholds.tap_changer_warning}
-                      onChange={(e) => handleChange('tap_changer_warning', e.target.value)}
+                      value={settings.tap_changer_warning}
+                      onChange={(e) => handleNumberChange('tap_changer_warning', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">
-                      Alarm Threshold (°C)
-                    </label>
+                    <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
                     <input
                       type="number"
-                      value={thresholds.tap_changer_alarm}
-                      onChange={(e) => handleChange('tap_changer_alarm', e.target.value)}
+                      value={settings.tap_changer_alarm}
+                      onChange={(e) => handleNumberChange('tap_changer_alarm', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Differential */}
+              <div>
+                <h3 className="text-md font-medium text-white mb-3">{settings.differential_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Warning (±°C)</label>
+                    <input
+                      type="number"
+                      value={settings.differential_warning}
+                      onChange={(e) => handleNumberChange('differential_warning', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Alarm (±°C)</label>
+                    <input
+                      type="number"
+                      value={settings.differential_alarm}
+                      onChange={(e) => handleNumberChange('differential_alarm', e.target.value)}
                       className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>

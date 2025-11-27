@@ -53,6 +53,11 @@ export interface DeviceConfig {
   main_tank_alarm: number;
   tap_changer_warning: number;
   tap_changer_alarm: number;
+  differential_warning: number;
+  differential_alarm: number;
+  main_tank_label: string;
+  tap_changer_label: string;
+  differential_label: string;
   report_interval: number;
   display_update_interval: number;
   display_brightness: number;

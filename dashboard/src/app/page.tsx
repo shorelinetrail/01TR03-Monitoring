@@ -24,12 +24,15 @@ const DEFAULT_THRESHOLDS = {
   mainTankAlarm: 95,
   tapChangerWarning: 70,
   tapChangerAlarm: 85,
+  differentialWarning: 15,
+  differentialAlarm: 25,
 };
 
-// Differential thresholds (Tank - Tap Changer)
-const DIFFERENTIAL_THRESHOLDS = {
-  warning: 15,  // Warning if difference > 15°C
-  alarm: 25,    // Alarm if difference > 25°C
+// Default labels
+const DEFAULT_LABELS = {
+  mainTank: 'Main Tank',
+  tapChanger: 'Tap Changer Cover',
+  differential: 'Differential (Tank - Tap)',
 };
 
 // Convert time range to hours
@@ -52,6 +55,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
+  const [labels, setLabels] = useState(DEFAULT_LABELS);
 
   // Fetch all data
   const fetchData = useCallback(async () => {
@@ -66,10 +70,17 @@ export default function Dashboard() {
       setDevice(deviceData);
       if (configData) {
         setThresholds({
-          mainTankWarning: configData.main_tank_warning,
-          mainTankAlarm: configData.main_tank_alarm,
-          tapChangerWarning: configData.tap_changer_warning,
-          tapChangerAlarm: configData.tap_changer_alarm,
+          mainTankWarning: configData.main_tank_warning ?? DEFAULT_THRESHOLDS.mainTankWarning,
+          mainTankAlarm: configData.main_tank_alarm ?? DEFAULT_THRESHOLDS.mainTankAlarm,
+          tapChangerWarning: configData.tap_changer_warning ?? DEFAULT_THRESHOLDS.tapChangerWarning,
+          tapChangerAlarm: configData.tap_changer_alarm ?? DEFAULT_THRESHOLDS.tapChangerAlarm,
+          differentialWarning: configData.differential_warning ?? DEFAULT_THRESHOLDS.differentialWarning,
+          differentialAlarm: configData.differential_alarm ?? DEFAULT_THRESHOLDS.differentialAlarm,
+        });
+        setLabels({
+          mainTank: configData.main_tank_label ?? DEFAULT_LABELS.mainTank,
+          tapChanger: configData.tap_changer_label ?? DEFAULT_LABELS.tapChanger,
+          differential: configData.differential_label ?? DEFAULT_LABELS.differential,
         });
       }
       setLatestReading(reading);
@@ -140,8 +151,8 @@ export default function Dashboard() {
       return 'offline';
     }
     const absDiff = Math.abs(diff);
-    if (absDiff >= DIFFERENTIAL_THRESHOLDS.alarm) return 'alarm';
-    if (absDiff >= DIFFERENTIAL_THRESHOLDS.warning) return 'warning';
+    if (absDiff >= thresholds.differentialAlarm) return 'alarm';
+    if (absDiff >= thresholds.differentialWarning) return 'warning';
     return 'normal';
   };
 
@@ -156,13 +167,13 @@ export default function Dashboard() {
       if (mainTemp !== null && mainTemp >= thresholds.mainTankAlarm) {
         clientAlerts.push({
           id: 'main-tank-alarm',
-          message: `Main Tank temperature ALARM: ${mainTemp.toFixed(1)}°C (threshold: ${thresholds.mainTankAlarm}°C)`,
+          message: `${labels.mainTank} ALARM: ${mainTemp.toFixed(1)}°C (threshold: ${thresholds.mainTankAlarm}°C)`,
           severity: 'critical',
         });
       } else if (mainTemp !== null && mainTemp >= thresholds.mainTankWarning) {
         clientAlerts.push({
           id: 'main-tank-warning',
-          message: `Main Tank temperature WARNING: ${mainTemp.toFixed(1)}°C (threshold: ${thresholds.mainTankWarning}°C)`,
+          message: `${labels.mainTank} WARNING: ${mainTemp.toFixed(1)}°C (threshold: ${thresholds.mainTankWarning}°C)`,
           severity: 'warning',
         });
       }
@@ -170,13 +181,13 @@ export default function Dashboard() {
       if (tapTemp !== null && tapTemp >= thresholds.tapChangerAlarm) {
         clientAlerts.push({
           id: 'tap-changer-alarm',
-          message: `Tap Changer temperature ALARM: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerAlarm}°C)`,
+          message: `${labels.tapChanger} ALARM: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerAlarm}°C)`,
           severity: 'critical',
         });
       } else if (tapTemp !== null && tapTemp >= thresholds.tapChangerWarning) {
         clientAlerts.push({
           id: 'tap-changer-warning',
-          message: `Tap Changer temperature WARNING: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerWarning}°C)`,
+          message: `${labels.tapChanger} WARNING: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerWarning}°C)`,
           severity: 'warning',
         });
       }
@@ -185,16 +196,16 @@ export default function Dashboard() {
       const diff = getDifferential();
       if (diff !== null) {
         const absDiff = Math.abs(diff);
-        if (absDiff >= DIFFERENTIAL_THRESHOLDS.alarm) {
+        if (absDiff >= thresholds.differentialAlarm) {
           clientAlerts.push({
             id: 'differential-alarm',
-            message: `Temperature differential ALARM: ${diff.toFixed(1)}°C (threshold: ±${DIFFERENTIAL_THRESHOLDS.alarm}°C)`,
+            message: `${labels.differential} ALARM: ${diff.toFixed(1)}°C (threshold: ±${thresholds.differentialAlarm}°C)`,
             severity: 'critical',
           });
-        } else if (absDiff >= DIFFERENTIAL_THRESHOLDS.warning) {
+        } else if (absDiff >= thresholds.differentialWarning) {
           clientAlerts.push({
             id: 'differential-warning',
-            message: `Temperature differential WARNING: ${diff.toFixed(1)}°C (threshold: ±${DIFFERENTIAL_THRESHOLDS.warning}°C)`,
+            message: `${labels.differential} WARNING: ${diff.toFixed(1)}°C (threshold: ±${thresholds.differentialWarning}°C)`,
             severity: 'warning',
           });
         }
@@ -259,7 +270,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="card card-body">
               <TemperatureGauge
-                label="Main Tank"
+                label={labels.mainTank}
                 value={latestReading?.main_tank_temp ?? null}
                 status={getMainTankStatus()}
                 warningThreshold={thresholds.mainTankWarning}
@@ -269,7 +280,7 @@ export default function Dashboard() {
             </div>
             <div className="card card-body">
               <TemperatureGauge
-                label="Tap Changer Cover"
+                label={labels.tapChanger}
                 value={latestReading?.tap_changer_temp ?? null}
                 status={getTapChangerStatus()}
                 warningThreshold={thresholds.tapChangerWarning}
@@ -279,11 +290,11 @@ export default function Dashboard() {
             </div>
             <div className="card card-body">
               <TemperatureGauge
-                label="Differential (Tank - Tap)"
+                label={labels.differential}
                 value={getDifferential()}
                 status={getDifferentialStatus()}
-                warningThreshold={DIFFERENTIAL_THRESHOLDS.warning}
-                alarmThreshold={DIFFERENTIAL_THRESHOLDS.alarm}
+                warningThreshold={thresholds.differentialWarning}
+                alarmThreshold={thresholds.differentialAlarm}
                 minValue={-30}
                 maxValue={50}
                 lastUpdate={latestReading?.recorded_at}
