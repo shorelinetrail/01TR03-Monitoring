@@ -17,6 +17,12 @@ const DEFAULT_SETTINGS = {
   main_tank_label: 'Main Tank',
   tap_changer_label: 'Tap Changer Cover',
   differential_label: 'Differential (Tank - Tap)',
+  telegram_enabled: false,
+  telegram_bot_token: '',
+  telegram_chat_id: '',
+  telegram_alert_on_warning: false,
+  telegram_alert_on_alarm: true,
+  telegram_cooldown_minutes: 15,
 };
 
 export default function Settings() {
@@ -25,6 +31,8 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [testingTelegram, setTestingTelegram] = useState(false);
+  const [telegramTestResult, setTelegramTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Load settings from Supabase on mount
   useEffect(() => {
@@ -41,6 +49,12 @@ export default function Settings() {
           main_tank_label: config.main_tank_label ?? DEFAULT_SETTINGS.main_tank_label,
           tap_changer_label: config.tap_changer_label ?? DEFAULT_SETTINGS.tap_changer_label,
           differential_label: config.differential_label ?? DEFAULT_SETTINGS.differential_label,
+          telegram_enabled: config.telegram_enabled ?? DEFAULT_SETTINGS.telegram_enabled,
+          telegram_bot_token: config.telegram_bot_token ?? DEFAULT_SETTINGS.telegram_bot_token,
+          telegram_chat_id: config.telegram_chat_id ?? DEFAULT_SETTINGS.telegram_chat_id,
+          telegram_alert_on_warning: config.telegram_alert_on_warning ?? DEFAULT_SETTINGS.telegram_alert_on_warning,
+          telegram_alert_on_alarm: config.telegram_alert_on_alarm ?? DEFAULT_SETTINGS.telegram_alert_on_alarm,
+          telegram_cooldown_minutes: config.telegram_cooldown_minutes ?? DEFAULT_SETTINGS.telegram_cooldown_minutes,
         });
       }
       setLoading(false);
@@ -59,6 +73,45 @@ export default function Settings() {
   const handleTextChange = (field: keyof typeof settings, value: string) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
+  };
+
+  const handleBooleanChange = (field: keyof typeof settings, value: boolean) => {
+    setSettings((prev) => ({ ...prev, [field]: value }));
+    setSaved(false);
+  };
+
+  const testTelegram = async () => {
+    if (!settings.telegram_bot_token || !settings.telegram_chat_id) {
+      setTelegramTestResult({ success: false, message: 'Please enter bot token and chat ID' });
+      return;
+    }
+
+    setTestingTelegram(true);
+    setTelegramTestResult(null);
+
+    try {
+      const response = await fetch('/api/send-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: settings.telegram_bot_token,
+          chatId: settings.telegram_chat_id,
+          message: `<b>01TR03 Test Alert</b>\n\nThis is a test message from your Transformer Monitoring System.\n\nIf you received this, Telegram alerts are working correctly!`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setTelegramTestResult({ success: true, message: 'Test message sent successfully!' });
+      } else {
+        setTelegramTestResult({ success: false, message: data.error || 'Failed to send test message' });
+      }
+    } catch {
+      setTelegramTestResult({ success: false, message: 'Network error - check your connection' });
+    } finally {
+      setTestingTelegram(false);
+    }
   };
 
   const handleSave = async () => {
@@ -232,14 +285,142 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
 
+        {/* Telegram Alerts */}
+        <section className="mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-lg font-semibold text-white">Telegram Alerts</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Receive instant alerts via Telegram when thresholds are exceeded.
+              </p>
+            </div>
+            <div className="card-body space-y-4">
+              {/* Enable toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm text-white">Enable Telegram Alerts</label>
+                  <p className="text-xs text-gray-500">Send notifications when alerts are triggered</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBooleanChange('telegram_enabled', !settings.telegram_enabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    settings.telegram_enabled ? 'bg-primary-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      settings.telegram_enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Bot Token */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Bot Token</label>
+                <input
+                  type="password"
+                  value={settings.telegram_bot_token}
+                  onChange={(e) => handleTextChange('telegram_bot_token', e.target.value)}
+                  placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Get this from @BotFather on Telegram
+                </p>
+              </div>
+
+              {/* Chat ID */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Chat ID</label>
+                <input
+                  type="text"
+                  value={settings.telegram_chat_id}
+                  onChange={(e) => handleTextChange('telegram_chat_id', e.target.value)}
+                  placeholder="-1001234567890 or 123456789"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Your user ID or group chat ID (use @userinfobot to find it)
+                </p>
+              </div>
+
+              {/* Alert levels */}
+              <div className="space-y-3">
+                <label className="block text-sm text-gray-400">Alert on:</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="alert-warning"
+                    checked={settings.telegram_alert_on_warning}
+                    onChange={(e) => handleBooleanChange('telegram_alert_on_warning', e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label htmlFor="alert-warning" className="text-sm text-white">Warning thresholds</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="alert-alarm"
+                    checked={settings.telegram_alert_on_alarm}
+                    onChange={(e) => handleBooleanChange('telegram_alert_on_alarm', e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label htmlFor="alert-alarm" className="text-sm text-white">Alarm thresholds</label>
+                </div>
+              </div>
+
+              {/* Cooldown */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Cooldown (minutes)</label>
+                <input
+                  type="number"
+                  value={settings.telegram_cooldown_minutes}
+                  onChange={(e) => handleNumberChange('telegram_cooldown_minutes', e.target.value)}
+                  min="1"
+                  max="60"
+                  className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Minimum time between alerts for the same condition (prevents spam)
+                </p>
+              </div>
+
+              {/* Test button */}
+              <div className="pt-4 border-t border-gray-700">
+                <button
+                  onClick={testTelegram}
+                  disabled={testingTelegram || !settings.telegram_bot_token || !settings.telegram_chat_id}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-white rounded transition-colors"
+                >
+                  {testingTelegram ? 'Sending...' : 'Send Test Message'}
+                </button>
+                {telegramTestResult && (
+                  <span className={`ml-3 text-sm ${telegramTestResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                    {telegramTestResult.message}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Save Section */}
+        <section className="mb-8">
+          <div className="card">
+            <div className="card-body">
               {/* Error message */}
               {error && (
-                <p className="text-red-400 text-sm">{error}</p>
+                <p className="text-red-400 text-sm mb-4">{error}</p>
               )}
 
               {/* Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
+              <div className="flex gap-3">
                 <button
                   onClick={handleSave}
                   disabled={saving}

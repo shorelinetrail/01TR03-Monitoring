@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
@@ -35,6 +35,16 @@ const DEFAULT_LABELS = {
   differential: 'Differential (Tank - Tap)',
 };
 
+// Default telegram settings
+const DEFAULT_TELEGRAM = {
+  enabled: false,
+  botToken: '',
+  chatId: '',
+  alertOnWarning: false,
+  alertOnAlarm: true,
+  cooldownMinutes: 15,
+};
+
 // Convert time range to hours
 const getHoursFromRange = (range: string): number => {
   switch (range) {
@@ -56,6 +66,10 @@ export default function Dashboard() {
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
+  const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
+
+  // Track last alert times to implement cooldown
+  const lastAlertTimes = useRef<Record<string, number>>({});
 
   // Fetch all data
   const fetchData = useCallback(async () => {
@@ -81,6 +95,14 @@ export default function Dashboard() {
           mainTank: configData.main_tank_label ?? DEFAULT_LABELS.mainTank,
           tapChanger: configData.tap_changer_label ?? DEFAULT_LABELS.tapChanger,
           differential: configData.differential_label ?? DEFAULT_LABELS.differential,
+        });
+        setTelegram({
+          enabled: configData.telegram_enabled ?? DEFAULT_TELEGRAM.enabled,
+          botToken: configData.telegram_bot_token ?? DEFAULT_TELEGRAM.botToken,
+          chatId: configData.telegram_chat_id ?? DEFAULT_TELEGRAM.chatId,
+          alertOnWarning: configData.telegram_alert_on_warning ?? DEFAULT_TELEGRAM.alertOnWarning,
+          alertOnAlarm: configData.telegram_alert_on_alarm ?? DEFAULT_TELEGRAM.alertOnAlarm,
+          cooldownMinutes: configData.telegram_cooldown_minutes ?? DEFAULT_TELEGRAM.cooldownMinutes,
         });
       }
       setLatestReading(reading);
@@ -214,6 +236,53 @@ export default function Dashboard() {
 
     return clientAlerts;
   };
+
+  // Send Telegram alert with cooldown
+  const sendTelegramAlert = useCallback(async (alertId: string, message: string, severity: 'warning' | 'critical') => {
+    if (!telegram.enabled || !telegram.botToken || !telegram.chatId) return;
+
+    // Check if we should alert based on severity
+    if (severity === 'warning' && !telegram.alertOnWarning) return;
+    if (severity === 'critical' && !telegram.alertOnAlarm) return;
+
+    // Check cooldown
+    const now = Date.now();
+    const lastTime = lastAlertTimes.current[alertId] || 0;
+    const cooldownMs = telegram.cooldownMinutes * 60 * 1000;
+
+    if (now - lastTime < cooldownMs) return;
+
+    // Send the alert
+    try {
+      const severityEmoji = severity === 'critical' ? '🚨' : '⚠️';
+      const formattedMessage = `${severityEmoji} <b>01TR03 ${severity.toUpperCase()}</b>\n\n${message}\n\n<i>${new Date().toLocaleString()}</i>`;
+
+      const response = await fetch('/api/send-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: telegram.botToken,
+          chatId: telegram.chatId,
+          message: formattedMessage,
+        }),
+      });
+
+      if (response.ok) {
+        lastAlertTimes.current[alertId] = now;
+      }
+    } catch (err) {
+      console.error('Failed to send Telegram alert:', err);
+    }
+  }, [telegram]);
+
+  // Trigger Telegram alerts when active alerts change
+  useEffect(() => {
+    const alerts = getActiveAlerts();
+    alerts.forEach((alert) => {
+      sendTelegramAlert(alert.id, alert.message, alert.severity);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestReading, sendTelegramAlert]);
 
   const activeAlerts = getActiveAlerts();
 

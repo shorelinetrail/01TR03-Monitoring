@@ -65,6 +65,13 @@ export interface DeviceConfig {
   wifi_ssid: string | null;
   ntp_server: string;
   timezone: string;
+  // Telegram alert settings
+  telegram_enabled: boolean;
+  telegram_bot_token: string | null;
+  telegram_chat_id: string | null;
+  telegram_alert_on_warning: boolean;
+  telegram_alert_on_alarm: boolean;
+  telegram_cooldown_minutes: number;
 }
 
 export interface Camera {
