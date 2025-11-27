@@ -135,6 +135,27 @@ export async function getReadings(
   return data || [];
 }
 
+export async function getReadingsByDateRange(
+  deviceId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<TemperatureReading[]> {
+  const { data, error } = await supabase
+    .from('temperature_readings')
+    .select('*')
+    .eq('device_id', deviceId)
+    .gte('recorded_at', startDate.toISOString())
+    .lte('recorded_at', endDate.toISOString())
+    .order('recorded_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching readings by date range:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
 export async function getUnacknowledgedAlerts(deviceId: string): Promise<Alert[]> {
   const { data, error } = await supabase
     .from('alerts')

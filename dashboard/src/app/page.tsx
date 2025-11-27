@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
+import ExportModal from '@/components/ExportModal';
 import {
   supabase,
   TemperatureReading,
@@ -85,6 +86,7 @@ export default function Dashboard() {
   const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
   const [chart, setChart] = useState(DEFAULT_CHART);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Track last alert times to implement cooldown
   const lastAlertTimes = useRef<Record<string, number>>({});
@@ -409,22 +411,34 @@ export default function Dashboard() {
         {/* Temperature Trend Chart */}
         <section className="mb-8">
           <div className="card">
-            <div className="card-header flex items-center justify-between">
+            <div className="card-header flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-lg font-semibold text-white">Temperature Trend</h2>
-              <div className="flex gap-2">
-                {(['1h', '6h', '24h', '7d'] as const).map((range) => (
-                  <button
-                    key={range}
-                    onClick={() => setTimeRange(range)}
-                    className={`px-3 py-1 rounded text-sm transition-colors ${
-                      timeRange === range
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {range}
-                  </button>
-                ))}
+              <div className="flex items-center gap-3">
+                <div className="flex gap-2">
+                  {(['1h', '6h', '24h', '7d'] as const).map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setTimeRange(range)}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        timeRange === range
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowExportModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                  title="Export data to CSV"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export
+                </button>
               </div>
             </div>
             <div className="card-body">
@@ -534,6 +548,14 @@ export default function Dashboard() {
           </p>
         </div>
       </footer>
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        deviceId={DEVICE_ID}
+        labels={labels}
+      />
     </div>
   );
 }
