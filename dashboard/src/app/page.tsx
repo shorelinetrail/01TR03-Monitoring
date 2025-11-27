@@ -365,7 +365,7 @@ export default function Dashboard() {
                 warningThreshold={thresholds.differentialWarning}
                 alarmThreshold={thresholds.differentialAlarm}
                 minValue={-30}
-                maxValue={50}
+                maxValue={30}
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
