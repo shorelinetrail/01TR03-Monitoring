@@ -283,7 +283,8 @@ export async function GET(request: NextRequest) {
           {
             const result = await fetchCameraSnapshot(host, username, password);
             if (result.success) {
-              return new NextResponse(result.data, {
+              // Convert Buffer to Uint8Array for NextResponse compatibility
+              return new NextResponse(new Uint8Array(result.data), {
                 headers: {
                   'Content-Type': 'image/jpeg',
                   'Cache-Control': 'no-cache, no-store, must-revalidate',
