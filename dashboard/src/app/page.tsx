@@ -4,20 +4,15 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
-import AlertPanel from '@/components/AlertPanel';
 import {
   supabase,
   TemperatureReading,
-  Alert,
   Device,
-  DeviceConfig,
   getLatestReading,
   getReadings,
-  getUnacknowledgedAlerts,
   getDevice,
   getDeviceConfig,
   subscribeToReadings,
-  subscribeToAlerts,
 } from '@/lib/supabase';
 
 const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
@@ -46,7 +41,6 @@ export default function Dashboard() {
   const [device, setDevice] = useState<Device | null>(null);
   const [latestReading, setLatestReading] = useState<TemperatureReading | null>(null);
   const [historicalData, setHistoricalData] = useState<TemperatureReading[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +50,11 @@ export default function Dashboard() {
   // Fetch all data
   const fetchData = useCallback(async () => {
     try {
-      const [deviceData, configData, reading, readings, alertsData] = await Promise.all([
+      const [deviceData, configData, reading, readings] = await Promise.all([
         getDevice(DEVICE_ID),
         getDeviceConfig(DEVICE_ID),
         getLatestReading(DEVICE_ID),
         getReadings(DEVICE_ID, getHoursFromRange(timeRange)),
-        getUnacknowledgedAlerts(DEVICE_ID),
       ]);
 
       setDevice(deviceData);
@@ -75,7 +68,6 @@ export default function Dashboard() {
       }
       setLatestReading(reading);
       setHistoricalData(readings);
-      setAlerts(alertsData);
       setLastUpdate(new Date());
       setError(null);
     } catch (err) {
@@ -101,25 +93,73 @@ export default function Dashboard() {
       setLastUpdate(new Date());
     });
 
-    const alertsChannel = subscribeToAlerts(DEVICE_ID, (newAlert) => {
-      setAlerts((prev) => [newAlert, ...prev]);
-    });
-
     return () => {
       supabase.removeChannel(readingsChannel);
-      supabase.removeChannel(alertsChannel);
     };
   }, []);
 
-  const handleAlertAcknowledge = (alertId: string) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+  // Evaluate status based on temperature and thresholds
+  const getMainTankStatus = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
+    if (!device?.is_online || latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined) {
+      return 'offline';
+    }
+    const temp = latestReading.main_tank_temp;
+    if (temp >= thresholds.mainTankAlarm) return 'alarm';
+    if (temp >= thresholds.mainTankWarning) return 'warning';
+    return 'normal';
   };
 
-  // Determine status from latest reading
-  const getStatus = (status: string | undefined) => {
-    if (!status || !device?.is_online) return 'offline';
-    return status as 'normal' | 'warning' | 'alarm' | 'error';
+  const getTapChangerStatus = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
+    if (!device?.is_online || latestReading?.tap_changer_temp === null || latestReading?.tap_changer_temp === undefined) {
+      return 'offline';
+    }
+    const temp = latestReading.tap_changer_temp;
+    if (temp >= thresholds.tapChangerAlarm) return 'alarm';
+    if (temp >= thresholds.tapChangerWarning) return 'warning';
+    return 'normal';
   };
+
+  // Generate client-side alerts based on current readings
+  const getActiveAlerts = () => {
+    const clientAlerts: Array<{ id: string; message: string; severity: 'warning' | 'critical' }> = [];
+
+    if (latestReading && device?.is_online) {
+      const mainTemp = latestReading.main_tank_temp;
+      const tapTemp = latestReading.tap_changer_temp;
+
+      if (mainTemp !== null && mainTemp >= thresholds.mainTankAlarm) {
+        clientAlerts.push({
+          id: 'main-tank-alarm',
+          message: `Main Tank temperature ALARM: ${mainTemp.toFixed(1)}°C (threshold: ${thresholds.mainTankAlarm}°C)`,
+          severity: 'critical',
+        });
+      } else if (mainTemp !== null && mainTemp >= thresholds.mainTankWarning) {
+        clientAlerts.push({
+          id: 'main-tank-warning',
+          message: `Main Tank temperature WARNING: ${mainTemp.toFixed(1)}°C (threshold: ${thresholds.mainTankWarning}°C)`,
+          severity: 'warning',
+        });
+      }
+
+      if (tapTemp !== null && tapTemp >= thresholds.tapChangerAlarm) {
+        clientAlerts.push({
+          id: 'tap-changer-alarm',
+          message: `Tap Changer temperature ALARM: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerAlarm}°C)`,
+          severity: 'critical',
+        });
+      } else if (tapTemp !== null && tapTemp >= thresholds.tapChangerWarning) {
+        clientAlerts.push({
+          id: 'tap-changer-warning',
+          message: `Tap Changer temperature WARNING: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerWarning}°C)`,
+          severity: 'warning',
+        });
+      }
+    }
+
+    return clientAlerts;
+  };
+
+  const activeAlerts = getActiveAlerts();
 
   if (isLoading) {
     return (
@@ -145,9 +185,9 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              {alerts.length > 0 && (
+              {activeAlerts.length > 0 && (
                 <span className="badge badge-alarm alarm-pulse">
-                  {alerts.length} ACTIVE ALERT{alerts.length > 1 ? 'S' : ''}
+                  {activeAlerts.length} ACTIVE ALERT{activeAlerts.length > 1 ? 'S' : ''}
                 </span>
               )}
               {lastUpdate && (
@@ -176,7 +216,7 @@ export default function Dashboard() {
               <TemperatureGauge
                 label="Main Tank"
                 value={latestReading?.main_tank_temp ?? null}
-                status={getStatus(latestReading?.main_tank_status)}
+                status={getMainTankStatus()}
                 warningThreshold={thresholds.mainTankWarning}
                 alarmThreshold={thresholds.mainTankAlarm}
                 lastUpdate={latestReading?.recorded_at}
@@ -186,7 +226,7 @@ export default function Dashboard() {
               <TemperatureGauge
                 label="Tap Changer Cover"
                 value={latestReading?.tap_changer_temp ?? null}
-                status={getStatus(latestReading?.tap_changer_status)}
+                status={getTapChangerStatus()}
                 warningThreshold={thresholds.tapChangerWarning}
                 alarmThreshold={thresholds.tapChangerAlarm}
                 lastUpdate={latestReading?.recorded_at}
@@ -240,10 +280,51 @@ export default function Dashboard() {
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-white mb-4">Active Alerts</h2>
           <div className="card card-body">
-            <AlertPanel
-              alerts={alerts}
-              onAcknowledge={handleAlertAcknowledge}
-            />
+            {activeAlerts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p>No active alerts</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activeAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className={`border rounded-lg p-4 ${
+                      alert.severity === 'critical'
+                        ? 'border-red-500/30 bg-red-500/10 alarm-pulse'
+                        : 'border-orange-500/30 bg-orange-500/10'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {alert.severity === 'critical' ? (
+                          <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`badge ${
+                            alert.severity === 'critical' ? 'badge-alarm' : 'badge-warning'
+                          }`}>
+                            {alert.severity.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-300">{alert.message}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
