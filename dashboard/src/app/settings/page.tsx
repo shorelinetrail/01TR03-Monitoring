@@ -10,6 +10,7 @@ const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 const DEFAULT_SETTINGS = {
   dashboard_title: '01TR03 Transformer Monitor',
   show_differential: true,
+  report_interval: 30,
   main_tank_warning: 85,
   main_tank_alarm: 95,
   tap_changer_warning: 70,
@@ -52,6 +53,7 @@ export default function Settings() {
         setSettings({
           dashboard_title: config.dashboard_title ?? DEFAULT_SETTINGS.dashboard_title,
           show_differential: config.show_differential ?? DEFAULT_SETTINGS.show_differential,
+          report_interval: config.report_interval ?? DEFAULT_SETTINGS.report_interval,
           main_tank_warning: config.main_tank_warning ?? DEFAULT_SETTINGS.main_tank_warning,
           main_tank_alarm: config.main_tank_alarm ?? DEFAULT_SETTINGS.main_tank_alarm,
           tap_changer_warning: config.tap_changer_warning ?? DEFAULT_SETTINGS.tap_changer_warning,
@@ -230,6 +232,34 @@ export default function Settings() {
                     }`}
                   />
                 </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Device Settings */}
+        <section className="mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-lg font-semibold text-white">Device Settings</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Configure ESP32 device behavior.
+              </p>
+            </div>
+            <div className="card-body space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Log Interval (seconds)</label>
+                <input
+                  type="number"
+                  value={settings.report_interval}
+                  onChange={(e) => handleNumberChange('report_interval', e.target.value)}
+                  min="10"
+                  max="3600"
+                  className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  How often the device uploads temperature readings (10-3600 seconds). Device will apply on next restart.
+                </p>
               </div>
             </div>
           </div>

@@ -93,7 +93,9 @@ String tapChangerStatus = "---";
 unsigned long lastSensorRead = 0;
 unsigned long lastDisplayUpdate = 0;
 unsigned long lastDataUpload = 0;
-const unsigned long UPLOAD_INTERVAL = 30000;  // Upload every 30 seconds
+unsigned long lastConfigFetch = 0;
+unsigned long uploadInterval = 30000;  // Default 30 seconds, fetched from Supabase
+const unsigned long CONFIG_FETCH_INTERVAL = 300000;  // Fetch config every 5 minutes
 
 // Configuration
 String wifiSSID = "";
@@ -492,6 +494,93 @@ void updateDeviceStatus() {
     http.end();
 }
 
+void fetchConfigFromSupabase() {
+    if (!wifiConnected || supabaseUrl.length() == 0 || supabaseKey.length() == 0) {
+        return;
+    }
+
+    HTTPClient http;
+    String url = supabaseUrl + "/rest/v1/device_config?device_id=eq." + String(DEVICE_ID) + "&select=report_interval,main_tank_warning,main_tank_alarm,tap_changer_warning,tap_changer_alarm";
+
+    http.begin(url);
+    http.addHeader("apikey", supabaseKey);
+    http.addHeader("Authorization", "Bearer " + supabaseKey);
+
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+        String payload = http.getString();
+        Serial.println("Config fetched from Supabase");
+
+        // Parse JSON response (simple parsing for our needs)
+        // Response format: [{"report_interval":30,"main_tank_warning":85,...}]
+
+        // Extract report_interval
+        int riStart = payload.indexOf("\"report_interval\":");
+        if (riStart > 0) {
+            riStart += 18;  // Length of "report_interval":
+            int riEnd = payload.indexOf(",", riStart);
+            if (riEnd < 0) riEnd = payload.indexOf("}", riStart);
+            if (riEnd > riStart) {
+                String riVal = payload.substring(riStart, riEnd);
+                int newInterval = riVal.toInt();
+                if (newInterval >= 10 && newInterval <= 3600) {
+                    uploadInterval = newInterval * 1000UL;  // Convert to milliseconds
+                    Serial.printf("Upload interval set to %d seconds\n", newInterval);
+                }
+            }
+        }
+
+        // Extract thresholds
+        int mtWarnStart = payload.indexOf("\"main_tank_warning\":");
+        if (mtWarnStart > 0) {
+            mtWarnStart += 20;
+            int mtWarnEnd = payload.indexOf(",", mtWarnStart);
+            if (mtWarnEnd < 0) mtWarnEnd = payload.indexOf("}", mtWarnStart);
+            if (mtWarnEnd > mtWarnStart) {
+                mainTankWarning = payload.substring(mtWarnStart, mtWarnEnd).toFloat();
+            }
+        }
+
+        int mtAlarmStart = payload.indexOf("\"main_tank_alarm\":");
+        if (mtAlarmStart > 0) {
+            mtAlarmStart += 18;
+            int mtAlarmEnd = payload.indexOf(",", mtAlarmStart);
+            if (mtAlarmEnd < 0) mtAlarmEnd = payload.indexOf("}", mtAlarmStart);
+            if (mtAlarmEnd > mtAlarmStart) {
+                mainTankAlarm = payload.substring(mtAlarmStart, mtAlarmEnd).toFloat();
+            }
+        }
+
+        int tcWarnStart = payload.indexOf("\"tap_changer_warning\":");
+        if (tcWarnStart > 0) {
+            tcWarnStart += 22;
+            int tcWarnEnd = payload.indexOf(",", tcWarnStart);
+            if (tcWarnEnd < 0) tcWarnEnd = payload.indexOf("}", tcWarnStart);
+            if (tcWarnEnd > tcWarnStart) {
+                tapChangerWarning = payload.substring(tcWarnStart, tcWarnEnd).toFloat();
+            }
+        }
+
+        int tcAlarmStart = payload.indexOf("\"tap_changer_alarm\":");
+        if (tcAlarmStart > 0) {
+            tcAlarmStart += 20;
+            int tcAlarmEnd = payload.indexOf(",", tcAlarmStart);
+            if (tcAlarmEnd < 0) tcAlarmEnd = payload.indexOf("}", tcAlarmStart);
+            if (tcAlarmEnd > tcAlarmStart) {
+                tapChangerAlarm = payload.substring(tcAlarmStart, tcAlarmEnd).toFloat();
+            }
+        }
+
+        Serial.printf("Thresholds - MT: %.1f/%.1f, TC: %.1f/%.1f\n",
+            mainTankWarning, mainTankAlarm, tapChangerWarning, tapChangerAlarm);
+    } else {
+        Serial.printf("Config fetch failed: %d\n", httpCode);
+    }
+
+    http.end();
+}
+
 // ============================================================================
 // WiFi & Web Server
 // ============================================================================
@@ -664,8 +753,10 @@ void setup() {
         displayBoot(70, "Starting AP...");
         startAP();
     } else {
-        displayBoot(90, "Registering...");
+        displayBoot(80, "Registering...");
         updateDeviceStatus();  // Update device info in Supabase
+        displayBoot(90, "Fetching config...");
+        fetchConfigFromSupabase();  // Get config from Supabase
         displayBoot(100, "Ready!");
         delay(500);
     }
@@ -693,9 +784,15 @@ void loop() {
     }
 
     // Upload to Supabase periodically
-    if (now - lastDataUpload >= UPLOAD_INTERVAL) {
+    if (now - lastDataUpload >= uploadInterval) {
         uploadToSupabase();
         lastDataUpload = now;
+    }
+
+    // Fetch config from Supabase periodically
+    if (now - lastConfigFetch >= CONFIG_FETCH_INTERVAL) {
+        fetchConfigFromSupabase();
+        lastConfigFetch = now;
     }
 
     // Update display every second
