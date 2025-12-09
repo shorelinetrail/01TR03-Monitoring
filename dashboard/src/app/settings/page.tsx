@@ -8,6 +8,8 @@ const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 
 // Default settings
 const DEFAULT_SETTINGS = {
+  dashboard_title: '01TR03 Transformer Monitor',
+  show_differential: true,
   main_tank_warning: 85,
   main_tank_alarm: 95,
   tap_changer_warning: 70,
@@ -48,6 +50,8 @@ export default function Settings() {
       const config = await getDeviceConfig(DEVICE_ID);
       if (config) {
         setSettings({
+          dashboard_title: config.dashboard_title ?? DEFAULT_SETTINGS.dashboard_title,
+          show_differential: config.show_differential ?? DEFAULT_SETTINGS.show_differential,
           main_tank_warning: config.main_tank_warning ?? DEFAULT_SETTINGS.main_tank_warning,
           main_tank_alarm: config.main_tank_alarm ?? DEFAULT_SETTINGS.main_tank_alarm,
           tap_changer_warning: config.tap_changer_warning ?? DEFAULT_SETTINGS.tap_changer_warning,
@@ -188,6 +192,49 @@ export default function Settings() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Display Settings */}
+        <section className="mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-lg font-semibold text-white">Display Settings</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Configure dashboard title and visibility options.
+              </p>
+            </div>
+            <div className="card-body space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Dashboard Title</label>
+                <input
+                  type="text"
+                  value={settings.dashboard_title}
+                  onChange={(e) => handleTextChange('dashboard_title', e.target.value)}
+                  placeholder="01TR03 Transformer Monitor"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm text-white">Show Differential Gauge</label>
+                  <p className="text-xs text-gray-500">Display the temperature differential gauge on the dashboard</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBooleanChange('show_differential', !settings.show_differential)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    settings.show_differential ? 'bg-primary-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      settings.show_differential ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Gauge Labels */}
         <section className="mb-8">
           <div className="card">

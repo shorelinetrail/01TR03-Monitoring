@@ -11,10 +11,12 @@ import {
   Device,
   getLatestReading,
   getReadings,
+  getReadingsByDateRange,
   getDevice,
   getDeviceConfig,
   subscribeToReadings,
 } from '@/lib/supabase';
+import { format } from 'date-fns';
 
 const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 const REFRESH_INTERVAL = 5000; // 5 seconds
@@ -62,6 +64,12 @@ const DEFAULT_CHART = {
   yMax: null as number | null,
 };
 
+// Default display settings
+const DEFAULT_DISPLAY = {
+  title: '01TR03 Transformer Monitor',
+  showDifferential: true,
+};
+
 // Convert time range to hours
 const getHoursFromRange = (range: string): number => {
   switch (range) {
@@ -86,7 +94,15 @@ export default function Dashboard() {
   const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
   const [chart, setChart] = useState(DEFAULT_CHART);
+  const [display, setDisplay] = useState(DEFAULT_DISPLAY);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [useCustomDateRange, setUseCustomDateRange] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 1);
+    return format(date, "yyyy-MM-dd'T'HH:mm");
+  });
+  const [customEndDate, setCustomEndDate] = useState(() => format(new Date(), "yyyy-MM-dd'T'HH:mm"));
 
   // Track last alert times to implement cooldown
   const lastAlertTimes = useRef<Record<string, number>>({});
@@ -94,11 +110,16 @@ export default function Dashboard() {
   // Fetch all data
   const fetchData = useCallback(async () => {
     try {
+      // Fetch readings based on preset or custom date range
+      const readingsPromise = useCustomDateRange
+        ? getReadingsByDateRange(DEVICE_ID, new Date(customStartDate), new Date(customEndDate))
+        : getReadings(DEVICE_ID, getHoursFromRange(timeRange));
+
       const [deviceData, configData, reading, readings] = await Promise.all([
         getDevice(DEVICE_ID),
         getDeviceConfig(DEVICE_ID),
         getLatestReading(DEVICE_ID),
-        getReadings(DEVICE_ID, getHoursFromRange(timeRange)),
+        readingsPromise,
       ]);
 
       setDevice(deviceData);
@@ -136,6 +157,10 @@ export default function Dashboard() {
           yMin: configData.chart_y_min ?? DEFAULT_CHART.yMin,
           yMax: configData.chart_y_max ?? DEFAULT_CHART.yMax,
         });
+        setDisplay({
+          title: configData.dashboard_title ?? DEFAULT_DISPLAY.title,
+          showDifferential: configData.show_differential ?? DEFAULT_DISPLAY.showDifferential,
+        });
       }
       setLatestReading(reading);
       setHistoricalData(readings);
@@ -147,7 +172,7 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [timeRange]);
+  }, [timeRange, useCustomDateRange, customStartDate, customEndDate]);
 
   // Initial data fetch and polling
   useEffect(() => {
@@ -246,22 +271,24 @@ export default function Dashboard() {
         });
       }
 
-      // Differential alerts
-      const diff = getDifferential();
-      if (diff !== null) {
-        const absDiff = Math.abs(diff);
-        if (absDiff >= thresholds.differentialAlarm) {
-          clientAlerts.push({
-            id: 'differential-alarm',
-            message: `${labels.differential} ALARM: ${diff.toFixed(1)}°C (threshold: ±${thresholds.differentialAlarm}°C)`,
-            severity: 'critical',
-          });
-        } else if (absDiff >= thresholds.differentialWarning) {
-          clientAlerts.push({
-            id: 'differential-warning',
-            message: `${labels.differential} WARNING: ${diff.toFixed(1)}°C (threshold: ±${thresholds.differentialWarning}°C)`,
-            severity: 'warning',
-          });
+      // Differential alerts (only if differential gauge is shown)
+      if (display.showDifferential) {
+        const diff = getDifferential();
+        if (diff !== null) {
+          const absDiff = Math.abs(diff);
+          if (absDiff >= thresholds.differentialAlarm) {
+            clientAlerts.push({
+              id: 'differential-alarm',
+              message: `${labels.differential} ALARM: ${diff.toFixed(1)}°C (threshold: ±${thresholds.differentialAlarm}°C)`,
+              severity: 'critical',
+            });
+          } else if (absDiff >= thresholds.differentialWarning) {
+            clientAlerts.push({
+              id: 'differential-warning',
+              message: `${labels.differential} WARNING: ${diff.toFixed(1)}°C (threshold: ±${thresholds.differentialWarning}°C)`,
+              severity: 'warning',
+            });
+          }
         }
       }
     }
@@ -336,7 +363,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold text-white">01TR03 Transformer Monitor</h1>
+              <h1 className="text-xl font-bold text-white">{display.title}</h1>
               <span className={`badge ${device?.is_online ? 'badge-normal' : 'badge-offline'}`}>
                 {device?.is_online ? 'ONLINE' : 'OFFLINE'}
               </span>
@@ -393,42 +420,29 @@ export default function Dashboard() {
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
-            <div className="card card-body">
-              <TemperatureGauge
-                label={labels.differential}
-                value={getDifferential()}
-                status={getDifferentialStatus()}
-                warningThreshold={thresholds.differentialWarning}
-                alarmThreshold={thresholds.differentialAlarm}
-                minValue={ranges.differentialMin}
-                maxValue={ranges.differentialMax}
-                lastUpdate={latestReading?.recorded_at}
-              />
-            </div>
+            {display.showDifferential && (
+              <div className="card card-body">
+                <TemperatureGauge
+                  label={labels.differential}
+                  value={getDifferential()}
+                  status={getDifferentialStatus()}
+                  warningThreshold={thresholds.differentialWarning}
+                  alarmThreshold={thresholds.differentialAlarm}
+                  minValue={ranges.differentialMin}
+                  maxValue={ranges.differentialMax}
+                  lastUpdate={latestReading?.recorded_at}
+                />
+              </div>
+            )}
           </div>
         </section>
 
         {/* Temperature Trend Chart */}
         <section className="mb-8">
           <div className="card">
-            <div className="card-header flex items-center justify-between flex-wrap gap-3">
-              <h2 className="text-lg font-semibold text-white">Temperature Trend</h2>
-              <div className="flex items-center gap-3">
-                <div className="flex gap-2">
-                  {(['1h', '6h', '24h', '7d'] as const).map((range) => (
-                    <button
-                      key={range}
-                      onClick={() => setTimeRange(range)}
-                      className={`px-3 py-1 rounded text-sm transition-colors ${
-                        timeRange === range
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      {range}
-                    </button>
-                  ))}
-                </div>
+            <div className="card-header">
+              <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+                <h2 className="text-lg font-semibold text-white">Temperature Trend</h2>
                 <button
                   onClick={() => setShowExportModal(true)}
                   className="flex items-center gap-1.5 px-3 py-1 rounded text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
@@ -439,6 +453,48 @@ export default function Dashboard() {
                   </svg>
                   Export
                 </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex gap-2">
+                  {(['1h', '6h', '24h', '7d'] as const).map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => {
+                        setTimeRange(range);
+                        setUseCustomDateRange(false);
+                      }}
+                      className={`px-3 py-1 rounded text-sm transition-colors ${
+                        !useCustomDateRange && timeRange === range
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {range}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-gray-500 text-sm">or</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="datetime-local"
+                    value={customStartDate}
+                    onChange={(e) => {
+                      setCustomStartDate(e.target.value);
+                      setUseCustomDateRange(true);
+                    }}
+                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                  <span className="text-gray-400 text-sm">to</span>
+                  <input
+                    type="datetime-local"
+                    value={customEndDate}
+                    onChange={(e) => {
+                      setCustomEndDate(e.target.value);
+                      setUseCustomDateRange(true);
+                    }}
+                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
               </div>
             </div>
             <div className="card-body">

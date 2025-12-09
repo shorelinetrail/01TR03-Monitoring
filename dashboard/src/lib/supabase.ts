@@ -49,6 +49,9 @@ export interface Alert {
 export interface DeviceConfig {
   id: string;
   device_id: string;
+  // Display settings
+  dashboard_title: string | null;
+  show_differential: boolean;
   main_tank_warning: number;
   main_tank_alarm: number;
   tap_changer_warning: number;
