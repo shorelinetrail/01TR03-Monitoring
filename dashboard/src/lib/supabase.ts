@@ -58,6 +58,7 @@ export interface DeviceConfig {
   show_differential: boolean;
   sensors_enabled: number;
   // Sensor enable flags
+  sensor_2_enabled: boolean;
   sensor_3_enabled: boolean;
   sensor_4_enabled: boolean;
   // Sensor 1 (Main Tank) thresholds

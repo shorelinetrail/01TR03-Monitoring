@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS device_config (
     sensors_enabled INTEGER DEFAULT 2,
 
     -- Sensor enable flags
+    sensor_2_enabled BOOLEAN DEFAULT TRUE,
     sensor_3_enabled BOOLEAN DEFAULT FALSE,
     sensor_4_enabled BOOLEAN DEFAULT FALSE,
 

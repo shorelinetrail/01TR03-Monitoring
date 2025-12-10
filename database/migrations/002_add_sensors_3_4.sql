@@ -26,6 +26,9 @@ ALTER TABLE device_config
 ADD COLUMN IF NOT EXISTS sensors_enabled INTEGER DEFAULT 2;
 
 ALTER TABLE device_config
+ADD COLUMN IF NOT EXISTS sensor_2_enabled BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE device_config
 ADD COLUMN IF NOT EXISTS sensor_3_enabled BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE device_config
@@ -83,6 +86,7 @@ ADD COLUMN IF NOT EXISTS sensor_4_max DECIMAL(6,2) DEFAULT 120;
 
 UPDATE device_config SET
     sensors_enabled = COALESCE(sensors_enabled, 2),
+    sensor_2_enabled = COALESCE(sensor_2_enabled, TRUE),
     sensor_3_enabled = COALESCE(sensor_3_enabled, FALSE),
     sensor_4_enabled = COALESCE(sensor_4_enabled, FALSE),
     sensor_3_warning = COALESCE(sensor_3_warning, 70.0),

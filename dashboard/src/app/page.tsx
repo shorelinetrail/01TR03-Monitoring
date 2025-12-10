@@ -78,6 +78,7 @@ const DEFAULT_CHART = {
 const DEFAULT_DISPLAY = {
   title: '01TR03 Transformer Monitor',
   showDifferential: true,
+  sensor2Enabled: true,
   sensor3Enabled: false,
   sensor4Enabled: false,
 };
@@ -182,6 +183,7 @@ export default function Dashboard() {
         setDisplay({
           title: configData.dashboard_title ?? DEFAULT_DISPLAY.title,
           showDifferential: configData.show_differential ?? DEFAULT_DISPLAY.showDifferential,
+          sensor2Enabled: configData.sensor_2_enabled ?? DEFAULT_DISPLAY.sensor2Enabled,
           sensor3Enabled: configData.sensor_3_enabled ?? DEFAULT_DISPLAY.sensor3Enabled,
           sensor4Enabled: configData.sensor_4_enabled ?? DEFAULT_DISPLAY.sensor4Enabled,
         });
@@ -311,18 +313,21 @@ export default function Dashboard() {
         });
       }
 
-      if (tapTemp !== null && tapTemp >= thresholds.tapChangerAlarm) {
-        clientAlerts.push({
-          id: 'tap-changer-alarm',
-          message: `${labels.tapChanger} ALARM: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerAlarm}°C)`,
-          severity: 'critical',
-        });
-      } else if (tapTemp !== null && tapTemp >= thresholds.tapChangerWarning) {
-        clientAlerts.push({
-          id: 'tap-changer-warning',
-          message: `${labels.tapChanger} WARNING: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerWarning}°C)`,
-          severity: 'warning',
-        });
+      // Sensor 2 (Tap Changer) alerts (only if sensor 2 is enabled)
+      if (display.sensor2Enabled) {
+        if (tapTemp !== null && tapTemp >= thresholds.tapChangerAlarm) {
+          clientAlerts.push({
+            id: 'tap-changer-alarm',
+            message: `${labels.tapChanger} ALARM: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerAlarm}°C)`,
+            severity: 'critical',
+          });
+        } else if (tapTemp !== null && tapTemp >= thresholds.tapChangerWarning) {
+          clientAlerts.push({
+            id: 'tap-changer-warning',
+            message: `${labels.tapChanger} WARNING: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerWarning}°C)`,
+            severity: 'warning',
+          });
+        }
       }
 
       // Sensor 3 alerts (only if sensor 3 is enabled)
@@ -361,8 +366,8 @@ export default function Dashboard() {
         }
       }
 
-      // Differential alerts (only if differential gauge is shown)
-      if (display.showDifferential) {
+      // Differential alerts (only if differential gauge is shown and sensor 2 is enabled)
+      if (display.showDifferential && display.sensor2Enabled) {
         const diff = getDifferential();
         if (diff !== null) {
           const absDiff = Math.abs(diff);
@@ -498,18 +503,20 @@ export default function Dashboard() {
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
-            <div className="card card-body">
-              <TemperatureGauge
-                label={labels.tapChanger}
-                value={latestReading?.tap_changer_temp ?? null}
-                status={getTapChangerStatus()}
-                warningThreshold={thresholds.tapChangerWarning}
-                alarmThreshold={thresholds.tapChangerAlarm}
-                minValue={ranges.tapChangerMin}
-                maxValue={ranges.tapChangerMax}
-                lastUpdate={latestReading?.recorded_at}
-              />
-            </div>
+            {display.sensor2Enabled && (
+              <div className="card card-body">
+                <TemperatureGauge
+                  label={labels.tapChanger}
+                  value={latestReading?.tap_changer_temp ?? null}
+                  status={getTapChangerStatus()}
+                  warningThreshold={thresholds.tapChangerWarning}
+                  alarmThreshold={thresholds.tapChangerAlarm}
+                  minValue={ranges.tapChangerMin}
+                  maxValue={ranges.tapChangerMax}
+                  lastUpdate={latestReading?.recorded_at}
+                />
+              </div>
+            )}
             {display.sensor3Enabled && (
               <div className="card card-body">
                 <TemperatureGauge
@@ -538,7 +545,7 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            {display.showDifferential && (
+            {display.showDifferential && display.sensor2Enabled && (
               <div className="card card-body">
                 <TemperatureGauge
                   label={labels.differential}

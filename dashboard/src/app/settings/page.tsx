@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   dashboard_title: '01TR03 Transformer Monitor',
   show_differential: true,
   sensors_enabled: 2,
+  sensor_2_enabled: true,
   sensor_3_enabled: false,
   sensor_4_enabled: false,
   report_interval: 30,
@@ -70,6 +71,7 @@ export default function Settings() {
           dashboard_title: config.dashboard_title ?? DEFAULT_SETTINGS.dashboard_title,
           show_differential: config.show_differential ?? DEFAULT_SETTINGS.show_differential,
           sensors_enabled: config.sensors_enabled ?? DEFAULT_SETTINGS.sensors_enabled,
+          sensor_2_enabled: config.sensor_2_enabled ?? DEFAULT_SETTINGS.sensor_2_enabled,
           sensor_3_enabled: config.sensor_3_enabled ?? DEFAULT_SETTINGS.sensor_3_enabled,
           sensor_4_enabled: config.sensor_4_enabled ?? DEFAULT_SETTINGS.sensor_4_enabled,
           report_interval: config.report_interval ?? DEFAULT_SETTINGS.report_interval,
@@ -264,6 +266,25 @@ export default function Settings() {
               </div>
               <div className="flex items-center justify-between">
                 <div>
+                  <label className="text-sm text-white">Enable Sensor 2</label>
+                  <p className="text-xs text-gray-500">Enable the second MCP9600 temperature sensor (I2C address 0x61)</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBooleanChange('sensor_2_enabled', !settings.sensor_2_enabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    settings.sensor_2_enabled ? 'bg-primary-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      settings.sensor_2_enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
                   <label className="text-sm text-white">Enable Sensor 3</label>
                   <p className="text-xs text-gray-500">Enable the third MCP9600 temperature sensor (I2C address 0x65)</p>
                 </div>
@@ -351,15 +372,17 @@ export default function Settings() {
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Sensor 2 Label (Tap Changer)</label>
-                <input
-                  type="text"
-                  value={settings.tap_changer_label}
-                  onChange={(e) => handleTextChange('tap_changer_label', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                />
-              </div>
+              {settings.sensor_2_enabled && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Sensor 2 Label (Tap Changer)</label>
+                  <input
+                    type="text"
+                    value={settings.tap_changer_label}
+                    onChange={(e) => handleTextChange('tap_changer_label', e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+              )}
               {settings.sensor_3_enabled && (
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Sensor 3 Label</label>
@@ -431,29 +454,31 @@ export default function Settings() {
               </div>
 
               {/* Tap Changer Range */}
-              <div>
-                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
-                    <input
-                      type="number"
-                      value={settings.tap_changer_min}
-                      onChange={(e) => handleNumberChange('tap_changer_min', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
-                    <input
-                      type="number"
-                      value={settings.tap_changer_max}
-                      onChange={(e) => handleNumberChange('tap_changer_max', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                    />
+              {settings.sensor_2_enabled && (
+                <div>
+                  <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.tap_changer_min}
+                        onChange={(e) => handleNumberChange('tap_changer_min', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.tap_changer_max}
+                        onChange={(e) => handleNumberChange('tap_changer_max', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Sensor 3 Range */}
               {settings.sensor_3_enabled && (
@@ -610,29 +635,31 @@ export default function Settings() {
               </div>
 
               {/* Tap Changer */}
-              <div>
-                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
-                    <input
-                      type="number"
-                      value={settings.tap_changer_warning}
-                      onChange={(e) => handleNumberChange('tap_changer_warning', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
-                    <input
-                      type="number"
-                      value={settings.tap_changer_alarm}
-                      onChange={(e) => handleNumberChange('tap_changer_alarm', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                    />
+              {settings.sensor_2_enabled && (
+                <div>
+                  <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.tap_changer_warning}
+                        onChange={(e) => handleNumberChange('tap_changer_warning', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.tap_changer_alarm}
+                        onChange={(e) => handleNumberChange('tap_changer_alarm', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Sensor 3 */}
               {settings.sensor_3_enabled && (

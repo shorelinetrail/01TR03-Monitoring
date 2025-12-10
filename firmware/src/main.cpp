@@ -69,9 +69,10 @@ float sensor4Warning = 70.0;
 float sensor4Alarm = 85.0;
 
 // Sensor enabled flags
+bool sensor2Enabled = true;
 bool sensor3Enabled = false;
 bool sensor4Enabled = false;
-int sensorsEnabled = 2;  // Number of sensors enabled (2-4)
+int sensorsEnabled = 2;  // Number of sensors enabled (1-4)
 
 // Display - exact same as StationBoards
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
@@ -404,8 +405,8 @@ void readSensors() {
         Serial.println("Sensor 1 (Main Tank): SENSOR ERROR");
     }
 
-    // Read Sensor 2 (Tap Changer) temperature
-    if (tapChangerSensorOK) {
+    // Read Sensor 2 (Tap Changer) temperature (if enabled and present)
+    if (sensor2Enabled && tapChangerSensorOK) {
         tapChangerTemp = mcp9600_sensor2.readThermocouple();
         Serial.printf("Sensor 2 (Tap Changer): %.1f C\n", tapChangerTemp);
 
@@ -416,10 +417,13 @@ void readSensors() {
         } else {
             tapChangerStatus = "OK";
         }
-    } else {
+    } else if (sensor2Enabled) {
         tapChangerTemp = -999.0;
         tapChangerStatus = "ERR";
         Serial.println("Sensor 2 (Tap Changer): SENSOR ERROR");
+    } else {
+        tapChangerTemp = 0.0;
+        tapChangerStatus = "---";
     }
 
     // Read Sensor 3 temperature (if enabled and present)
@@ -513,21 +517,27 @@ void uploadToSupabase() {
     String json = "{";
     json += "\"device_id\":\"" + String(DEVICE_ID) + "\",";
     json += "\"main_tank_temp\":" + String(mainTankSensorOK ? mainTankTemp : 0, 1) + ",";
-    json += "\"tap_changer_temp\":" + String(tapChangerSensorOK ? tapChangerTemp : 0, 1) + ",";
+    json += "\"main_tank_status\":\"" + mtStatus + "\",";
 
-    // Include sensor 3 and 4 if enabled
+    // Include sensor 2 if enabled
+    if (sensor2Enabled) {
+        json += "\"tap_changer_temp\":" + String(tapChangerSensorOK ? tapChangerTemp : 0, 1) + ",";
+        json += "\"tap_changer_status\":\"" + tcStatus + "\",";
+    }
+
+    // Include sensor 3 if enabled
     if (sensor3Enabled) {
         json += "\"sensor_3_temp\":" + String(sensor3SensorOK ? sensor3Temp : 0, 1) + ",";
         json += "\"sensor_3_status\":\"" + s3Status + "\",";
     }
+
+    // Include sensor 4 if enabled
     if (sensor4Enabled) {
         json += "\"sensor_4_temp\":" + String(sensor4SensorOK ? sensor4Temp : 0, 1) + ",";
         json += "\"sensor_4_status\":\"" + s4Status + "\",";
     }
 
-    json += "\"ambient_temp\":" + String(ambientTemp, 1) + ",";
-    json += "\"main_tank_status\":\"" + mtStatus + "\",";
-    json += "\"tap_changer_status\":\"" + tcStatus + "\"";
+    json += "\"ambient_temp\":" + String(ambientTemp, 1);
     json += "}";
 
     Serial.println("Uploading to Supabase...");
@@ -623,7 +633,7 @@ void fetchConfigFromSupabase() {
 
     HTTPClient http;
     String url = supabaseUrl + "/rest/v1/device_config?device_id=eq." + String(DEVICE_ID) +
-        "&select=report_interval,sensors_enabled,sensor_3_enabled,sensor_4_enabled," +
+        "&select=report_interval,sensors_enabled,sensor_2_enabled,sensor_3_enabled,sensor_4_enabled," +
         "main_tank_warning,main_tank_alarm,tap_changer_warning,tap_changer_alarm," +
         "sensor_3_warning,sensor_3_alarm,sensor_4_warning,sensor_4_alarm";
 
@@ -646,6 +656,7 @@ void fetchConfigFromSupabase() {
 
         // Extract sensor enable flags
         sensorsEnabled = extractJsonInt(payload, "sensors_enabled", 2);
+        sensor2Enabled = extractJsonBool(payload, "sensor_2_enabled", true);
         sensor3Enabled = extractJsonBool(payload, "sensor_3_enabled", false);
         sensor4Enabled = extractJsonBool(payload, "sensor_4_enabled", false);
 
@@ -659,8 +670,8 @@ void fetchConfigFromSupabase() {
         sensor4Warning = extractJsonFloat(payload, "sensor_4_warning", 70.0);
         sensor4Alarm = extractJsonFloat(payload, "sensor_4_alarm", 85.0);
 
-        Serial.printf("Sensors enabled: %d (S3: %s, S4: %s)\n",
-            sensorsEnabled, sensor3Enabled ? "yes" : "no", sensor4Enabled ? "yes" : "no");
+        Serial.printf("Sensors enabled: %d (S2: %s, S3: %s, S4: %s)\n",
+            sensorsEnabled, sensor2Enabled ? "yes" : "no", sensor3Enabled ? "yes" : "no", sensor4Enabled ? "yes" : "no");
         Serial.printf("Thresholds - S1: %.1f/%.1f, S2: %.1f/%.1f, S3: %.1f/%.1f, S4: %.1f/%.1f\n",
             mainTankWarning, mainTankAlarm, tapChangerWarning, tapChangerAlarm,
             sensor3Warning, sensor3Alarm, sensor4Warning, sensor4Alarm);
