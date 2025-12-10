@@ -194,9 +194,19 @@ export default function Dashboard() {
     };
   }, []);
 
+  // Check if device is actually online based on last_seen timestamp
+  const isDeviceOnline = (): boolean => {
+    if (!device?.last_seen) return false;
+    const lastSeenDate = new Date(device.last_seen);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - lastSeenDate.getTime()) / (1000 * 60);
+    // Consider offline if no update in last 5 minutes
+    return diffMinutes < 5;
+  };
+
   // Evaluate status based on temperature and thresholds
   const getMainTankStatus = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
-    if (!device?.is_online || latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined) {
+    if (!isDeviceOnline() || latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined) {
       return 'offline';
     }
     const temp = latestReading.main_tank_temp;
@@ -206,7 +216,7 @@ export default function Dashboard() {
   };
 
   const getTapChangerStatus = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
-    if (!device?.is_online || latestReading?.tap_changer_temp === null || latestReading?.tap_changer_temp === undefined) {
+    if (!isDeviceOnline() || latestReading?.tap_changer_temp === null || latestReading?.tap_changer_temp === undefined) {
       return 'offline';
     }
     const temp = latestReading.tap_changer_temp;
@@ -226,7 +236,7 @@ export default function Dashboard() {
 
   const getDifferentialStatus = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
     const diff = getDifferential();
-    if (!device?.is_online || diff === null) {
+    if (!isDeviceOnline() || diff === null) {
       return 'offline';
     }
     const absDiff = Math.abs(diff);
@@ -239,7 +249,7 @@ export default function Dashboard() {
   const getActiveAlerts = () => {
     const clientAlerts: Array<{ id: string; message: string; severity: 'warning' | 'critical' }> = [];
 
-    if (latestReading && device?.is_online) {
+    if (latestReading && isDeviceOnline()) {
       const mainTemp = latestReading.main_tank_temp;
       const tapTemp = latestReading.tap_changer_temp;
 
@@ -364,8 +374,8 @@ export default function Dashboard() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-bold text-white">{display.title}</h1>
-              <span className={`badge ${device?.is_online ? 'badge-normal' : 'badge-offline'}`}>
-                {device?.is_online ? 'ONLINE' : 'OFFLINE'}
+              <span className={`badge ${isDeviceOnline() ? 'badge-normal' : 'badge-offline'}`}>
+                {isDeviceOnline() ? 'ONLINE' : 'OFFLINE'}
               </span>
             </div>
             <div className="flex items-center gap-4">
@@ -376,7 +386,7 @@ export default function Dashboard() {
               )}
               {lastUpdate && (
                 <span className="text-sm text-gray-400">
-                  Updated: {lastUpdate.toLocaleTimeString()}
+                  Updated: {format(lastUpdate, 'dd/MM/yy HH:mm:ss')}
                 </span>
               )}
             </div>
