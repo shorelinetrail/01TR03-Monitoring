@@ -26,9 +26,13 @@ export interface TemperatureReading {
   device_id: string;
   main_tank_temp: number | null;
   tap_changer_temp: number | null;
+  sensor_3_temp: number | null;
+  sensor_4_temp: number | null;
   ambient_temp: number | null;
   main_tank_status: 'normal' | 'warning' | 'alarm' | 'error';
   tap_changer_status: 'normal' | 'warning' | 'alarm' | 'error';
+  sensor_3_status: 'normal' | 'warning' | 'alarm' | 'error';
+  sensor_4_status: 'normal' | 'warning' | 'alarm' | 'error';
   recorded_at: string;
 }
 
@@ -52,20 +56,44 @@ export interface DeviceConfig {
   // Display settings
   dashboard_title: string | null;
   show_differential: boolean;
+  sensors_enabled: number;
+  // Sensor enable flags
+  sensor_3_enabled: boolean;
+  sensor_4_enabled: boolean;
+  // Sensor 1 (Main Tank) thresholds
   main_tank_warning: number;
   main_tank_alarm: number;
+  // Sensor 2 (Tap Changer) thresholds
   tap_changer_warning: number;
   tap_changer_alarm: number;
+  // Sensor 3 thresholds
+  sensor_3_warning: number;
+  sensor_3_alarm: number;
+  // Sensor 4 thresholds
+  sensor_4_warning: number;
+  sensor_4_alarm: number;
+  // Differential thresholds
   differential_warning: number;
   differential_alarm: number;
+  // Gauge labels
   main_tank_label: string;
   tap_changer_label: string;
+  sensor_3_label: string;
+  sensor_4_label: string;
   differential_label: string;
-  // Gauge range settings
+  // Gauge range settings - Sensor 1 (Main Tank)
   main_tank_min: number;
   main_tank_max: number;
+  // Gauge range settings - Sensor 2 (Tap Changer)
   tap_changer_min: number;
   tap_changer_max: number;
+  // Gauge range settings - Sensor 3
+  sensor_3_min: number;
+  sensor_3_max: number;
+  // Gauge range settings - Sensor 4
+  sensor_4_min: number;
+  sensor_4_max: number;
+  // Gauge range settings - Differential
   differential_min: number;
   differential_max: number;
   // Chart settings

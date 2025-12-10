@@ -27,6 +27,10 @@ const DEFAULT_THRESHOLDS = {
   mainTankAlarm: 95,
   tapChangerWarning: 70,
   tapChangerAlarm: 85,
+  sensor3Warning: 70,
+  sensor3Alarm: 85,
+  sensor4Warning: 70,
+  sensor4Alarm: 85,
   differentialWarning: 15,
   differentialAlarm: 25,
 };
@@ -35,6 +39,8 @@ const DEFAULT_THRESHOLDS = {
 const DEFAULT_LABELS = {
   mainTank: 'Main Tank',
   tapChanger: 'Tap Changer Cover',
+  sensor3: 'Sensor 3',
+  sensor4: 'Sensor 4',
   differential: 'Differential (Tank - Tap)',
 };
 
@@ -54,6 +60,10 @@ const DEFAULT_RANGES = {
   mainTankMax: 120,
   tapChangerMin: 0,
   tapChangerMax: 120,
+  sensor3Min: 0,
+  sensor3Max: 120,
+  sensor4Min: 0,
+  sensor4Max: 120,
   differentialMin: -30,
   differentialMax: 30,
 };
@@ -68,6 +78,8 @@ const DEFAULT_CHART = {
 const DEFAULT_DISPLAY = {
   title: '01TR03 Transformer Monitor',
   showDifferential: true,
+  sensor3Enabled: false,
+  sensor4Enabled: false,
 };
 
 // Convert time range to hours
@@ -129,12 +141,18 @@ export default function Dashboard() {
           mainTankAlarm: configData.main_tank_alarm ?? DEFAULT_THRESHOLDS.mainTankAlarm,
           tapChangerWarning: configData.tap_changer_warning ?? DEFAULT_THRESHOLDS.tapChangerWarning,
           tapChangerAlarm: configData.tap_changer_alarm ?? DEFAULT_THRESHOLDS.tapChangerAlarm,
+          sensor3Warning: configData.sensor_3_warning ?? DEFAULT_THRESHOLDS.sensor3Warning,
+          sensor3Alarm: configData.sensor_3_alarm ?? DEFAULT_THRESHOLDS.sensor3Alarm,
+          sensor4Warning: configData.sensor_4_warning ?? DEFAULT_THRESHOLDS.sensor4Warning,
+          sensor4Alarm: configData.sensor_4_alarm ?? DEFAULT_THRESHOLDS.sensor4Alarm,
           differentialWarning: configData.differential_warning ?? DEFAULT_THRESHOLDS.differentialWarning,
           differentialAlarm: configData.differential_alarm ?? DEFAULT_THRESHOLDS.differentialAlarm,
         });
         setLabels({
           mainTank: configData.main_tank_label ?? DEFAULT_LABELS.mainTank,
           tapChanger: configData.tap_changer_label ?? DEFAULT_LABELS.tapChanger,
+          sensor3: configData.sensor_3_label ?? DEFAULT_LABELS.sensor3,
+          sensor4: configData.sensor_4_label ?? DEFAULT_LABELS.sensor4,
           differential: configData.differential_label ?? DEFAULT_LABELS.differential,
         });
         setTelegram({
@@ -150,6 +168,10 @@ export default function Dashboard() {
           mainTankMax: configData.main_tank_max ?? DEFAULT_RANGES.mainTankMax,
           tapChangerMin: configData.tap_changer_min ?? DEFAULT_RANGES.tapChangerMin,
           tapChangerMax: configData.tap_changer_max ?? DEFAULT_RANGES.tapChangerMax,
+          sensor3Min: configData.sensor_3_min ?? DEFAULT_RANGES.sensor3Min,
+          sensor3Max: configData.sensor_3_max ?? DEFAULT_RANGES.sensor3Max,
+          sensor4Min: configData.sensor_4_min ?? DEFAULT_RANGES.sensor4Min,
+          sensor4Max: configData.sensor_4_max ?? DEFAULT_RANGES.sensor4Max,
           differentialMin: configData.differential_min ?? DEFAULT_RANGES.differentialMin,
           differentialMax: configData.differential_max ?? DEFAULT_RANGES.differentialMax,
         });
@@ -160,6 +182,8 @@ export default function Dashboard() {
         setDisplay({
           title: configData.dashboard_title ?? DEFAULT_DISPLAY.title,
           showDifferential: configData.show_differential ?? DEFAULT_DISPLAY.showDifferential,
+          sensor3Enabled: configData.sensor_3_enabled ?? DEFAULT_DISPLAY.sensor3Enabled,
+          sensor4Enabled: configData.sensor_4_enabled ?? DEFAULT_DISPLAY.sensor4Enabled,
         });
       }
       setLatestReading(reading);
@@ -225,6 +249,26 @@ export default function Dashboard() {
     return 'normal';
   };
 
+  const getSensor3Status = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
+    if (!isDeviceOnline() || latestReading?.sensor_3_temp === null || latestReading?.sensor_3_temp === undefined) {
+      return 'offline';
+    }
+    const temp = latestReading.sensor_3_temp;
+    if (temp >= thresholds.sensor3Alarm) return 'alarm';
+    if (temp >= thresholds.sensor3Warning) return 'warning';
+    return 'normal';
+  };
+
+  const getSensor4Status = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
+    if (!isDeviceOnline() || latestReading?.sensor_4_temp === null || latestReading?.sensor_4_temp === undefined) {
+      return 'offline';
+    }
+    const temp = latestReading.sensor_4_temp;
+    if (temp >= thresholds.sensor4Alarm) return 'alarm';
+    if (temp >= thresholds.sensor4Warning) return 'warning';
+    return 'normal';
+  };
+
   // Calculate temperature differential and status
   const getDifferential = (): number | null => {
     if (latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined ||
@@ -279,6 +323,42 @@ export default function Dashboard() {
           message: `${labels.tapChanger} WARNING: ${tapTemp.toFixed(1)}°C (threshold: ${thresholds.tapChangerWarning}°C)`,
           severity: 'warning',
         });
+      }
+
+      // Sensor 3 alerts (only if sensor 3 is enabled)
+      if (display.sensor3Enabled) {
+        const sensor3Temp = latestReading.sensor_3_temp;
+        if (sensor3Temp !== null && sensor3Temp >= thresholds.sensor3Alarm) {
+          clientAlerts.push({
+            id: 'sensor-3-alarm',
+            message: `${labels.sensor3} ALARM: ${sensor3Temp.toFixed(1)}°C (threshold: ${thresholds.sensor3Alarm}°C)`,
+            severity: 'critical',
+          });
+        } else if (sensor3Temp !== null && sensor3Temp >= thresholds.sensor3Warning) {
+          clientAlerts.push({
+            id: 'sensor-3-warning',
+            message: `${labels.sensor3} WARNING: ${sensor3Temp.toFixed(1)}°C (threshold: ${thresholds.sensor3Warning}°C)`,
+            severity: 'warning',
+          });
+        }
+      }
+
+      // Sensor 4 alerts (only if sensor 4 is enabled)
+      if (display.sensor4Enabled) {
+        const sensor4Temp = latestReading.sensor_4_temp;
+        if (sensor4Temp !== null && sensor4Temp >= thresholds.sensor4Alarm) {
+          clientAlerts.push({
+            id: 'sensor-4-alarm',
+            message: `${labels.sensor4} ALARM: ${sensor4Temp.toFixed(1)}°C (threshold: ${thresholds.sensor4Alarm}°C)`,
+            severity: 'critical',
+          });
+        } else if (sensor4Temp !== null && sensor4Temp >= thresholds.sensor4Warning) {
+          clientAlerts.push({
+            id: 'sensor-4-warning',
+            message: `${labels.sensor4} WARNING: ${sensor4Temp.toFixed(1)}°C (threshold: ${thresholds.sensor4Warning}°C)`,
+            severity: 'warning',
+          });
+        }
       }
 
       // Differential alerts (only if differential gauge is shown)
@@ -430,6 +510,34 @@ export default function Dashboard() {
                 lastUpdate={latestReading?.recorded_at}
               />
             </div>
+            {display.sensor3Enabled && (
+              <div className="card card-body">
+                <TemperatureGauge
+                  label={labels.sensor3}
+                  value={latestReading?.sensor_3_temp ?? null}
+                  status={getSensor3Status()}
+                  warningThreshold={thresholds.sensor3Warning}
+                  alarmThreshold={thresholds.sensor3Alarm}
+                  minValue={ranges.sensor3Min}
+                  maxValue={ranges.sensor3Max}
+                  lastUpdate={latestReading?.recorded_at}
+                />
+              </div>
+            )}
+            {display.sensor4Enabled && (
+              <div className="card card-body">
+                <TemperatureGauge
+                  label={labels.sensor4}
+                  value={latestReading?.sensor_4_temp ?? null}
+                  status={getSensor4Status()}
+                  warningThreshold={thresholds.sensor4Warning}
+                  alarmThreshold={thresholds.sensor4Alarm}
+                  minValue={ranges.sensor4Min}
+                  maxValue={ranges.sensor4Max}
+                  lastUpdate={latestReading?.recorded_at}
+                />
+              </div>
+            )}
             {display.showDifferential && (
               <div className="card card-body">
                 <TemperatureGauge

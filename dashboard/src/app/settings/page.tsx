@@ -10,20 +10,36 @@ const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 const DEFAULT_SETTINGS = {
   dashboard_title: '01TR03 Transformer Monitor',
   show_differential: true,
+  sensors_enabled: 2,
+  sensor_3_enabled: false,
+  sensor_4_enabled: false,
   report_interval: 30,
+  // Sensor thresholds
   main_tank_warning: 85,
   main_tank_alarm: 95,
   tap_changer_warning: 70,
   tap_changer_alarm: 85,
+  sensor_3_warning: 70,
+  sensor_3_alarm: 85,
+  sensor_4_warning: 70,
+  sensor_4_alarm: 85,
   differential_warning: 15,
   differential_alarm: 25,
+  // Gauge labels
   main_tank_label: 'Main Tank',
   tap_changer_label: 'Tap Changer Cover',
+  sensor_3_label: 'Sensor 3',
+  sensor_4_label: 'Sensor 4',
   differential_label: 'Differential (Tank - Tap)',
+  // Gauge ranges
   main_tank_min: 0,
   main_tank_max: 120,
   tap_changer_min: 0,
   tap_changer_max: 120,
+  sensor_3_min: 0,
+  sensor_3_max: 120,
+  sensor_4_min: 0,
+  sensor_4_max: 120,
   differential_min: -30,
   differential_max: 30,
   chart_y_min: null as number | null,
@@ -53,20 +69,33 @@ export default function Settings() {
         setSettings({
           dashboard_title: config.dashboard_title ?? DEFAULT_SETTINGS.dashboard_title,
           show_differential: config.show_differential ?? DEFAULT_SETTINGS.show_differential,
+          sensors_enabled: config.sensors_enabled ?? DEFAULT_SETTINGS.sensors_enabled,
+          sensor_3_enabled: config.sensor_3_enabled ?? DEFAULT_SETTINGS.sensor_3_enabled,
+          sensor_4_enabled: config.sensor_4_enabled ?? DEFAULT_SETTINGS.sensor_4_enabled,
           report_interval: config.report_interval ?? DEFAULT_SETTINGS.report_interval,
           main_tank_warning: config.main_tank_warning ?? DEFAULT_SETTINGS.main_tank_warning,
           main_tank_alarm: config.main_tank_alarm ?? DEFAULT_SETTINGS.main_tank_alarm,
           tap_changer_warning: config.tap_changer_warning ?? DEFAULT_SETTINGS.tap_changer_warning,
           tap_changer_alarm: config.tap_changer_alarm ?? DEFAULT_SETTINGS.tap_changer_alarm,
+          sensor_3_warning: config.sensor_3_warning ?? DEFAULT_SETTINGS.sensor_3_warning,
+          sensor_3_alarm: config.sensor_3_alarm ?? DEFAULT_SETTINGS.sensor_3_alarm,
+          sensor_4_warning: config.sensor_4_warning ?? DEFAULT_SETTINGS.sensor_4_warning,
+          sensor_4_alarm: config.sensor_4_alarm ?? DEFAULT_SETTINGS.sensor_4_alarm,
           differential_warning: config.differential_warning ?? DEFAULT_SETTINGS.differential_warning,
           differential_alarm: config.differential_alarm ?? DEFAULT_SETTINGS.differential_alarm,
           main_tank_label: config.main_tank_label ?? DEFAULT_SETTINGS.main_tank_label,
           tap_changer_label: config.tap_changer_label ?? DEFAULT_SETTINGS.tap_changer_label,
+          sensor_3_label: config.sensor_3_label ?? DEFAULT_SETTINGS.sensor_3_label,
+          sensor_4_label: config.sensor_4_label ?? DEFAULT_SETTINGS.sensor_4_label,
           differential_label: config.differential_label ?? DEFAULT_SETTINGS.differential_label,
           main_tank_min: config.main_tank_min ?? DEFAULT_SETTINGS.main_tank_min,
           main_tank_max: config.main_tank_max ?? DEFAULT_SETTINGS.main_tank_max,
           tap_changer_min: config.tap_changer_min ?? DEFAULT_SETTINGS.tap_changer_min,
           tap_changer_max: config.tap_changer_max ?? DEFAULT_SETTINGS.tap_changer_max,
+          sensor_3_min: config.sensor_3_min ?? DEFAULT_SETTINGS.sensor_3_min,
+          sensor_3_max: config.sensor_3_max ?? DEFAULT_SETTINGS.sensor_3_max,
+          sensor_4_min: config.sensor_4_min ?? DEFAULT_SETTINGS.sensor_4_min,
+          sensor_4_max: config.sensor_4_max ?? DEFAULT_SETTINGS.sensor_4_max,
           differential_min: config.differential_min ?? DEFAULT_SETTINGS.differential_min,
           differential_max: config.differential_max ?? DEFAULT_SETTINGS.differential_max,
           chart_y_min: config.chart_y_min ?? DEFAULT_SETTINGS.chart_y_min,
@@ -233,6 +262,44 @@ export default function Settings() {
                   />
                 </button>
               </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm text-white">Enable Sensor 3</label>
+                  <p className="text-xs text-gray-500">Enable the third MCP9600 temperature sensor (I2C address 0x65)</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBooleanChange('sensor_3_enabled', !settings.sensor_3_enabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    settings.sensor_3_enabled ? 'bg-primary-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      settings.sensor_3_enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm text-white">Enable Sensor 4</label>
+                  <p className="text-xs text-gray-500">Enable the fourth MCP9600 temperature sensor (I2C address 0x67)</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBooleanChange('sensor_4_enabled', !settings.sensor_4_enabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    settings.sensor_4_enabled ? 'bg-primary-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      settings.sensor_4_enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -276,7 +343,7 @@ export default function Settings() {
             </div>
             <div className="card-body space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Main Tank Label</label>
+                <label className="block text-sm text-gray-400 mb-1">Sensor 1 Label (Main Tank)</label>
                 <input
                   type="text"
                   value={settings.main_tank_label}
@@ -285,7 +352,7 @@ export default function Settings() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Tap Changer Label</label>
+                <label className="block text-sm text-gray-400 mb-1">Sensor 2 Label (Tap Changer)</label>
                 <input
                   type="text"
                   value={settings.tap_changer_label}
@@ -293,6 +360,28 @@ export default function Settings() {
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                 />
               </div>
+              {settings.sensor_3_enabled && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Sensor 3 Label</label>
+                  <input
+                    type="text"
+                    value={settings.sensor_3_label}
+                    onChange={(e) => handleTextChange('sensor_3_label', e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+              )}
+              {settings.sensor_4_enabled && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Sensor 4 Label</label>
+                  <input
+                    type="text"
+                    value={settings.sensor_4_label}
+                    onChange={(e) => handleTextChange('sensor_4_label', e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Differential Label</label>
                 <input
@@ -365,6 +454,60 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+
+              {/* Sensor 3 Range */}
+              {settings.sensor_3_enabled && (
+                <div>
+                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_3_min}
+                        onChange={(e) => handleNumberChange('sensor_3_min', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_3_max}
+                        onChange={(e) => handleNumberChange('sensor_3_max', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sensor 4 Range */}
+              {settings.sensor_4_enabled && (
+                <div>
+                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_4_min}
+                        onChange={(e) => handleNumberChange('sensor_4_min', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_4_max}
+                        onChange={(e) => handleNumberChange('sensor_4_max', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Differential Range */}
               <div>
@@ -490,6 +633,60 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+
+              {/* Sensor 3 */}
+              {settings.sensor_3_enabled && (
+                <div>
+                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_3_warning}
+                        onChange={(e) => handleNumberChange('sensor_3_warning', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_3_alarm}
+                        onChange={(e) => handleNumberChange('sensor_3_alarm', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sensor 4 */}
+              {settings.sensor_4_enabled && (
+                <div>
+                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_4_warning}
+                        onChange={(e) => handleNumberChange('sensor_4_warning', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
+                      <input
+                        type="number"
+                        value={settings.sensor_4_alarm}
+                        onChange={(e) => handleNumberChange('sensor_4_alarm', e.target.value)}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Differential */}
               <div>

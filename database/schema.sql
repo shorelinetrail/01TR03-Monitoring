@@ -31,9 +31,13 @@ CREATE TABLE IF NOT EXISTS temperature_readings (
     device_id VARCHAR(50) NOT NULL,
     main_tank_temp DECIMAL(6,2),
     tap_changer_temp DECIMAL(6,2),
+    sensor_3_temp DECIMAL(6,2),
+    sensor_4_temp DECIMAL(6,2),
     ambient_temp DECIMAL(6,2),
     main_tank_status VARCHAR(20) DEFAULT 'normal',
     tap_changer_status VARCHAR(20) DEFAULT 'normal',
+    sensor_3_status VARCHAR(20) DEFAULT 'normal',
+    sensor_4_status VARCHAR(20) DEFAULT 'normal',
     recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
     CONSTRAINT fk_device
@@ -70,25 +74,56 @@ CREATE TABLE IF NOT EXISTS device_config (
     -- Display settings
     dashboard_title TEXT DEFAULT '01TR03 Transformer Monitor',
     show_differential BOOLEAN DEFAULT TRUE,
+    sensors_enabled INTEGER DEFAULT 2,
 
-    -- Temperature thresholds (Celsius)
+    -- Sensor enable flags
+    sensor_3_enabled BOOLEAN DEFAULT FALSE,
+    sensor_4_enabled BOOLEAN DEFAULT FALSE,
+
+    -- Temperature thresholds (Celsius) - Sensor 1 (Main Tank)
     main_tank_warning DECIMAL(6,2) DEFAULT 85.0,
     main_tank_alarm DECIMAL(6,2) DEFAULT 95.0,
+
+    -- Temperature thresholds (Celsius) - Sensor 2 (Tap Changer)
     tap_changer_warning DECIMAL(6,2) DEFAULT 70.0,
     tap_changer_alarm DECIMAL(6,2) DEFAULT 85.0,
+
+    -- Temperature thresholds (Celsius) - Sensor 3
+    sensor_3_warning DECIMAL(6,2) DEFAULT 70.0,
+    sensor_3_alarm DECIMAL(6,2) DEFAULT 85.0,
+
+    -- Temperature thresholds (Celsius) - Sensor 4
+    sensor_4_warning DECIMAL(6,2) DEFAULT 70.0,
+    sensor_4_alarm DECIMAL(6,2) DEFAULT 85.0,
+
+    -- Differential thresholds
     differential_warning DECIMAL(6,2) DEFAULT 15.0,
     differential_alarm DECIMAL(6,2) DEFAULT 25.0,
 
     -- Gauge labels
     main_tank_label VARCHAR(100) DEFAULT 'Main Tank',
     tap_changer_label VARCHAR(100) DEFAULT 'Tap Changer Cover',
+    sensor_3_label VARCHAR(100) DEFAULT 'Sensor 3',
+    sensor_4_label VARCHAR(100) DEFAULT 'Sensor 4',
     differential_label VARCHAR(100) DEFAULT 'Differential (Tank - Tap)',
 
-    -- Gauge ranges
+    -- Gauge ranges - Sensor 1 (Main Tank)
     main_tank_min DECIMAL(6,2) DEFAULT 0,
     main_tank_max DECIMAL(6,2) DEFAULT 120,
+
+    -- Gauge ranges - Sensor 2 (Tap Changer)
     tap_changer_min DECIMAL(6,2) DEFAULT 0,
     tap_changer_max DECIMAL(6,2) DEFAULT 120,
+
+    -- Gauge ranges - Sensor 3
+    sensor_3_min DECIMAL(6,2) DEFAULT 0,
+    sensor_3_max DECIMAL(6,2) DEFAULT 120,
+
+    -- Gauge ranges - Sensor 4
+    sensor_4_min DECIMAL(6,2) DEFAULT 0,
+    sensor_4_max DECIMAL(6,2) DEFAULT 120,
+
+    -- Gauge ranges - Differential
     differential_min DECIMAL(6,2) DEFAULT -30,
     differential_max DECIMAL(6,2) DEFAULT 30,
 
@@ -183,38 +218,80 @@ BEGIN
     SELECT * INTO config_rec FROM device_config WHERE device_id = NEW.device_id;
 
     IF config_rec IS NOT NULL THEN
-        -- Check main tank temperature
-        IF NEW.main_tank_temp >= config_rec.main_tank_alarm THEN
-            NEW.main_tank_status := 'alarm';
-            INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
-            VALUES (NEW.device_id, 'main_tank_high', 'critical',
-                    'Main Tank temperature alarm: ' || NEW.main_tank_temp || '°C',
-                    NEW.main_tank_temp, config_rec.main_tank_alarm);
-        ELSIF NEW.main_tank_temp >= config_rec.main_tank_warning THEN
-            NEW.main_tank_status := 'warning';
-            INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
-            VALUES (NEW.device_id, 'main_tank_high', 'warning',
-                    'Main Tank temperature warning: ' || NEW.main_tank_temp || '°C',
-                    NEW.main_tank_temp, config_rec.main_tank_warning);
-        ELSE
-            NEW.main_tank_status := 'normal';
+        -- Check main tank temperature (Sensor 1)
+        IF NEW.main_tank_temp IS NOT NULL THEN
+            IF NEW.main_tank_temp >= config_rec.main_tank_alarm THEN
+                NEW.main_tank_status := 'alarm';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'main_tank_high', 'critical',
+                        'Main Tank temperature alarm: ' || NEW.main_tank_temp || '°C',
+                        NEW.main_tank_temp, config_rec.main_tank_alarm);
+            ELSIF NEW.main_tank_temp >= config_rec.main_tank_warning THEN
+                NEW.main_tank_status := 'warning';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'main_tank_high', 'warning',
+                        'Main Tank temperature warning: ' || NEW.main_tank_temp || '°C',
+                        NEW.main_tank_temp, config_rec.main_tank_warning);
+            ELSE
+                NEW.main_tank_status := 'normal';
+            END IF;
         END IF;
 
-        -- Check tap changer temperature
-        IF NEW.tap_changer_temp >= config_rec.tap_changer_alarm THEN
-            NEW.tap_changer_status := 'alarm';
-            INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
-            VALUES (NEW.device_id, 'tap_changer_high', 'critical',
-                    'Tap Changer temperature alarm: ' || NEW.tap_changer_temp || '°C',
-                    NEW.tap_changer_temp, config_rec.tap_changer_alarm);
-        ELSIF NEW.tap_changer_temp >= config_rec.tap_changer_warning THEN
-            NEW.tap_changer_status := 'warning';
-            INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
-            VALUES (NEW.device_id, 'tap_changer_high', 'warning',
-                    'Tap Changer temperature warning: ' || NEW.tap_changer_temp || '°C',
-                    NEW.tap_changer_temp, config_rec.tap_changer_warning);
-        ELSE
-            NEW.tap_changer_status := 'normal';
+        -- Check tap changer temperature (Sensor 2)
+        IF NEW.tap_changer_temp IS NOT NULL THEN
+            IF NEW.tap_changer_temp >= config_rec.tap_changer_alarm THEN
+                NEW.tap_changer_status := 'alarm';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'tap_changer_high', 'critical',
+                        'Tap Changer temperature alarm: ' || NEW.tap_changer_temp || '°C',
+                        NEW.tap_changer_temp, config_rec.tap_changer_alarm);
+            ELSIF NEW.tap_changer_temp >= config_rec.tap_changer_warning THEN
+                NEW.tap_changer_status := 'warning';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'tap_changer_high', 'warning',
+                        'Tap Changer temperature warning: ' || NEW.tap_changer_temp || '°C',
+                        NEW.tap_changer_temp, config_rec.tap_changer_warning);
+            ELSE
+                NEW.tap_changer_status := 'normal';
+            END IF;
+        END IF;
+
+        -- Check sensor 3 temperature
+        IF NEW.sensor_3_temp IS NOT NULL AND config_rec.sensor_3_enabled THEN
+            IF NEW.sensor_3_temp >= config_rec.sensor_3_alarm THEN
+                NEW.sensor_3_status := 'alarm';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'sensor_3_high', 'critical',
+                        config_rec.sensor_3_label || ' temperature alarm: ' || NEW.sensor_3_temp || '°C',
+                        NEW.sensor_3_temp, config_rec.sensor_3_alarm);
+            ELSIF NEW.sensor_3_temp >= config_rec.sensor_3_warning THEN
+                NEW.sensor_3_status := 'warning';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'sensor_3_high', 'warning',
+                        config_rec.sensor_3_label || ' temperature warning: ' || NEW.sensor_3_temp || '°C',
+                        NEW.sensor_3_temp, config_rec.sensor_3_warning);
+            ELSE
+                NEW.sensor_3_status := 'normal';
+            END IF;
+        END IF;
+
+        -- Check sensor 4 temperature
+        IF NEW.sensor_4_temp IS NOT NULL AND config_rec.sensor_4_enabled THEN
+            IF NEW.sensor_4_temp >= config_rec.sensor_4_alarm THEN
+                NEW.sensor_4_status := 'alarm';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'sensor_4_high', 'critical',
+                        config_rec.sensor_4_label || ' temperature alarm: ' || NEW.sensor_4_temp || '°C',
+                        NEW.sensor_4_temp, config_rec.sensor_4_alarm);
+            ELSIF NEW.sensor_4_temp >= config_rec.sensor_4_warning THEN
+                NEW.sensor_4_status := 'warning';
+                INSERT INTO alerts (device_id, alert_type, severity, message, value, threshold)
+                VALUES (NEW.device_id, 'sensor_4_high', 'warning',
+                        config_rec.sensor_4_label || ' temperature warning: ' || NEW.sensor_4_temp || '°C',
+                        NEW.sensor_4_temp, config_rec.sensor_4_warning);
+            ELSE
+                NEW.sensor_4_status := 'normal';
+            END IF;
         END IF;
     END IF;
 
@@ -227,9 +304,13 @@ CREATE OR REPLACE FUNCTION get_latest_reading(p_device_id VARCHAR)
 RETURNS TABLE (
     main_tank_temp DECIMAL,
     tap_changer_temp DECIMAL,
+    sensor_3_temp DECIMAL,
+    sensor_4_temp DECIMAL,
     ambient_temp DECIMAL,
     main_tank_status VARCHAR,
     tap_changer_status VARCHAR,
+    sensor_3_status VARCHAR,
+    sensor_4_status VARCHAR,
     recorded_at TIMESTAMP WITH TIME ZONE
 ) AS $$
 BEGIN
@@ -237,9 +318,13 @@ BEGIN
     SELECT
         tr.main_tank_temp,
         tr.tap_changer_temp,
+        tr.sensor_3_temp,
+        tr.sensor_4_temp,
         tr.ambient_temp,
         tr.main_tank_status,
         tr.tap_changer_status,
+        tr.sensor_3_status,
+        tr.sensor_4_status,
         tr.recorded_at
     FROM temperature_readings tr
     WHERE tr.device_id = p_device_id
@@ -414,8 +499,12 @@ SELECT
     d.last_seen,
     tr.main_tank_temp,
     tr.tap_changer_temp,
+    tr.sensor_3_temp,
+    tr.sensor_4_temp,
     tr.main_tank_status,
     tr.tap_changer_status,
+    tr.sensor_3_status,
+    tr.sensor_4_status,
     tr.recorded_at as last_reading_at,
     (SELECT COUNT(*) FROM alerts a WHERE a.device_id = d.device_id AND a.acknowledged = false) as unacknowledged_alerts
 FROM devices d
