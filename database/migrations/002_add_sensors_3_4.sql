@@ -241,6 +241,8 @@ $$ language 'plpgsql';
 -- Update device_status view for sensors 3 and 4
 -- ============================================================================
 
+DROP VIEW IF EXISTS device_status;
+
 CREATE OR REPLACE VIEW device_status AS
 SELECT
     d.device_id,
