@@ -202,6 +202,8 @@ $$ language 'plpgsql';
 -- Update get_latest_reading function for sensors 3 and 4
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS get_latest_reading(VARCHAR);
+
 CREATE OR REPLACE FUNCTION get_latest_reading(p_device_id VARCHAR)
 RETURNS TABLE (
     main_tank_temp DECIMAL,
