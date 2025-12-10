@@ -67,11 +67,34 @@ CREATE TABLE IF NOT EXISTS device_config (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     device_id VARCHAR(50) UNIQUE NOT NULL,
 
+    -- Display settings
+    dashboard_title TEXT DEFAULT '01TR03 Transformer Monitor',
+    show_differential BOOLEAN DEFAULT TRUE,
+
     -- Temperature thresholds (Celsius)
     main_tank_warning DECIMAL(6,2) DEFAULT 85.0,
     main_tank_alarm DECIMAL(6,2) DEFAULT 95.0,
     tap_changer_warning DECIMAL(6,2) DEFAULT 70.0,
     tap_changer_alarm DECIMAL(6,2) DEFAULT 85.0,
+    differential_warning DECIMAL(6,2) DEFAULT 15.0,
+    differential_alarm DECIMAL(6,2) DEFAULT 25.0,
+
+    -- Gauge labels
+    main_tank_label VARCHAR(100) DEFAULT 'Main Tank',
+    tap_changer_label VARCHAR(100) DEFAULT 'Tap Changer Cover',
+    differential_label VARCHAR(100) DEFAULT 'Differential (Tank - Tap)',
+
+    -- Gauge ranges
+    main_tank_min DECIMAL(6,2) DEFAULT 0,
+    main_tank_max DECIMAL(6,2) DEFAULT 120,
+    tap_changer_min DECIMAL(6,2) DEFAULT 0,
+    tap_changer_max DECIMAL(6,2) DEFAULT 120,
+    differential_min DECIMAL(6,2) DEFAULT -30,
+    differential_max DECIMAL(6,2) DEFAULT 30,
+
+    -- Chart settings
+    chart_y_min DECIMAL(6,2) DEFAULT NULL,
+    chart_y_max DECIMAL(6,2) DEFAULT NULL,
 
     -- Reporting intervals (seconds)
     report_interval INTEGER DEFAULT 30,
@@ -85,6 +108,14 @@ CREATE TABLE IF NOT EXISTS device_config (
     wifi_ssid VARCHAR(64),
     ntp_server VARCHAR(100) DEFAULT 'pool.ntp.org',
     timezone VARCHAR(50) DEFAULT 'UTC',
+
+    -- Telegram alert settings
+    telegram_enabled BOOLEAN DEFAULT FALSE,
+    telegram_bot_token TEXT DEFAULT NULL,
+    telegram_chat_id VARCHAR(100) DEFAULT NULL,
+    telegram_alert_on_warning BOOLEAN DEFAULT FALSE,
+    telegram_alert_on_alarm BOOLEAN DEFAULT TRUE,
+    telegram_cooldown_minutes INTEGER DEFAULT 15,
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
