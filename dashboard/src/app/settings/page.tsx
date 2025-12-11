@@ -6,6 +6,37 @@ import { getDeviceConfig, updateDeviceConfig } from '@/lib/supabase';
 
 const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 
+// Mobile-friendly toggle switch component
+function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      onClick={onChange}
+      className={`
+        relative inline-flex flex-shrink-0
+        h-6 w-11
+        items-center rounded-full p-0.5
+        transition-colors duration-200 ease-in-out
+        focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900
+        ${enabled ? 'bg-primary-600' : 'bg-gray-500'}
+      `}
+    >
+      <span
+        className={`
+          pointer-events-none inline-block
+          h-5 w-5
+          rounded-full bg-white
+          shadow-sm
+          transition-transform duration-200 ease-in-out
+          ${enabled ? 'translate-x-5' : 'translate-x-0'}
+        `}
+      />
+    </button>
+  );
+}
+
 // Default settings
 const DEFAULT_SETTINGS = {
   dashboard_title: '01TR03 Transformer Monitor',
@@ -248,81 +279,45 @@ export default function Settings() {
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <label className="text-sm text-white">Show Differential Gauge</label>
                   <p className="text-xs text-gray-500">Display the temperature differential gauge on the dashboard</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleBooleanChange('show_differential', !settings.show_differential)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.show_differential ? 'bg-primary-600' : 'bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.show_differential ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <ToggleSwitch
+                  enabled={settings.show_differential}
+                  onChange={() => handleBooleanChange('show_differential', !settings.show_differential)}
+                />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <label className="text-sm text-white">Enable Sensor 2</label>
                   <p className="text-xs text-gray-500">Enable the second MCP9600 temperature sensor (I2C address 0x61)</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleBooleanChange('sensor_2_enabled', !settings.sensor_2_enabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.sensor_2_enabled ? 'bg-primary-600' : 'bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.sensor_2_enabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <ToggleSwitch
+                  enabled={settings.sensor_2_enabled}
+                  onChange={() => handleBooleanChange('sensor_2_enabled', !settings.sensor_2_enabled)}
+                />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <label className="text-sm text-white">Enable Sensor 3</label>
                   <p className="text-xs text-gray-500">Enable the third MCP9600 temperature sensor (I2C address 0x65)</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleBooleanChange('sensor_3_enabled', !settings.sensor_3_enabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.sensor_3_enabled ? 'bg-primary-600' : 'bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.sensor_3_enabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <ToggleSwitch
+                  enabled={settings.sensor_3_enabled}
+                  onChange={() => handleBooleanChange('sensor_3_enabled', !settings.sensor_3_enabled)}
+                />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <label className="text-sm text-white">Enable Sensor 4</label>
                   <p className="text-xs text-gray-500">Enable the fourth MCP9600 temperature sensor (I2C address 0x67)</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleBooleanChange('sensor_4_enabled', !settings.sensor_4_enabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.sensor_4_enabled ? 'bg-primary-600' : 'bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.sensor_4_enabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <ToggleSwitch
+                  enabled={settings.sensor_4_enabled}
+                  onChange={() => handleBooleanChange('sensor_4_enabled', !settings.sensor_4_enabled)}
+                />
               </div>
             </div>
           </div>
@@ -757,24 +752,15 @@ export default function Settings() {
             </div>
             <div className="card-body space-y-4">
               {/* Enable toggle */}
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
                   <label className="text-sm text-white">Enable Telegram Alerts</label>
                   <p className="text-xs text-gray-500">Send notifications when alerts are triggered</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleBooleanChange('telegram_enabled', !settings.telegram_enabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.telegram_enabled ? 'bg-primary-600' : 'bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.telegram_enabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <ToggleSwitch
+                  enabled={settings.telegram_enabled}
+                  onChange={() => handleBooleanChange('telegram_enabled', !settings.telegram_enabled)}
+                />
               </div>
 
               {/* Bot Token */}
