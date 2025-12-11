@@ -16,8 +16,8 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () =>
       onClick={onChange}
       className={`
         relative inline-flex flex-shrink-0
-        h-6 w-11
-        items-center rounded-full p-0.5
+        h-7 w-14
+        items-center rounded-full
         transition-colors duration-200 ease-in-out
         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900
         ${enabled ? 'bg-primary-600' : 'bg-gray-500'}
@@ -30,7 +30,7 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () =>
           rounded-full bg-white
           shadow-sm
           transition-transform duration-200 ease-in-out
-          ${enabled ? 'translate-x-5' : 'translate-x-0'}
+          ${enabled ? 'translate-x-8' : 'translate-x-1'}
         `}
       />
     </button>
