@@ -209,28 +209,31 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
+    <div className="min-h-screen safe-top">
+      {/* Header - Mobile Optimized */}
       <header className="bg-gray-900/50 border-b border-gray-800 sticky top-0 z-40 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-gray-400 hover:text-white">
-                &larr; Back
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Link href="/" className="flex items-center gap-1 text-gray-400 hover:text-white text-sm sm:text-base py-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="hidden sm:inline">Back</span>
               </Link>
-              <h1 className="text-xl font-bold text-white">Settings</h1>
+              <h1 className="text-base sm:text-xl font-bold text-white">Settings</h1>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-2xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 safe-bottom">
         {/* Display Settings */}
-        <section className="mb-8">
+        <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-white">Display Settings</h2>
-              <p className="text-sm text-gray-400 mt-1">
+              <h2 className="text-base sm:text-lg font-semibold text-white">Display Settings</h2>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 Configure dashboard title and visibility options.
               </p>
             </div>
@@ -326,10 +329,10 @@ export default function Settings() {
         </section>
 
         {/* Device Settings */}
-        <section className="mb-8">
+        <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-white">Device Settings</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Device Settings</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure ESP32 device behavior.
               </p>
@@ -354,10 +357,10 @@ export default function Settings() {
         </section>
 
         {/* Gauge Labels */}
-        <section className="mb-8">
+        <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-white">Gauge Labels</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Gauge Labels</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Customize the display labels for each gauge.
               </p>
@@ -419,10 +422,10 @@ export default function Settings() {
         </section>
 
         {/* Gauge Ranges */}
-        <section className="mb-8">
+        <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-white">Gauge Ranges</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Gauge Ranges</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure the minimum and maximum values displayed on each gauge.
               </p>
@@ -563,10 +566,10 @@ export default function Settings() {
         </section>
 
         {/* Chart Settings */}
-        <section className="mb-8">
+        <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-white">Chart Settings</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Chart Settings</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure the temperature trend chart. Leave blank for auto-scaling.
               </p>
@@ -600,10 +603,10 @@ export default function Settings() {
         </section>
 
         {/* Alarm Thresholds */}
-        <section className="mb-8">
+        <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-white">Alarm Thresholds</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Alarm Thresholds</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure warning and alarm temperature levels for each sensor.
               </p>
@@ -744,10 +747,10 @@ export default function Settings() {
         </section>
 
         {/* Telegram Alerts */}
-        <section className="mb-8">
+        <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-lg font-semibold text-white">Telegram Alerts</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Telegram Alerts</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Receive instant alerts via Telegram when thresholds are exceeded.
               </p>
@@ -864,32 +867,32 @@ export default function Settings() {
           </div>
         </section>
 
-        {/* Save Section */}
-        <section className="mb-8">
-          <div className="card">
+        {/* Save Section - Sticky on mobile */}
+        <section className="mb-4 sm:mb-8 sticky bottom-0 sm:relative z-30">
+          <div className="card bg-gray-900/95 sm:bg-gray-800/50 backdrop-blur-sm">
             <div className="card-body">
               {/* Error message */}
               {error && (
-                <p className="text-red-400 text-sm mb-4">{error}</p>
+                <p className="text-red-400 text-xs sm:text-sm mb-3 sm:mb-4">{error}</p>
               )}
 
               {/* Buttons */}
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 text-white rounded transition-colors"
+                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 text-white rounded transition-colors font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={handleReset}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
                 >
                   Reset to Defaults
                 </button>
                 {saved && (
-                  <span className="flex items-center text-green-400 text-sm">
+                  <span className="flex items-center justify-center sm:justify-start text-green-400 text-sm">
                     Saved!
                   </span>
                 )}

@@ -71,8 +71,8 @@ export default function TemperatureGauge({
   const alarmPos = alarmThreshold !== undefined ? (alarmThreshold - minValue) / (maxValue - minValue) : 0;
 
   return (
-    <div className={`flex flex-col items-center ${getStatusClass()}`}>
-      <div className="relative w-48 h-40">
+    <div className={`flex flex-col items-center ${getStatusClass()} gauge-container`}>
+      <div className="relative w-36 h-28 sm:w-48 sm:h-40">
         <svg
           viewBox="0 0 200 150"
           className="w-full h-full"
@@ -168,11 +168,11 @@ export default function TemperatureGauge({
       </div>
 
       {/* Label */}
-      <div className="text-center mt-2">
-        <h3 className="text-lg font-semibold text-white">{label}</h3>
+      <div className="text-center mt-1 sm:mt-2">
+        <h3 className="text-sm sm:text-lg font-semibold text-white truncate max-w-[140px] sm:max-w-none">{label}</h3>
         {showStatus && (
           <span
-            className={`badge ${
+            className={`badge mt-1 ${
               status === 'normal'
                 ? 'badge-normal'
                 : status === 'warning'
@@ -187,17 +187,17 @@ export default function TemperatureGauge({
         )}
       </div>
 
-      {/* Thresholds */}
+      {/* Thresholds - hidden on small mobile */}
       {showThresholds && warningThreshold !== undefined && alarmThreshold !== undefined && (
-        <div className="flex justify-between w-full mt-3 text-xs text-gray-500">
+        <div className="hidden sm:flex justify-between w-full mt-3 text-xs text-gray-500">
           <span>Warn: {warningThreshold}{unit}</span>
           <span>Alarm: {alarmThreshold}{unit}</span>
         </div>
       )}
 
-      {/* Last Update */}
+      {/* Last Update - hidden on mobile */}
       {lastUpdate && (
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="hidden sm:block text-xs text-gray-500 mt-2">
           Updated: {new Date(lastUpdate).toLocaleTimeString()}
         </p>
       )}

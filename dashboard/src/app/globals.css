@@ -112,3 +112,75 @@ body {
 .badge-offline {
   @apply bg-gray-500/20 text-gray-400 border border-gray-500/30;
 }
+
+/* Mobile-optimized styles */
+@media (max-width: 640px) {
+  .card-header {
+    @apply px-4 py-3;
+  }
+
+  .card-body {
+    @apply p-4;
+  }
+
+  /* Smaller badges on mobile */
+  .badge {
+    @apply px-2 py-0.5 text-[10px];
+  }
+
+  /* Compact scrollbar on mobile */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  button,
+  a,
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  /* Larger toggle switches on touch devices */
+  .toggle-switch {
+    @apply h-7 w-14;
+  }
+}
+
+/* Safe area for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Pull to refresh indicator */
+.ptr-indicator {
+  @apply flex items-center justify-center h-12 text-gray-400 text-sm;
+}
+
+/* Mobile gauge container */
+.gauge-mobile {
+  @apply w-full max-w-[160px] mx-auto;
+}
+
+/* Mobile-friendly date picker */
+@media (max-width: 640px) {
+  input[type="datetime-local"] {
+    @apply text-xs px-2 py-1.5;
+  }
+}
+
+/* Landscape mode optimizations */
+@media (max-height: 500px) and (orientation: landscape) {
+  .gauge-container {
+    @apply scale-75;
+  }
+}
