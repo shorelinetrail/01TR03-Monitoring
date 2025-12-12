@@ -170,10 +170,10 @@ export default function TemperatureGauge({
       </div>
 
       {/* Label */}
-      <div className="text-center mt-1 sm:mt-2">
+      <div className="flex flex-col items-center mt-1 sm:mt-2">
         <h3 className="text-sm sm:text-lg font-semibold text-white truncate max-w-[140px] sm:max-w-none">{label}</h3>
         {thermocoupleType && (
-          <span className="text-xs text-gray-400">Type {thermocoupleType}</span>
+          <span className="text-xs text-gray-400 mt-0.5">Type {thermocoupleType}</span>
         )}
         {showStatus && (
           <span
