@@ -14,6 +14,7 @@ interface TemperatureGaugeProps {
   lastUpdate?: string | null;
   showThresholds?: boolean;
   showStatus?: boolean;
+  thermocoupleType?: string;
 }
 
 export default function TemperatureGauge({
@@ -28,6 +29,7 @@ export default function TemperatureGauge({
   lastUpdate,
   showThresholds = true,
   showStatus = true,
+  thermocoupleType,
 }: TemperatureGaugeProps) {
   const normalizedValue = value !== null
     ? Math.min(Math.max((value - minValue) / (maxValue - minValue), 0), 1)
@@ -170,6 +172,9 @@ export default function TemperatureGauge({
       {/* Label */}
       <div className="text-center mt-1 sm:mt-2">
         <h3 className="text-sm sm:text-lg font-semibold text-white truncate max-w-[140px] sm:max-w-none">{label}</h3>
+        {thermocoupleType && (
+          <span className="text-xs text-gray-400">Type {thermocoupleType}</span>
+        )}
         {showStatus && (
           <span
             className={`badge mt-1 ${

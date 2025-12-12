@@ -81,6 +81,10 @@ const DEFAULT_DISPLAY = {
   sensor2Enabled: true,
   sensor3Enabled: false,
   sensor4Enabled: false,
+  sensor1ThermocoupleType: 'K',
+  sensor2ThermocoupleType: 'K',
+  sensor3ThermocoupleType: 'K',
+  sensor4ThermocoupleType: 'K',
 };
 
 // Convert time range to hours
@@ -186,6 +190,10 @@ export default function Dashboard() {
           sensor2Enabled: configData.sensor_2_enabled ?? DEFAULT_DISPLAY.sensor2Enabled,
           sensor3Enabled: configData.sensor_3_enabled ?? DEFAULT_DISPLAY.sensor3Enabled,
           sensor4Enabled: configData.sensor_4_enabled ?? DEFAULT_DISPLAY.sensor4Enabled,
+          sensor1ThermocoupleType: configData.sensor_1_thermocouple_type ?? DEFAULT_DISPLAY.sensor1ThermocoupleType,
+          sensor2ThermocoupleType: configData.sensor_2_thermocouple_type ?? DEFAULT_DISPLAY.sensor2ThermocoupleType,
+          sensor3ThermocoupleType: configData.sensor_3_thermocouple_type ?? DEFAULT_DISPLAY.sensor3ThermocoupleType,
+          sensor4ThermocoupleType: configData.sensor_4_thermocouple_type ?? DEFAULT_DISPLAY.sensor4ThermocoupleType,
         });
       }
       setLatestReading(reading);
@@ -502,6 +510,7 @@ export default function Dashboard() {
                 minValue={ranges.mainTankMin}
                 maxValue={ranges.mainTankMax}
                 lastUpdate={latestReading?.recorded_at}
+                thermocoupleType={display.sensor1ThermocoupleType}
               />
             </div>
             {display.sensor2Enabled && (
@@ -515,6 +524,7 @@ export default function Dashboard() {
                   minValue={ranges.tapChangerMin}
                   maxValue={ranges.tapChangerMax}
                   lastUpdate={latestReading?.recorded_at}
+                  thermocoupleType={display.sensor2ThermocoupleType}
                 />
               </div>
             )}
@@ -529,6 +539,7 @@ export default function Dashboard() {
                   minValue={ranges.sensor3Min}
                   maxValue={ranges.sensor3Max}
                   lastUpdate={latestReading?.recorded_at}
+                  thermocoupleType={display.sensor3ThermocoupleType}
                 />
               </div>
             )}
@@ -543,6 +554,7 @@ export default function Dashboard() {
                   minValue={ranges.sensor4Min}
                   maxValue={ranges.sensor4Max}
                   lastUpdate={latestReading?.recorded_at}
+                  thermocoupleType={display.sensor4ThermocoupleType}
                 />
               </div>
             )}

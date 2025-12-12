@@ -6,6 +6,18 @@ import { getDeviceConfig, updateDeviceConfig } from '@/lib/supabase';
 
 const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
 
+// Thermocouple type options
+const THERMOCOUPLE_TYPES = [
+  { value: 'K', label: 'Type K' },
+  { value: 'J', label: 'Type J' },
+  { value: 'T', label: 'Type T' },
+  { value: 'N', label: 'Type N' },
+  { value: 'S', label: 'Type S' },
+  { value: 'E', label: 'Type E' },
+  { value: 'B', label: 'Type B' },
+  { value: 'R', label: 'Type R' },
+];
+
 // Mobile-friendly toggle switch component
 function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
   return (
@@ -82,6 +94,14 @@ const DEFAULT_SETTINGS = {
   telegram_alert_on_warning: false,
   telegram_alert_on_alarm: true,
   telegram_cooldown_minutes: 15,
+  // Per-sensor thermocouple types
+  sensor_1_thermocouple_type: 'K',
+  sensor_2_thermocouple_type: 'K',
+  sensor_3_thermocouple_type: 'K',
+  sensor_4_thermocouple_type: 'K',
+  // Connection settings
+  supabase_url: '',
+  supabase_key: '',
 };
 
 export default function Settings() {
@@ -139,6 +159,12 @@ export default function Settings() {
           telegram_alert_on_warning: config.telegram_alert_on_warning ?? DEFAULT_SETTINGS.telegram_alert_on_warning,
           telegram_alert_on_alarm: config.telegram_alert_on_alarm ?? DEFAULT_SETTINGS.telegram_alert_on_alarm,
           telegram_cooldown_minutes: config.telegram_cooldown_minutes ?? DEFAULT_SETTINGS.telegram_cooldown_minutes,
+          sensor_1_thermocouple_type: config.sensor_1_thermocouple_type ?? DEFAULT_SETTINGS.sensor_1_thermocouple_type,
+          sensor_2_thermocouple_type: config.sensor_2_thermocouple_type ?? DEFAULT_SETTINGS.sensor_2_thermocouple_type,
+          sensor_3_thermocouple_type: config.sensor_3_thermocouple_type ?? DEFAULT_SETTINGS.sensor_3_thermocouple_type,
+          sensor_4_thermocouple_type: config.sensor_4_thermocouple_type ?? DEFAULT_SETTINGS.sensor_4_thermocouple_type,
+          supabase_url: config.supabase_url ?? DEFAULT_SETTINGS.supabase_url,
+          supabase_key: config.supabase_key ?? DEFAULT_SETTINGS.supabase_key,
         });
       }
       setLoading(false);
@@ -289,35 +315,110 @@ export default function Settings() {
                   onChange={() => handleBooleanChange('show_differential', !settings.show_differential)}
                 />
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <label className="text-sm text-white">Enable Sensor 2</label>
-                  <p className="text-xs text-gray-500">Enable the second MCP9600 temperature sensor (I2C address 0x61)</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Sensor Configuration */}
+        <section className="mb-4 sm:mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-base sm:text-lg font-semibold text-white">Sensor Configuration</h2>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                Enable sensors and set thermocouple types for each MCP9600.
+              </p>
+            </div>
+            <div className="card-body space-y-4">
+              {/* Sensor 1 - Always enabled */}
+              <div className="p-3 bg-gray-800/50 rounded-lg">
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <label className="text-sm text-white font-medium">Sensor 1 (Main Tank)</label>
+                  <span className="text-xs text-primary-400">Always On</span>
                 </div>
-                <ToggleSwitch
-                  enabled={settings.sensor_2_enabled}
-                  onChange={() => handleBooleanChange('sensor_2_enabled', !settings.sensor_2_enabled)}
-                />
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">I2C: 0x60</span>
+                  <select
+                    value={settings.sensor_1_thermocouple_type}
+                    onChange={(e) => handleTextChange('sensor_1_thermocouple_type', e.target.value)}
+                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500"
+                  >
+                    {THERMOCOUPLE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <label className="text-sm text-white">Enable Sensor 3</label>
-                  <p className="text-xs text-gray-500">Enable the third MCP9600 temperature sensor (I2C address 0x65)</p>
+
+              {/* Sensor 2 */}
+              <div className="p-3 bg-gray-800/50 rounded-lg">
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <label className="text-sm text-white font-medium">Sensor 2 (Tap Changer)</label>
+                  <ToggleSwitch
+                    enabled={settings.sensor_2_enabled}
+                    onChange={() => handleBooleanChange('sensor_2_enabled', !settings.sensor_2_enabled)}
+                  />
                 </div>
-                <ToggleSwitch
-                  enabled={settings.sensor_3_enabled}
-                  onChange={() => handleBooleanChange('sensor_3_enabled', !settings.sensor_3_enabled)}
-                />
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">I2C: 0x61</span>
+                  <select
+                    value={settings.sensor_2_thermocouple_type}
+                    onChange={(e) => handleTextChange('sensor_2_thermocouple_type', e.target.value)}
+                    disabled={!settings.sensor_2_enabled}
+                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  >
+                    {THERMOCOUPLE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <label className="text-sm text-white">Enable Sensor 4</label>
-                  <p className="text-xs text-gray-500">Enable the fourth MCP9600 temperature sensor (I2C address 0x67)</p>
+
+              {/* Sensor 3 */}
+              <div className="p-3 bg-gray-800/50 rounded-lg">
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <label className="text-sm text-white font-medium">Sensor 3</label>
+                  <ToggleSwitch
+                    enabled={settings.sensor_3_enabled}
+                    onChange={() => handleBooleanChange('sensor_3_enabled', !settings.sensor_3_enabled)}
+                  />
                 </div>
-                <ToggleSwitch
-                  enabled={settings.sensor_4_enabled}
-                  onChange={() => handleBooleanChange('sensor_4_enabled', !settings.sensor_4_enabled)}
-                />
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">I2C: 0x65</span>
+                  <select
+                    value={settings.sensor_3_thermocouple_type}
+                    onChange={(e) => handleTextChange('sensor_3_thermocouple_type', e.target.value)}
+                    disabled={!settings.sensor_3_enabled}
+                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  >
+                    {THERMOCOUPLE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Sensor 4 */}
+              <div className="p-3 bg-gray-800/50 rounded-lg">
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <label className="text-sm text-white font-medium">Sensor 4</label>
+                  <ToggleSwitch
+                    enabled={settings.sensor_4_enabled}
+                    onChange={() => handleBooleanChange('sensor_4_enabled', !settings.sensor_4_enabled)}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">I2C: 0x67</span>
+                  <select
+                    value={settings.sensor_4_thermocouple_type}
+                    onChange={(e) => handleTextChange('sensor_4_thermocouple_type', e.target.value)}
+                    disabled={!settings.sensor_4_enabled}
+                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  >
+                    {THERMOCOUPLE_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -848,6 +949,46 @@ export default function Settings() {
                     {telegramTestResult.message}
                   </span>
                 )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Connection Settings */}
+        <section className="mb-4 sm:mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-base sm:text-lg font-semibold text-white">Connection Settings</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Supabase connection settings for the ESP32 device.
+              </p>
+            </div>
+            <div className="card-body space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Supabase URL</label>
+                <input
+                  type="text"
+                  value={settings.supabase_url}
+                  onChange={(e) => handleTextChange('supabase_url', e.target.value)}
+                  placeholder="https://your-project.supabase.co"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Your Supabase project URL
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Supabase Anon Key</label>
+                <input
+                  type="password"
+                  value={settings.supabase_key}
+                  onChange={(e) => handleTextChange('supabase_key', e.target.value)}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Your Supabase anonymous/public key (found in Project Settings → API)
+                </p>
               </div>
             </div>
           </div>

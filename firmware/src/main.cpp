@@ -74,6 +74,12 @@ bool sensor3Enabled = false;
 bool sensor4Enabled = false;
 int sensorsEnabled = 2;  // Number of sensors enabled (1-4)
 
+// Per-sensor thermocouple types (K, J, T, N, S, E, B, R) - configurable via dashboard
+String sensor1ThermocoupleType = "K";
+String sensor2ThermocoupleType = "K";
+String sensor3ThermocoupleType = "K";
+String sensor4ThermocoupleType = "K";
+
 // Display - exact same as StationBoards
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
 
@@ -247,7 +253,20 @@ void displayTemperatures() {
 // ============================================================================
 
 #ifdef USE_MCP9600
-bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
+// Convert thermocouple type string to MCP9600 enum
+mcp9600_thermocouple_type_t getThermocoupleTypeEnum(const String& tcType) {
+    if (tcType == "K") return MCP9600_TYPE_K;
+    if (tcType == "J") return MCP9600_TYPE_J;
+    if (tcType == "T") return MCP9600_TYPE_T;
+    if (tcType == "N") return MCP9600_TYPE_N;
+    if (tcType == "S") return MCP9600_TYPE_S;
+    if (tcType == "E") return MCP9600_TYPE_E;
+    if (tcType == "B") return MCP9600_TYPE_B;
+    if (tcType == "R") return MCP9600_TYPE_R;
+    return MCP9600_TYPE_K;  // Default to Type K
+}
+
+bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, const String& tcType) {
     Serial.printf("\n--- Initializing MCP9600 %s at 0x%02X ---\n", name, addr);
 
     // Check if device responds on I2C
@@ -265,11 +284,12 @@ bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     }
     Serial.printf("MCP9600 begin() OK\n");
 
-    // Configure for Type J thermocouple
+    // Configure thermocouple type from settings
     sensor.setADCresolution(MCP9600_ADCRESOLUTION_18);
-    sensor.setThermocoupleType(MCP9600_TYPE_J);
+    sensor.setThermocoupleType(getThermocoupleTypeEnum(tcType));
     sensor.setFilterCoefficient(3);  // Medium filtering
     sensor.enable(true);
+    Serial.printf("Configured for Type %s thermocouple\n", tcType.c_str());
 
     // Test read
     float testTemp = sensor.readThermocouple();
@@ -323,10 +343,10 @@ void initSensors() {
     }
     Serial.printf("Scan complete. Found %d device(s)\n\n", deviceCount);
 
-    mainTankSensorOK = initMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)");
-    tapChangerSensorOK = initMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2 (Tap Changer)");
-    sensor3SensorOK = initMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3");
-    sensor4SensorOK = initMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4");
+    mainTankSensorOK = initMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)", sensor1ThermocoupleType);
+    tapChangerSensorOK = initMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2 (Tap Changer)", sensor2ThermocoupleType);
+    sensor3SensorOK = initMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3", sensor3ThermocoupleType);
+    sensor4SensorOK = initMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4", sensor4ThermocoupleType);
 
     Serial.printf("\n=== Sensor Status ===\n");
     Serial.printf("Sensor 1 (Main Tank): %s\n", mainTankSensorOK ? "OK" : "FAILED/NOT PRESENT");
@@ -626,6 +646,19 @@ int extractJsonInt(const String& json, const char* key, int defaultVal) {
     return json.substring(start, end).toInt();
 }
 
+// Helper function to extract a string value from JSON
+String extractJsonString(const String& json, const char* key, const String& defaultVal) {
+    String searchKey = "\"" + String(key) + "\":\"";
+    int start = json.indexOf(searchKey);
+    if (start < 0) return defaultVal;
+
+    start += searchKey.length();
+    int end = json.indexOf("\"", start);
+    if (end <= start) return defaultVal;
+
+    return json.substring(start, end);
+}
+
 void fetchConfigFromSupabase() {
     if (!wifiConnected || supabaseUrl.length() == 0 || supabaseKey.length() == 0) {
         return;
@@ -635,7 +668,8 @@ void fetchConfigFromSupabase() {
     String url = supabaseUrl + "/rest/v1/device_config?device_id=eq." + String(DEVICE_ID) +
         "&select=report_interval,sensors_enabled,sensor_2_enabled,sensor_3_enabled,sensor_4_enabled," +
         "main_tank_warning,main_tank_alarm,tap_changer_warning,tap_changer_alarm," +
-        "sensor_3_warning,sensor_3_alarm,sensor_4_warning,sensor_4_alarm";
+        "sensor_3_warning,sensor_3_alarm,sensor_4_warning,sensor_4_alarm," +
+        "sensor_1_thermocouple_type,sensor_2_thermocouple_type,sensor_3_thermocouple_type,sensor_4_thermocouple_type";
 
     http.begin(url);
     http.addHeader("apikey", supabaseKey);
@@ -670,11 +704,20 @@ void fetchConfigFromSupabase() {
         sensor4Warning = extractJsonFloat(payload, "sensor_4_warning", 70.0);
         sensor4Alarm = extractJsonFloat(payload, "sensor_4_alarm", 85.0);
 
+        // Extract thermocouple types
+        sensor1ThermocoupleType = extractJsonString(payload, "sensor_1_thermocouple_type", "K");
+        sensor2ThermocoupleType = extractJsonString(payload, "sensor_2_thermocouple_type", "K");
+        sensor3ThermocoupleType = extractJsonString(payload, "sensor_3_thermocouple_type", "K");
+        sensor4ThermocoupleType = extractJsonString(payload, "sensor_4_thermocouple_type", "K");
+
         Serial.printf("Sensors enabled: %d (S2: %s, S3: %s, S4: %s)\n",
             sensorsEnabled, sensor2Enabled ? "yes" : "no", sensor3Enabled ? "yes" : "no", sensor4Enabled ? "yes" : "no");
         Serial.printf("Thresholds - S1: %.1f/%.1f, S2: %.1f/%.1f, S3: %.1f/%.1f, S4: %.1f/%.1f\n",
             mainTankWarning, mainTankAlarm, tapChangerWarning, tapChangerAlarm,
             sensor3Warning, sensor3Alarm, sensor4Warning, sensor4Alarm);
+        Serial.printf("Thermocouple types - S1: %s, S2: %s, S3: %s, S4: %s\n",
+            sensor1ThermocoupleType.c_str(), sensor2ThermocoupleType.c_str(),
+            sensor3ThermocoupleType.c_str(), sensor4ThermocoupleType.c_str());
     } else {
         Serial.printf("Config fetch failed: %d\n", httpCode);
     }

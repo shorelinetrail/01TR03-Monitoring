@@ -153,6 +153,16 @@ CREATE TABLE IF NOT EXISTS device_config (
     telegram_alert_on_alarm BOOLEAN DEFAULT TRUE,
     telegram_cooldown_minutes INTEGER DEFAULT 15,
 
+    -- Per-sensor thermocouple types (K, J, T, N, S, E, B, R for MCP9600)
+    sensor_1_thermocouple_type VARCHAR(10) DEFAULT 'K',
+    sensor_2_thermocouple_type VARCHAR(10) DEFAULT 'K',
+    sensor_3_thermocouple_type VARCHAR(10) DEFAULT 'K',
+    sensor_4_thermocouple_type VARCHAR(10) DEFAULT 'K',
+
+    -- Supabase connection settings (for device reference)
+    supabase_url TEXT DEFAULT NULL,
+    supabase_key TEXT DEFAULT NULL,
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 

@@ -114,6 +114,14 @@ export interface DeviceConfig {
   telegram_alert_on_warning: boolean;
   telegram_alert_on_alarm: boolean;
   telegram_cooldown_minutes: number;
+  // Per-sensor thermocouple types (K, J, T, N, S, E, B, R for MCP9600)
+  sensor_1_thermocouple_type: string;
+  sensor_2_thermocouple_type: string;
+  sensor_3_thermocouple_type: string;
+  sensor_4_thermocouple_type: string;
+  // Supabase connection settings
+  supabase_url: string | null;
+  supabase_key: string | null;
 }
 
 export interface Camera {
