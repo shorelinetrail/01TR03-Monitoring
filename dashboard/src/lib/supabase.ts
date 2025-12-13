@@ -263,30 +263,37 @@ export async function getDeviceConfig(deviceId: string): Promise<DeviceConfig | 
 export async function updateDeviceConfig(
   deviceId: string,
   config: Partial<DeviceConfig>
-): Promise<boolean> {
-  // Remove any undefined values and id field (let DB handle it)
-  const cleanConfig: Record<string, unknown> = { device_id: deviceId };
-  for (const [key, value] of Object.entries(config)) {
-    if (value !== undefined && key !== 'id') {
-      cleanConfig[key] = value;
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Remove any undefined values and id field (let DB handle it)
+    const cleanConfig: Record<string, unknown> = { device_id: deviceId };
+    for (const [key, value] of Object.entries(config)) {
+      if (value !== undefined && key !== 'id') {
+        cleanConfig[key] = value;
+      }
     }
+
+    console.log('Saving config for device:', deviceId, cleanConfig);
+
+    // Use upsert to insert if row doesn't exist, or update if it does
+    const { data, error } = await supabase
+      .from('device_config')
+      .upsert(cleanConfig, { onConflict: 'device_id' })
+      .select();
+
+    if (error) {
+      const errorMsg = `${error.message}${error.details ? ` - ${error.details}` : ''}${error.hint ? ` (${error.hint})` : ''}`;
+      console.error('Error updating device config:', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    console.log('Config saved successfully:', data);
+    return { success: true };
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Exception saving config:', errorMsg);
+    return { success: false, error: errorMsg };
   }
-
-  console.log('Saving config for device:', deviceId);
-
-  // Use upsert to insert if row doesn't exist, or update if it does
-  const { data, error } = await supabase
-    .from('device_config')
-    .upsert(cleanConfig, { onConflict: 'device_id' })
-    .select();
-
-  if (error) {
-    console.error('Error updating device config:', error.message, error.details, error.hint);
-    return false;
-  }
-
-  console.log('Config saved successfully:', data);
-  return true;
 }
 
 export async function getCameras(): Promise<Camera[]> {

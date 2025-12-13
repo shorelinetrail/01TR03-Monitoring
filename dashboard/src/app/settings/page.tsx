@@ -239,13 +239,13 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    const success = await updateDeviceConfig(DEVICE_ID, settings);
+    const result = await updateDeviceConfig(DEVICE_ID, settings);
     setSaving(false);
-    if (success) {
+    if (result.success) {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } else {
-      setError('Failed to save settings');
+      setError(result.error || 'Failed to save settings');
     }
   };
 
