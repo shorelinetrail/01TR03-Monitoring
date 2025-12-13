@@ -60,8 +60,8 @@ cd ~/camera-uploader
 
 # Copy files (or clone repo)
 # If cloning:
-# git clone https://github.com/your-repo/01TR03-Monitoring.git
-# cp 01TR03-Monitoring/pi-uploader/* .
+# git clone https://github.com/your-repo/Temperature-Monitoring.git
+# cp Temperature-Monitoring/pi-uploader/* .
 
 # Create virtual environment
 python3 -m venv venv

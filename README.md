@@ -1,12 +1,12 @@
-# 01TR03 Transformer Monitoring System
+# Temperature Monitoring System
 
-A comprehensive monitoring system for a 66/11kV 50MVA power transformer (01TR03) featuring:
+A comprehensive temperature monitoring system featuring:
 
-- **Temperature Monitoring**: Two Type J thermocouples (Main Tank & Tap Changer Cover)
+- **Temperature Monitoring**: Up to 4 thermocouple sensors (configurable type: K, J, T, N, S, E, B, R)
 - **Local Display**: 256x64 OLED with SSD1322 controller
 - **Cloud Dashboard**: Real-time web interface via Vercel
 - **Data Visualization**: Grafana Cloud integration with gauges and trending
-- **Camera Feeds**: Two Reolink DLP4K-UK camera streams
+- **Camera Feeds**: Optional camera streams for visual monitoring
 
 ## System Architecture
 
@@ -15,16 +15,16 @@ A comprehensive monitoring system for a 66/11kV 50MVA power transformer (01TR03)
 │                        FIELD EQUIPMENT                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐   │
-│  │ Thermocouple │    │ Thermocouple │    │  Reolink Cameras │   │
-│  │  Main Tank   │    │  Tap Changer │    │   DLP4K-UK (x2)  │   │
-│  │   Type J     │    │   Type J     │    │                  │   │
+│  │ Thermocouple │    │ Thermocouple │    │     Cameras      │   │
+│  │   Sensor 1   │    │   Sensor 2   │    │    (optional)    │   │
+│  │              │    │              │    │                  │   │
 │  └──────┬───────┘    └──────┬───────┘    └────────┬─────────┘   │
 │         │                   │                     │             │
 │  ┌──────┴───────┐    ┌──────┴───────┐            │             │
 │  │   MCP9600    │    │   MCP9600    │            │             │
 │  │  Amplifier   │    │  Amplifier   │            │             │
-│  │  (I2C 0x60)  │    │  (I2C 0x67)  │            │             │
-│  └──────┬───────┘    └──────┬───────┘            │             │
+│  │  (I2C 0x60)  │    │  (I2C 0x61)  │            │             │
+│  └──────┬───────┘    └──────┴───────┘            │             │
 │         └────────┬───────────┘                   │             │
 │                  │ I2C                           │             │
 │         ┌────────┴────────┐                      │             │
@@ -38,7 +38,7 @@ A comprehensive monitoring system for a 66/11kV 50MVA power transformer (01TR03)
 │         └────────┬────────┘                      │             │
 │                  │                               │             │
 └──────────────────┼───────────────────────────────┼─────────────┘
-                   │              4G               │
+                   │            WiFi/4G            │
                    └───────────────┬───────────────┘
                                    │
 ┌──────────────────────────────────┼──────────────────────────────┐
@@ -56,7 +56,7 @@ A comprehensive monitoring system for a 66/11kV 50MVA power transformer (01TR03)
 │         │         ┌─────────────┼─────────────┐       │         │
 │         │         ▼             ▼             ▼       │         │
 │         │  ┌────────────┐ ┌──────────┐ ┌──────────┐   │         │
-│         │  │  Vercel    │ │ Grafana  │ │ Reolink  │   │         │
+│         │  │  Vercel    │ │ Grafana  │ │  Camera  │   │         │
 │         │  │ Dashboard  │ │  Cloud   │ │  Cloud   │   │         │
 │         │  │ (Next.js)  │ │ (Gauges) │ │ (Feeds)  │   │         │
 │         │  └────────────┘ └──────────┘ └──────────┘   │         │
@@ -77,16 +77,15 @@ A comprehensive monitoring system for a 66/11kV 50MVA power transformer (01TR03)
 | Component | Description | Connection |
 |-----------|-------------|------------|
 | NodeMCU-32S | ESP32 development board | Main controller |
-| MCP9600 #1 | Thermocouple amplifier (Main Tank) | I2C address 0x60 |
-| MCP9600 #2 | Thermocouple amplifier (Tap Changer) | I2C address 0x67 |
-| Type J Thermocouple x2 | Temperature sensors | Connected to MCP9600s |
+| MCP9600 x1-4 | Thermocouple amplifier | I2C addresses 0x60, 0x61, 0x65, 0x67 |
+| Thermocouple x1-4 | Temperature sensors (configurable type) | Connected to MCP9600s |
 | SSD1322 OLED | 256x64 pixel display | SPI interface |
-| Reolink DLP4K-UK x2 | 4K PoE cameras | Network via 4G |
+| Cameras (optional) | Network cameras | WiFi/Ethernet |
 
 ## Project Structure
 
 ```
-01TR03-Monitoring/
+Temperature-Monitoring/
 ├── firmware/               # NodeMCU-32S PlatformIO project
 │   ├── src/
 │   │   └── main.cpp
@@ -117,8 +116,8 @@ A comprehensive monitoring system for a 66/11kV 50MVA power transformer (01TR03)
 1. **Set up Supabase**: Create database using `/database/schema.sql`
 2. **Flash Firmware**: Configure and upload to NodeMCU-32S
 3. **Deploy Dashboard**: Push to Vercel with environment variables
-4. **Configure Grafana**: Set up data source and dashboard panels
-5. **Set up Cameras**: Configure Reolink cloud access
+4. **Configure Grafana**: Set up data source and dashboard panels (optional)
+5. **Set up Cameras**: Configure camera access (optional)
 
 See [docs/SETUP.md](docs/SETUP.md) for detailed instructions.
 

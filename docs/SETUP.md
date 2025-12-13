@@ -1,6 +1,6 @@
-# 01TR03 Transformer Monitoring System - Setup Guide
+# Temperature Monitoring System - Setup Guide
 
-Complete step-by-step instructions for setting up the transformer monitoring system.
+Complete step-by-step instructions for setting up the temperature monitoring system.
 
 ## Table of Contents
 
@@ -22,13 +22,12 @@ Complete step-by-step instructions for setting up the transformer monitoring sys
 | Item | Quantity | Notes |
 |------|----------|-------|
 | NodeMCU-32S | 1 | ESP32 development board |
-| Type J Thermocouple | 2 | One for Main Tank, one for Tap Changer |
-| **Option A:** Seeed Grove MCP9600 | 2 | I2C thermocouple amplifier (recommended) |
-| **Option B:** Adafruit MAX31855 | 2 | SPI thermocouple amplifier (alternative) |
+| Thermocouple | 1-4 | Type K, J, T, N, S, E, B, or R |
+| Seeed Grove MCP9600 | 1-4 | I2C thermocouple amplifier |
 | SSD1322 OLED Display | 1 | 256x64, 3.12", SPI interface |
-| Reolink DLP4K-UK Camera | 2 | For visual monitoring |
-| 4G Router/Modem | 1 | For internet connectivity |
-| Power Supply | 1 | 5V for NodeMCU, PoE for cameras |
+| Network Cameras | 0-2 | Optional, for visual monitoring |
+| WiFi Router/4G Modem | 1 | For internet connectivity |
+| Power Supply | 1 | 5V for NodeMCU |
 | Enclosure | 1 | Weather-rated for outdoor installation |
 
 ### Software Required
@@ -42,8 +41,7 @@ Complete step-by-step instructions for setting up the transformer monitoring sys
 
 - [Supabase](https://supabase.com/) - Free tier available
 - [Vercel](https://vercel.com/) - Free tier available
-- [Grafana Cloud](https://grafana.com/products/cloud/) - Free tier available
-- [Reolink Cloud](https://reolink.com/) - Optional, for remote camera access
+- [Grafana Cloud](https://grafana.com/products/cloud/) - Free tier available (optional)
 
 ---
 
@@ -63,29 +61,20 @@ Complete step-by-step instructions for setting up the transformer monitoring sys
 | DC | GPIO 16 | Data/Command |
 | RST | GPIO 17 | Reset |
 
-#### Option A: MCP9600 Sensors (I2C) - Recommended
+#### MCP9600 Sensors (I2C)
 
 | MCP9600 Pin | NodeMCU-32S GPIO | Notes |
 |-------------|------------------|-------|
 | VCC | 3.3V | Power |
 | GND | GND | Ground |
-| SDA | GPIO 21 | I2C Data |
-| SCL | GPIO 22 | I2C Clock |
+| SDA | GPIO 25 | I2C Data |
+| SCL | GPIO 26 | I2C Clock |
 
 **I2C Addresses:**
-- Main Tank sensor: `0x60` (ADDR pin to GND)
-- Tap Changer sensor: `0x67` (ADDR pin to VCC)
-
-#### Option B: MAX31855 Sensors (SPI) - Alternative
-
-| MAX31855 Pin | NodeMCU-32S GPIO | Notes |
-|--------------|------------------|-------|
-| VCC | 3.3V | Power |
-| GND | GND | Ground |
-| CLK | GPIO 18 | SPI Clock (shared with display) |
-| DO (MISO) | GPIO 19 | SPI Data Out |
-| CS (Main Tank) | GPIO 25 | Chip Select - Main Tank |
-| CS (Tap Changer) | GPIO 26 | Chip Select - Tap Changer |
+- Sensor 1: `0x60` (ADDR pin to GND)
+- Sensor 2: `0x61` (47k to VCC, 10k to GND)
+- Sensor 3: `0x65` (3.9k to VCC, 10k to GND)
+- Sensor 4: `0x67` (ADDR pin to VCC)
 
 ### Wiring Diagram
 
@@ -93,11 +82,11 @@ Complete step-by-step instructions for setting up the transformer monitoring sys
                                     NodeMCU-32S
                               ┌─────────────────────┐
                               │                     │
-    MCP9600 #1 ──── SDA ──────┤ GPIO21         3.3V├──── VCC (All devices)
-    (Main Tank)    SCL ──────┤ GPIO22          GND├──── GND (All devices)
+    MCP9600 #1 ──── SDA ──────┤ GPIO25         3.3V├──── VCC (All devices)
+    (Sensor 1)     SCL ──────┤ GPIO26          GND├──── GND (All devices)
                               │                     │
-    MCP9600 #2 ──── SDA ──────┤ GPIO21              │
-    (Tap Changer)  SCL ──────┤ GPIO22              │
+    MCP9600 #2 ──── SDA ──────┤ GPIO25              │
+    (Sensor 2)     SCL ──────┤ GPIO26              │
                               │                     │
     SSD1322 ────── MOSI ─────┤ GPIO23              │
     Display        CLK ──────┤ GPIO18              │
@@ -117,7 +106,7 @@ Complete step-by-step instructions for setting up the transformer monitoring sys
 1. Go to [supabase.com](https://supabase.com/) and sign in
 2. Click "New Project"
 3. Enter project details:
-   - Name: `01TR03-Monitoring`
+   - Name: `Temperature-Monitoring`
    - Database Password: (save this securely)
    - Region: Choose closest to your location
 4. Click "Create new project"
@@ -152,40 +141,21 @@ Complete step-by-step instructions for setting up the transformer monitoring sys
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/your-repo/01TR03-Monitoring.git
-cd 01TR03-Monitoring/firmware
+git clone https://github.com/your-repo/Temperature-Monitoring.git
+cd Temperature-Monitoring/firmware
 ```
 
 ### Step 2: Configure Sensor Type
 
-Edit `/firmware/include/config.h`:
+Edit `/firmware/src/main.cpp`:
 
 ```cpp
 // Uncomment ONE of the following:
-#define USE_MCP9600_SENSORS     // For Grove MCP9600 (I2C)
-// #define USE_MAX31855_SENSORS    // For Adafruit MAX31855 (SPI)
+#define USE_MCP9600   // For Grove MCP9600 (I2C) - recommended
+// #define USE_MAX6675    // For MAX6675 (SPI)
 ```
 
-### Step 3: Configure Pin Assignments (if needed)
-
-Edit `/firmware/include/config.h` to match your wiring:
-
-```cpp
-// Display pins
-#define OLED_CS_PIN         5
-#define OLED_DC_PIN         16
-#define OLED_RST_PIN        17
-
-// For MCP9600
-#define I2C_SDA_PIN         21
-#define I2C_SCL_PIN         22
-
-// For MAX31855
-#define MAX31855_MAIN_TANK_CS       25
-#define MAX31855_TAP_CHANGER_CS     26
-```
-
-### Step 4: Build and Upload
+### Step 3: Build and Upload
 
 Using PlatformIO:
 
@@ -200,11 +170,11 @@ pio run --target upload
 pio device monitor
 ```
 
-### Step 5: Initial Configuration
+### Step 4: Initial Configuration
 
 1. Power on the NodeMCU-32S
 2. The display will show "SETUP MODE"
-3. Connect to WiFi network: `01TR03-Setup`
+3. Connect to WiFi network: `TempMonitor-Setup`
 4. Open browser: `http://192.168.4.1`
 5. Enter your WiFi credentials and Supabase settings
 6. Click "Save & Connect"
@@ -217,7 +187,7 @@ pio device monitor
 ### Step 1: Configure Environment
 
 ```bash
-cd 01TR03-Monitoring/dashboard
+cd Temperature-Monitoring/dashboard
 cp .env.example .env.local
 ```
 
@@ -232,16 +202,16 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
 NEXT_PUBLIC_GRAFANA_URL=https://your-instance.grafana.net
 NEXT_PUBLIC_GRAFANA_DASHBOARD_ID=your-dashboard-id
 
-# Cameras
-REOLINK_CAM1_HOST=192.168.1.100
-REOLINK_CAM1_USERNAME=admin
-REOLINK_CAM1_PASSWORD=your-password
-REOLINK_CAM2_HOST=192.168.1.101
-REOLINK_CAM2_USERNAME=admin
-REOLINK_CAM2_PASSWORD=your-password
+# Cameras (optional)
+CAM1_HOST=192.168.1.100
+CAM1_USERNAME=admin
+CAM1_PASSWORD=your-password
+CAM2_HOST=192.168.1.101
+CAM2_USERNAME=admin
+CAM2_PASSWORD=your-password
 
 # Device
-NEXT_PUBLIC_DEVICE_ID=01TR03
+NEXT_PUBLIC_DEVICE_ID=DEVICE01
 ```
 
 ### Step 2: Test Locally
@@ -311,9 +281,9 @@ In Vercel dashboard:
 - Visualization: Gauge
 - Query:
 ```sql
-SELECT main_tank_temp as "Main Tank"
+SELECT main_tank_temp as "Sensor 1"
 FROM temperature_readings
-WHERE device_id = '01TR03'
+WHERE device_id = 'DEVICE01'
 ORDER BY recorded_at DESC
 LIMIT 1
 ```
@@ -325,10 +295,10 @@ LIMIT 1
 ```sql
 SELECT
   recorded_at as time,
-  main_tank_temp as "Main Tank",
-  tap_changer_temp as "Tap Changer"
+  main_tank_temp as "Sensor 1",
+  tap_changer_temp as "Sensor 2"
 FROM temperature_readings
-WHERE device_id = '01TR03'
+WHERE device_id = 'DEVICE01'
   AND recorded_at > now() - interval '24 hours'
 ORDER BY recorded_at
 ```
@@ -350,9 +320,7 @@ NEXT_PUBLIC_GRAFANA_DASHBOARD_ID=your-dashboard-id
 
 ### Step 1: Install Cameras
 
-1. Mount cameras to view:
-   - Camera 1: Oil & Winding temperature gauges
-   - Camera 2: Oil level indicator
+1. Mount cameras to view desired areas
 2. Connect cameras to network (PoE recommended)
 3. Note the IP addresses assigned to each camera
 
@@ -360,20 +328,20 @@ NEXT_PUBLIC_GRAFANA_DASHBOARD_ID=your-dashboard-id
 
 For 4G connection, ensure your router:
 1. Has port forwarding enabled for camera RTSP/HTTP ports
-2. Or use Reolink Cloud for remote access
+2. Or use camera cloud service for remote access
 
 ### Step 3: Update Dashboard Configuration
 
 Edit `.env.local` with camera details:
 
 ```env
-REOLINK_CAM1_HOST=192.168.1.100
-REOLINK_CAM1_USERNAME=admin
-REOLINK_CAM1_PASSWORD=your-camera-password
+CAM1_HOST=192.168.1.100
+CAM1_USERNAME=admin
+CAM1_PASSWORD=your-camera-password
 
-REOLINK_CAM2_HOST=192.168.1.101
-REOLINK_CAM2_USERNAME=admin
-REOLINK_CAM2_PASSWORD=your-camera-password
+CAM2_HOST=192.168.1.101
+CAM2_USERNAME=admin
+CAM2_PASSWORD=your-camera-password
 ```
 
 ### Step 4: Test Camera Access
@@ -391,7 +359,7 @@ curl "http://192.168.1.100/cgi-bin/api.cgi?cmd=Snap&channel=0&user=admin&passwor
 
 - [ ] **Hardware**
   - [ ] Display shows boot sequence
-  - [ ] Both thermocouples reading temperatures
+  - [ ] Thermocouples reading temperatures
   - [ ] WiFi connects successfully
   - [ ] NTP time syncs
 
@@ -404,7 +372,7 @@ curl "http://192.168.1.100/cgi-bin/api.cgi?cmd=Snap&channel=0&user=admin&passwor
   - [ ] Temperature gauges display correctly
   - [ ] Chart shows historical data
   - [ ] Real-time updates working
-  - [ ] Camera feeds loading
+  - [ ] Camera feeds loading (if configured)
 
 - [ ] **Alerts**
   - [ ] Warning threshold triggers warning status

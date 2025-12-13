@@ -1,4 +1,4 @@
-# 01TR03 Transformer Monitoring System - Hardware Guide
+# Temperature Monitoring System - Hardware Guide
 
 Detailed hardware specifications and wiring information.
 
@@ -9,7 +9,7 @@ Detailed hardware specifications and wiring information.
 | Item | Part Number | Quantity | Supplier | Notes |
 |------|-------------|----------|----------|-------|
 | NodeMCU-32S | ESP32 DevKit | 1 | Various | ESP32 with 4MB flash |
-| Type J Thermocouple | Various | 2 | Omega, RS | -40°C to +750°C range |
+| Thermocouple | Various | 1-4 | Omega, RS | Type K, J, T, N, S, E, B, or R |
 
 ### Sensor Options
 
@@ -17,7 +17,7 @@ Detailed hardware specifications and wiring information.
 
 | Item | Part Number | Quantity | Notes |
 |------|-------------|----------|-------|
-| Grove MCP9600 | 101020934 | 2 | Seeed Studio, I2C interface |
+| Grove MCP9600 | 101020934 | 1-4 | Seeed Studio, I2C interface |
 
 **Advantages:**
 - I2C interface (only 2 wires + power)
@@ -26,11 +26,11 @@ Detailed hardware specifications and wiring information.
 - Built-in cold junction compensation
 - Configurable filtering
 
-#### Option B: MAX31855
+#### Option B: MAX6675
 
 | Item | Part Number | Quantity | Notes |
 |------|-------------|----------|-------|
-| MAX31855 Breakout | ADA269 | 2 | Adafruit, SPI interface |
+| MAX6675 Breakout | Various | 1-2 | SPI interface, Type K only |
 
 **Advantages:**
 - Lower cost
@@ -43,19 +43,19 @@ Detailed hardware specifications and wiring information.
 |------|-------------|----------|-------|
 | SSD1322 OLED 3.12" | Various | 1 | 256x64 pixels, SPI interface |
 
-### Cameras
+### Cameras (Optional)
 
 | Item | Part Number | Quantity | Notes |
 |------|-------------|----------|-------|
-| Reolink DLP4K | DLP4K-UK | 2 | 4K PoE camera |
-| PoE Injector | Various | 2 | If not using PoE switch |
+| Network Camera | Various | 0-2 | PoE or WiFi cameras |
+| PoE Injector | Various | As needed | If not using PoE switch |
 
 ### Power & Connectivity
 
 | Item | Quantity | Notes |
 |------|----------|-------|
 | 5V Power Supply | 1 | 2A minimum for NodeMCU |
-| 4G Router | 1 | For internet connectivity |
+| WiFi/4G Router | 1 | For internet connectivity |
 | PoE Switch | 1 | Optional, for camera power |
 
 ### Enclosure & Mounting
@@ -70,7 +70,7 @@ Detailed hardware specifications and wiring information.
 
 ## Wiring Diagrams
 
-### MCP9600 Configuration (Option A)
+### MCP9600 Configuration (Recommended)
 
 ```
                            NodeMCU-32S
@@ -79,15 +79,15 @@ Detailed hardware specifications and wiring information.
                       │     ┌───────────────┤ 3.3V
                       │     │   ┌───────────┤ GND
                       │     │   │           │
-                      │     │   │   ┌───────┤ GPIO21 (SDA)
-                      │     │   │   │   ┌───┤ GPIO22 (SCL)
+                      │     │   │   ┌───────┤ GPIO25 (SDA)
+                      │     │   │   │   ┌───┤ GPIO26 (SCL)
                       │     │   │   │   │   │
                       │     │   │   │   │   │
   ┌───────────────────┼─────┼───┼───┼───┼───┼───────────────────┐
   │                   │     │   │   │   │   │                   │
   │   MCP9600 #1      │     │   │   │   │   │   MCP9600 #2      │
-  │   (Main Tank)     │     │   │   │   │   │   (Tap Changer)   │
-  │   Addr: 0x60      │     │   │   │   │   │   Addr: 0x67      │
+  │   (Sensor 1)      │     │   │   │   │   │   (Sensor 2)      │
+  │   Addr: 0x60      │     │   │   │   │   │   Addr: 0x61      │
   │   ┌──────────┐    │     │   │   │   │   │   ┌──────────┐    │
   │   │ VCC  ────┼────┼─────┘   │   │   │   │   │ VCC  ────┼────┘
   │   │ GND  ────┼────┼─────────┘   │   │   │   │ GND  ────┼────┘
@@ -96,12 +96,11 @@ Detailed hardware specifications and wiring information.
   │   │ ADDR ────┼─┐  │                     │   │ ADDR ────┼─┐
   │   └──────────┘ │  │                     │   └──────────┘ │
   │                │  │                     │                │
-  │           to GND  │                     │           to VCC
+  │           to GND  │                     │     via resistors
   │                   │                     │
   │   ┌──────────┐    │                     │   ┌──────────┐
-  │   │Type J TC │    │                     │   │Type J TC │
-  │   │(+) Red   │    │                     │   │(+) Red   │
-  │   │(-) White │    │                     │   │(-) White │
+  │   │Thermocouple   │                     │   │Thermocouple
+  │   │(+) (-)   │    │                     │   │(+) (-)   │
   │   └──────────┘    │                     │   └──────────┘
   │                   │                     │
   └───────────────────┼─────────────────────┼───────────────────┘
@@ -121,104 +120,67 @@ Detailed hardware specifications and wiring information.
                       └─────────────────────┘
 ```
 
-### MAX31855 Configuration (Option B)
-
-```
-                           NodeMCU-32S
-                      ┌─────────────────────┐
-                      │                     │
-                      │     ┌───────────────┤ 3.3V
-                      │     │   ┌───────────┤ GND
-                      │     │   │           │
-                      │     │   │   ┌───────┤ GPIO18 (CLK)
-                      │     │   │   │   ┌───┤ GPIO19 (MISO)
-                      │     │   │   │   │   │
-                      │     │   │   │   │   ├─────────┐
-                      │     │   │   │   │   │         │
-  ┌───────────────────┼─────┼───┼───┼───┼───┼─────────┼─────────┐
-  │                   │     │   │   │   │   │         │         │
-  │   MAX31855 #1     │     │   │   │   │   │   MAX31855 #2     │
-  │   (Main Tank)     │     │   │   │   │   │   (Tap Changer)   │
-  │   ┌──────────┐    │     │   │   │   │   │   ┌──────────┐    │
-  │   │ VCC  ────┼────┼─────┘   │   │   │   │   │ VCC  ────┼────┘
-  │   │ GND  ────┼────┼─────────┘   │   │   │   │ GND  ────┼────┘
-  │   │ CLK  ────┼────┼─────────────┘   │   │   │ CLK  ────┼────┘
-  │   │ DO   ────┼────┼─────────────────┘   │   │ DO   ────┼────┘
-  │   │ CS   ────┼────┼── GPIO25            │   │ CS   ────┼── GPIO26
-  │   └──────────┘    │                     │   └──────────┘
-  │                   │                     │
-  │   ┌──────────┐    │                     │   ┌──────────┐
-  │   │Type K TC │    │                     │   │Type K TC │
-  │   │(+) Yellow│    │                     │   │(+) Yellow│
-  │   │(-) Red   │    │                     │   │(-) Red   │
-  │   └──────────┘    │                     │   └──────────┘
-  │                   │                     │
-  └───────────────────┼─────────────────────┼───────────────────┘
-                      │                     │
-                      │     SSD1322 OLED    │
-                      │     ┌──────────┐    │
-                      │     │ VCC  ────┼────┤ 3.3V
-                      │     │ GND  ────┼────┤ GND
-                      │     │ DIN  ────┼────┤ GPIO23 (MOSI)
-                      │     │ CLK  ────┼────┤ GPIO18 (shared)
-                      │     │ CS   ────┼────┤ GPIO5
-                      │     │ DC   ────┼────┤ GPIO16
-                      │     │ RST  ────┼────┤ GPIO17
-                      │     └──────────┘    │
-                      │                     │
-                      └─────────────────────┘
-```
-
 ---
 
 ## I2C Address Configuration (MCP9600)
 
 The Seeed Grove MCP9600 modules have an ADDR pin for setting the I2C address:
 
-| ADDR Pin | I2C Address |
-|----------|-------------|
-| GND | 0x60 |
-| VCC | 0x67 |
+| ADDR Pin Configuration | I2C Address |
+|------------------------|-------------|
+| ADDR to GND | 0x60 |
+| 47k to VCC, 10k to GND | 0x61 |
+| 3.9k to VCC, 10k to GND | 0x65 |
+| ADDR to VCC | 0x67 |
 
 For this project:
-- **Main Tank sensor:** ADDR to GND → Address `0x60`
-- **Tap Changer sensor:** ADDR to VCC → Address `0x67`
+- **Sensor 1:** Address `0x60`
+- **Sensor 2:** Address `0x61`
+- **Sensor 3:** Address `0x65`
+- **Sensor 4:** Address `0x67`
 
 ---
 
 ## SPI Bus Notes
 
-The ESP32 hardware SPI bus is shared between the display and MAX31855 sensors:
+The ESP32 hardware SPI bus is used for the display:
 
-| Signal | GPIO | Shared |
+| Signal | GPIO | Device |
 |--------|------|--------|
-| MOSI | 23 | Display only |
-| MISO | 19 | MAX31855 only |
-| CLK | 18 | Both |
-| CS (Display) | 5 | Display |
-| CS (MAX31855 #1) | 25 | Main Tank |
-| CS (MAX31855 #2) | 26 | Tap Changer |
-
-**Note:** Only one device can be active on the SPI bus at a time. The firmware handles CS pin management automatically.
+| MOSI | 23 | Display |
+| CLK | 18 | Display |
+| CS | 5 | Display |
+| DC | 16 | Display |
+| RST | 17 | Display |
 
 ---
 
 ## Thermocouple Selection
 
-### Type J (Iron-Constantan)
-
-- Temperature Range: -40°C to +750°C
-- Sensitivity: ~50 µV/°C
-- Best for: Industrial environments, transformer monitoring
-- Wire Colors: (+) White, (-) Red
+The MCP9600 supports multiple thermocouple types, configurable via the dashboard:
 
 ### Type K (Chromel-Alumel)
-
 - Temperature Range: -200°C to +1260°C
 - Sensitivity: ~41 µV/°C
-- Wire Colors: (+) Yellow, (-) Red
+- Most common general-purpose type
 
-**Note:** The MCP9600 supports both types and can be configured in firmware. The MAX31855 is designed for Type K but works reasonably well with Type J.
+### Type J (Iron-Constantan)
+- Temperature Range: -40°C to +750°C
+- Sensitivity: ~50 µV/°C
+- Good for industrial environments
+
+### Type T (Copper-Constantan)
+- Temperature Range: -200°C to +350°C
+- Sensitivity: ~40 µV/°C
+- Best for low temperature measurements
+
+### Type N (Nicrosil-Nisil)
+- Temperature Range: -270°C to +1300°C
+- Sensitivity: ~39 µV/°C
+- More stable than Type K at high temperatures
+
+### Other Supported Types
+- Type S, E, B, R - for specialized applications
 
 ---
 
@@ -228,7 +190,6 @@ The ESP32 hardware SPI bus is shared between the display and MAX31855 sensors:
 |-----------|---------|-------------------|
 | NodeMCU-32S | 5V | 250mA (WiFi active) |
 | MCP9600 | 3.3V | 2mA each |
-| MAX31855 | 3.3V | 1.5mA each |
 | SSD1322 OLED | 3.3V | 80mA max |
 | **Total** | 5V | ~500mA |
 
@@ -236,26 +197,21 @@ The ESP32 hardware SPI bus is shared between the display and MAX31855 sensors:
 
 ---
 
-## Camera Setup
+## Camera Setup (Optional)
 
-### Reolink DLP4K-UK Specifications
+### Supported Camera Types
 
-- Resolution: 4K (3840x2160)
-- Power: PoE (802.3af) or 12V DC
-- Network: Ethernet (PoE)
-- Snapshot URL: `http://{IP}/cgi-bin/api.cgi?cmd=Snap&channel=0&user={user}&password={pass}`
+- Reolink (various models)
+- Hikvision / Annke
+- Dahua
+- Any ONVIF compatible camera
 
 ### Camera Placement
 
-1. **Camera 1 (Oil & Winding Temperatures)**
-   - Position to view transformer temperature gauges
-   - Ensure gauges are clearly readable
-   - Consider lighting for night visibility
-
-2. **Camera 2 (Oil Level)**
-   - Position to view oil level indicator
-   - Ensure marker lines are visible
-   - Consider backlighting if needed
+Position cameras to monitor:
+- Temperature gauges
+- Equipment status indicators
+- General area monitoring
 
 ---
 
@@ -275,7 +231,7 @@ The ESP32 hardware SPI bus is shared between the display and MAX31855 sensors:
 
 ### Mounting
 
-- Secure mounting near transformer
+- Secure mounting near monitored equipment
 - Accessible for maintenance
 - Protected from physical damage
 
@@ -283,13 +239,13 @@ The ESP32 hardware SPI bus is shared between the display and MAX31855 sensors:
 
 ## Safety Notes
 
-⚠️ **HIGH VOLTAGE WARNING**
+⚠️ **WARNING**
 
-This system monitors high-voltage transformer equipment. Ensure:
+When monitoring high-voltage equipment, ensure:
 
 1. All installations comply with local electrical codes
 2. Equipment is properly grounded
-3. Thermocouples are rated for transformer installation
+3. Thermocouples are rated for the installation environment
 4. Enclosure is properly sealed and rated
 5. Installation is performed by qualified personnel
 6. Proper lockout/tagout procedures are followed during installation
