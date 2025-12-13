@@ -91,8 +91,9 @@ U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
 #ifdef USE_MCP9600
   Adafruit_MCP9600 mcp9600_sensor1;  // Main Tank
   Adafruit_MCP9600 mcp9600_sensor2;  // Tap Changer
-  Adafruit_MCP9600 mcp9600_sensor3;  // Sensor 3
-  Adafruit_MCP9600 mcp9600_sensor4;  // Sensor 4
+  // Sensors 3 & 4 allocated dynamically to avoid I2C init issues
+  Adafruit_MCP9600* mcp9600_sensor3 = nullptr;
+  Adafruit_MCP9600* mcp9600_sensor4 = nullptr;
 #endif
 
 bool mainTankSensorOK = false;
@@ -345,8 +346,16 @@ void initSensors() {
 
     mainTankSensorOK = initMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)", sensor1ThermocoupleType);
     tapChangerSensorOK = initMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2 (Tap Changer)", sensor2ThermocoupleType);
-    sensor3SensorOK = initMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3", sensor3ThermocoupleType);
-    sensor4SensorOK = initMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4", sensor4ThermocoupleType);
+
+    // Allocate sensors 3 & 4 dynamically (after I2C is initialized)
+    if (sensor3Enabled) {
+        mcp9600_sensor3 = new Adafruit_MCP9600();
+        sensor3SensorOK = initMCP9600(*mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3", sensor3ThermocoupleType);
+    }
+    if (sensor4Enabled) {
+        mcp9600_sensor4 = new Adafruit_MCP9600();
+        sensor4SensorOK = initMCP9600(*mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4", sensor4ThermocoupleType);
+    }
 
     Serial.printf("\n=== Sensor Status ===\n");
     Serial.printf("Sensor 1 (Main Tank): %s\n", mainTankSensorOK ? "OK" : "FAILED/NOT PRESENT");
@@ -447,8 +456,8 @@ void readSensors() {
     }
 
     // Read Sensor 3 temperature (if enabled and present)
-    if (sensor3Enabled && sensor3SensorOK) {
-        sensor3Temp = mcp9600_sensor3.readThermocouple();
+    if (sensor3Enabled && sensor3SensorOK && mcp9600_sensor3) {
+        sensor3Temp = mcp9600_sensor3->readThermocouple();
         Serial.printf("Sensor 3: %.1f C\n", sensor3Temp);
 
         if (sensor3Temp >= sensor3Alarm) {
@@ -468,8 +477,8 @@ void readSensors() {
     }
 
     // Read Sensor 4 temperature (if enabled and present)
-    if (sensor4Enabled && sensor4SensorOK) {
-        sensor4Temp = mcp9600_sensor4.readThermocouple();
+    if (sensor4Enabled && sensor4SensorOK && mcp9600_sensor4) {
+        sensor4Temp = mcp9600_sensor4->readThermocouple();
         Serial.printf("Sensor 4: %.1f C\n", sensor4Temp);
 
         if (sensor4Temp >= sensor4Alarm) {
