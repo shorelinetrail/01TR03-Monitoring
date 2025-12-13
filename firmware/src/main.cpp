@@ -322,27 +322,53 @@ void initSensors() {
     Serial.printf("\n=== I2C Setup ===\n");
     Serial.printf("SDA: GPIO%d, SCL: GPIO%d\n", I2C_SDA, I2C_SCL);
 
-    // Reset I2C bus
+    // Reset I2C bus completely
     Wire.end();
-    delay(100);
-
-    // Enable internal pull-ups
-    pinMode(I2C_SDA, INPUT_PULLUP);
-    pinMode(I2C_SCL, INPUT_PULLUP);
     delay(50);
 
+    // Manual I2C bus recovery - toggle clock to release any stuck devices
+    pinMode(I2C_SCL, OUTPUT);
+    pinMode(I2C_SDA, INPUT_PULLUP);
+    for (int i = 0; i < 9; i++) {
+        digitalWrite(I2C_SCL, LOW);
+        delayMicroseconds(5);
+        digitalWrite(I2C_SCL, HIGH);
+        delayMicroseconds(5);
+    }
+
+    // Send STOP condition
+    pinMode(I2C_SDA, OUTPUT);
+    digitalWrite(I2C_SDA, LOW);
+    delayMicroseconds(5);
+    digitalWrite(I2C_SCL, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(I2C_SDA, HIGH);
+    delay(10);
+
+    // Set pins back to input with pull-ups
+    pinMode(I2C_SDA, INPUT_PULLUP);
+    pinMode(I2C_SCL, INPUT_PULLUP);
+    delay(100);
+
+    // Initialize I2C
     Wire.begin(I2C_SDA, I2C_SCL);
     Wire.setClock(100000);  // 100kHz I2C speed
-    delay(500);  // Give MCP9600 sensors time to initialize
+    delay(250);  // Give MCP9600 sensors time to initialize
 
-    // Scan I2C bus
-    Serial.println("\nScanning I2C bus...");
+    // Scan I2C bus - try up to 3 times
     int deviceCount = 0;
-    for (byte addr = 1; addr < 127; addr++) {
-        Wire.beginTransmission(addr);
-        if (Wire.endTransmission() == 0) {
-            Serial.printf("  Found device at 0x%02X\n", addr);
-            deviceCount++;
+    for (int attempt = 1; attempt <= 3 && deviceCount == 0; attempt++) {
+        Serial.printf("\nI2C Scan attempt %d...\n", attempt);
+        for (byte addr = 1; addr < 127; addr++) {
+            Wire.beginTransmission(addr);
+            if (Wire.endTransmission() == 0) {
+                Serial.printf("  Found device at 0x%02X\n", addr);
+                deviceCount++;
+            }
+        }
+        if (deviceCount == 0 && attempt < 3) {
+            Serial.println("No devices found, retrying after delay...");
+            delay(500);
         }
     }
     Serial.printf("Scan complete. Found %d device(s)\n\n", deviceCount);
