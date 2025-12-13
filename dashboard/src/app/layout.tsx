@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: '01TR03 Transformer Monitor',
-  description: '66/11kV 50MVA Power Transformer Temperature Monitoring Dashboard',
+  title: 'Temperature Monitor',
+  description: 'Temperature Monitoring Dashboard',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '01TR03 Monitor',
+    title: 'Temp Monitor',
   },
 };
 

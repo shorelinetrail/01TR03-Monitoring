@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getDeviceConfig, updateDeviceConfig } from '@/lib/supabase';
 
-const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
+const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || 'DEVICE01';
 
 // Thermocouple type options
 const THERMOCOUPLE_TYPES = [
@@ -51,7 +51,7 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () =>
 
 // Default settings
 const DEFAULT_SETTINGS = {
-  dashboard_title: '01TR03 Transformer Monitor',
+  dashboard_title: 'Temperature Monitor',
   show_differential: true,
   sensors_enabled: 2,
   sensor_2_enabled: true,
@@ -218,7 +218,7 @@ export default function Settings() {
         body: JSON.stringify({
           botToken: settings.telegram_bot_token,
           chatId: settings.telegram_chat_id,
-          message: `<b>01TR03 Test Alert</b>\n\nThis is a test message from your Transformer Monitoring System.\n\nIf you received this, Telegram alerts are working correctly!`,
+          message: `<b>Test Alert</b>\n\nThis is a test message from your Temperature Monitoring System.\n\nIf you received this, Telegram alerts are working correctly!`,
         }),
       });
 
@@ -301,7 +301,7 @@ export default function Settings() {
                   type="text"
                   value={settings.dashboard_title}
                   onChange={(e) => handleTextChange('dashboard_title', e.target.value)}
-                  placeholder="01TR03 Transformer Monitor"
+                  placeholder="Temperature Monitor"
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                 />
               </div>

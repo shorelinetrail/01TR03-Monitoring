@@ -1,4 +1,4 @@
--- 01TR03 Transformer Monitoring System
+-- Temperature Monitoring System
 -- Supabase PostgreSQL Schema
 -- Database schema for temperature monitoring and device management
 
@@ -13,7 +13,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS devices (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     device_id VARCHAR(50) UNIQUE NOT NULL,
-    name VARCHAR(100) NOT NULL DEFAULT '01TR03',
+    name VARCHAR(100) NOT NULL DEFAULT 'Temperature Monitor',
     description TEXT,
     location VARCHAR(200),
     firmware_version VARCHAR(20),
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS device_config (
     device_id VARCHAR(50) UNIQUE NOT NULL,
 
     -- Display settings
-    dashboard_title TEXT DEFAULT '01TR03 Transformer Monitor',
+    dashboard_title TEXT DEFAULT 'Temperature Monitor',
     show_differential BOOLEAN DEFAULT TRUE,
     sensors_enabled INTEGER DEFAULT 2,
 
@@ -482,12 +482,12 @@ CREATE POLICY "Allow service role full access to cameras"
 
 -- Insert default device
 INSERT INTO devices (device_id, name, description, location)
-VALUES ('01TR03', '01TR03 Transformer Monitor', '66/11kV 50MVA Power Transformer Temperature Monitoring', 'Substation')
+VALUES ('DEVICE01', 'Temperature Monitor', 'Temperature Monitoring System', 'Location')
 ON CONFLICT (device_id) DO NOTHING;
 
 -- Insert default configuration
 INSERT INTO device_config (device_id, main_tank_warning, main_tank_alarm, tap_changer_warning, tap_changer_alarm)
-VALUES ('01TR03', 85.0, 95.0, 70.0, 85.0)
+VALUES ('DEVICE01', 85.0, 95.0, 70.0, 85.0)
 ON CONFLICT (device_id) DO NOTHING;
 
 -- Insert camera configurations

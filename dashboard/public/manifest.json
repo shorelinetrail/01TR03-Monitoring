@@ -1,7 +1,7 @@
 {
-  "name": "01TR03 Transformer Monitor",
-  "short_name": "01TR03",
-  "description": "66/11kV 50MVA Power Transformer Temperature Monitoring",
+  "name": "Temperature Monitor",
+  "short_name": "TempMon",
+  "description": "Temperature Monitoring System",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111827",

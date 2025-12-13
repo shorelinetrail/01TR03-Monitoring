@@ -7,7 +7,7 @@
 -- ============================================================================
 
 ALTER TABLE device_config
-ADD COLUMN IF NOT EXISTS dashboard_title TEXT DEFAULT '01TR03 Transformer Monitor';
+ADD COLUMN IF NOT EXISTS dashboard_title TEXT DEFAULT 'Temperature Monitor';
 
 ALTER TABLE device_config
 ADD COLUMN IF NOT EXISTS show_differential BOOLEAN DEFAULT TRUE;
@@ -94,7 +94,7 @@ ADD COLUMN IF NOT EXISTS telegram_cooldown_minutes INTEGER DEFAULT 15;
 -- ============================================================================
 
 UPDATE device_config SET
-    dashboard_title = COALESCE(dashboard_title, '01TR03 Transformer Monitor'),
+    dashboard_title = COALESCE(dashboard_title, 'Temperature Monitor'),
     show_differential = COALESCE(show_differential, TRUE),
     differential_warning = COALESCE(differential_warning, 15.0),
     differential_alarm = COALESCE(differential_alarm, 25.0),

@@ -1,8 +1,7 @@
 /**
- * 01TR03 Transformer Temperature Monitoring System
+ * Temperature Monitoring System
  *
- * 66/11kV 50MVA Power Transformer Monitor
- * NodeMCU-32S with Thermocouple Amplifiers and SSD1322 OLED
+ * ESP32 with Thermocouple Amplifiers and SSD1322 OLED
  */
 
 #include <Arduino.h>
@@ -28,9 +27,9 @@
 #endif
 
 // Configuration
-#define DEVICE_ID           "01TR03"
+#define DEVICE_ID           "DEVICE01"
 #define FIRMWARE_VERSION    "1.3.0"
-#define WIFI_AP_SSID        "01TR03-Setup"
+#define WIFI_AP_SSID        "TempMonitor-Setup"
 #define WIFI_AP_PASSWORD    "transformer"
 
 // Display pins (matching StationBoards)
@@ -139,7 +138,7 @@ void displayBoot(int progress, const char* message) {
     u8g2.setFont(u8g2_font_helvB12_tr);
 
     // Title
-    const char* title = "01TR03 SETUP";
+    const char* title = "TEMP MONITOR";
     int titleWidth = u8g2.getStrWidth(title);
     u8g2.drawStr((256 - titleWidth) / 2, 14, title);
 
@@ -193,7 +192,7 @@ void displayTemperatures() {
 
     // Header
     u8g2.setFont(u8g2_font_helvB10_tr);
-    const char* title = "01TR03 TRANSFORMER";
+    const char* title = "TEMP MONITOR";
     int titleWidth = u8g2.getStrWidth(title);
     u8g2.drawStr((256 - titleWidth) / 2, 12, title);
     u8g2.drawHLine(0, 15, 256);
@@ -770,7 +769,7 @@ void handleRoot() {
     html += "button { width: 100%; padding: 12px; background: #4fc3f7; border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; margin-top: 20px; }";
     html += "</style></head><body>";
     html += "<div class='card'>";
-    html += "<h1>01TR03 Setup</h1>";
+    html += "<h1>Temperature Monitor Setup</h1>";
     html += "<form action='/save' method='POST'>";
 
     // WiFi Settings
@@ -875,7 +874,7 @@ void setup() {
     Serial.begin(115200);
     delay(500);
 
-    Serial.println("\n\n=== 01TR03 Transformer Monitor ===");
+    Serial.println("\n\n=== Temperature Monitor ===");
     Serial.printf("Firmware: %s\n", FIRMWARE_VERSION);
 
     // Initialize display FIRST (like StationBoards)

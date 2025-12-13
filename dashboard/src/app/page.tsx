@@ -18,7 +18,7 @@ import {
 } from '@/lib/supabase';
 import { format } from 'date-fns';
 
-const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || '01TR03';
+const DEVICE_ID = process.env.NEXT_PUBLIC_DEVICE_ID || 'DEVICE01';
 const REFRESH_INTERVAL = 5000; // 5 seconds
 
 // Default thresholds
@@ -76,7 +76,7 @@ const DEFAULT_CHART = {
 
 // Default display settings
 const DEFAULT_DISPLAY = {
-  title: '01TR03 Transformer Monitor',
+  title: 'Temperature Monitor',
   showDifferential: true,
   sensor2Enabled: true,
   sensor3Enabled: false,
@@ -417,7 +417,7 @@ export default function Dashboard() {
     // Send the alert
     try {
       const severityEmoji = severity === 'critical' ? '🚨' : '⚠️';
-      const formattedMessage = `${severityEmoji} <b>01TR03 ${severity.toUpperCase()}</b>\n\n${message}\n\n<i>${new Date().toLocaleString()}</i>`;
+      const formattedMessage = `${severityEmoji} <b>${severity.toUpperCase()}</b>\n\n${message}\n\n<i>${new Date().toLocaleString()}</i>`;
 
       const response = await fetch('/api/send-telegram', {
         method: 'POST',
