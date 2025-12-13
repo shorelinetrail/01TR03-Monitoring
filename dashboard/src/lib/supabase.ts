@@ -264,10 +264,13 @@ export async function updateDeviceConfig(
   deviceId: string,
   config: Partial<DeviceConfig>
 ): Promise<boolean> {
+  // Use upsert to insert if row doesn't exist, or update if it does
   const { error } = await supabase
     .from('device_config')
-    .update(config)
-    .eq('device_id', deviceId);
+    .upsert(
+      { ...config, device_id: deviceId },
+      { onConflict: 'device_id' }
+    );
 
   if (error) {
     console.error('Error updating device config:', error);
