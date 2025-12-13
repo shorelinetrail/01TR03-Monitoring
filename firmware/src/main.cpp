@@ -1,7 +1,8 @@
 /**
- * Temperature Monitoring System
+ * 01TR03 Transformer Temperature Monitoring System
  *
- * ESP32 with Thermocouple Amplifiers and SSD1322 OLED
+ * 66/11kV 50MVA Power Transformer Monitor
+ * NodeMCU-32S with Thermocouple Amplifiers and SSD1322 OLED
  */
 
 #include <Arduino.h>
@@ -27,10 +28,10 @@
 #endif
 
 // Configuration
-#define DEVICE_ID           "DEVICE01"
-#define FIRMWARE_VERSION    "1.3.0"
-#define WIFI_AP_SSID        "TempMonitor-Setup"
-#define WIFI_AP_PASSWORD    "tempmonitor"
+#define DEVICE_ID           "01TR03"
+#define FIRMWARE_VERSION    "1.2.0"
+#define WIFI_AP_SSID        "01TR03-Setup"
+#define WIFI_AP_PASSWORD    "transformer"
 
 // Display pins (matching StationBoards)
 #define OLED_CS   5
@@ -50,11 +51,8 @@
   // Try GPIO 25/26 if 21/22 don't work
   #define I2C_SDA       25
   #define I2C_SCL       26
-  // MCP9600 addresses: 0x60-0x67 based on ADDR pin voltage divider
-  #define MCP9600_ADDR_1  0x60  // Sensor 1 (ADDR pin to GND)
-  #define MCP9600_ADDR_2  0x67  // Sensor 2 (ADDR pin to VCC)
-  #define MCP9600_ADDR_3  0x61  // Sensor 3 (47k to VCC, 10k to GND)
-  #define MCP9600_ADDR_4  0x65  // Sensor 4 (3.9k to VCC, 10k to GND)
+  #define MCP9600_ADDR_1  0x60  // Main Tank (ADDR pin to GND)
+  #define MCP9600_ADDR_2  0x67  // Tap Changer (ADDR pin to VCC)
 #endif
 
 // Temperature thresholds (defaults, configurable via web interface)
@@ -62,22 +60,6 @@ float mainTankWarning = 85.0;
 float mainTankAlarm = 95.0;
 float tapChangerWarning = 70.0;
 float tapChangerAlarm = 85.0;
-float sensor3Warning = 70.0;
-float sensor3Alarm = 85.0;
-float sensor4Warning = 70.0;
-float sensor4Alarm = 85.0;
-
-// Sensor enabled flags
-bool sensor2Enabled = true;
-bool sensor3Enabled = false;
-bool sensor4Enabled = false;
-int sensorsEnabled = 2;  // Number of sensors enabled (1-4)
-
-// Per-sensor thermocouple types (K, J, T, N, S, E, B, R) - configurable via dashboard
-String sensor1ThermocoupleType = "K";
-String sensor2ThermocoupleType = "K";
-String sensor3ThermocoupleType = "K";
-String sensor4ThermocoupleType = "K";
 
 // Display - exact same as StationBoards
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
@@ -89,17 +71,12 @@ U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
 #endif
 
 #ifdef USE_MCP9600
-  Adafruit_MCP9600 mcp9600_sensor1;  // Main Tank
-  Adafruit_MCP9600 mcp9600_sensor2;  // Tap Changer
-  // Sensors 3 & 4 allocated dynamically to avoid I2C init issues
-  Adafruit_MCP9600* mcp9600_sensor3 = nullptr;
-  Adafruit_MCP9600* mcp9600_sensor4 = nullptr;
+  Adafruit_MCP9600 mcp9600_mainTank;
+  Adafruit_MCP9600 mcp9600_tapChanger;
 #endif
 
 bool mainTankSensorOK = false;
 bool tapChangerSensorOK = false;
-bool sensor3SensorOK = false;
-bool sensor4SensorOK = false;
 
 // Web server
 WebServer webServer(80);
@@ -110,19 +87,13 @@ bool wifiConnected = false;
 bool apMode = false;
 float mainTankTemp = 0.0;
 float tapChangerTemp = 0.0;
-float sensor3Temp = 0.0;
-float sensor4Temp = 0.0;
 float ambientTemp = 0.0;
 String mainTankStatus = "---";
 String tapChangerStatus = "---";
-String sensor3Status = "---";
-String sensor4Status = "---";
 unsigned long lastSensorRead = 0;
 unsigned long lastDisplayUpdate = 0;
 unsigned long lastDataUpload = 0;
-unsigned long lastConfigFetch = 0;
-unsigned long uploadInterval = 30000;  // Default 30 seconds, fetched from Supabase
-const unsigned long CONFIG_FETCH_INTERVAL = 300000;  // Fetch config every 5 minutes
+const unsigned long UPLOAD_INTERVAL = 30000;  // Upload every 30 seconds
 
 // Configuration
 String wifiSSID = "";
@@ -139,7 +110,7 @@ void displayBoot(int progress, const char* message) {
     u8g2.setFont(u8g2_font_helvB12_tr);
 
     // Title
-    const char* title = "TEMP MONITOR";
+    const char* title = "01TR03 SETUP";
     int titleWidth = u8g2.getStrWidth(title);
     u8g2.drawStr((256 - titleWidth) / 2, 14, title);
 
@@ -193,7 +164,7 @@ void displayTemperatures() {
 
     // Header
     u8g2.setFont(u8g2_font_helvB10_tr);
-    const char* title = "TEMP MONITOR";
+    const char* title = "01TR03 TRANSFORMER";
     int titleWidth = u8g2.getStrWidth(title);
     u8g2.drawStr((256 - titleWidth) / 2, 12, title);
     u8g2.drawHLine(0, 15, 256);
@@ -253,21 +224,7 @@ void displayTemperatures() {
 // ============================================================================
 
 #ifdef USE_MCP9600
-// Convert thermocouple type string to MCP9600 enum
-// Note: Library has typo "Themocouple" instead of "Thermocouple"
-MCP9600_ThemocoupleType getThermocoupleTypeEnum(const String& tcType) {
-    if (tcType == "K") return MCP9600_TYPE_K;
-    if (tcType == "J") return MCP9600_TYPE_J;
-    if (tcType == "T") return MCP9600_TYPE_T;
-    if (tcType == "N") return MCP9600_TYPE_N;
-    if (tcType == "S") return MCP9600_TYPE_S;
-    if (tcType == "E") return MCP9600_TYPE_E;
-    if (tcType == "B") return MCP9600_TYPE_B;
-    if (tcType == "R") return MCP9600_TYPE_R;
-    return MCP9600_TYPE_K;  // Default to Type K
-}
-
-bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, const String& tcType) {
+bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     Serial.printf("\n--- Initializing MCP9600 %s at 0x%02X ---\n", name, addr);
 
     // Check if device responds on I2C
@@ -285,12 +242,11 @@ bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, const
     }
     Serial.printf("MCP9600 begin() OK\n");
 
-    // Configure thermocouple type from settings
+    // Configure for Type J thermocouple
     sensor.setADCresolution(MCP9600_ADCRESOLUTION_18);
-    sensor.setThermocoupleType(getThermocoupleTypeEnum(tcType));
+    sensor.setThermocoupleType(MCP9600_TYPE_J);
     sensor.setFilterCoefficient(3);  // Medium filtering
     sensor.enable(true);
-    Serial.printf("Configured for Type %s thermocouple\n", tcType.c_str());
 
     // Test read
     float testTemp = sensor.readThermocouple();
@@ -344,24 +300,12 @@ void initSensors() {
     }
     Serial.printf("Scan complete. Found %d device(s)\n\n", deviceCount);
 
-    mainTankSensorOK = initMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)", sensor1ThermocoupleType);
-    tapChangerSensorOK = initMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2 (Tap Changer)", sensor2ThermocoupleType);
-
-    // Allocate sensors 3 & 4 dynamically (after I2C is initialized)
-    if (sensor3Enabled) {
-        mcp9600_sensor3 = new Adafruit_MCP9600();
-        sensor3SensorOK = initMCP9600(*mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3", sensor3ThermocoupleType);
-    }
-    if (sensor4Enabled) {
-        mcp9600_sensor4 = new Adafruit_MCP9600();
-        sensor4SensorOK = initMCP9600(*mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4", sensor4ThermocoupleType);
-    }
+    mainTankSensorOK = initMCP9600(mcp9600_mainTank, MCP9600_ADDR_1, "Main Tank");
+    tapChangerSensorOK = initMCP9600(mcp9600_tapChanger, MCP9600_ADDR_2, "Tap Changer");
 
     Serial.printf("\n=== Sensor Status ===\n");
-    Serial.printf("Sensor 1 (Main Tank): %s\n", mainTankSensorOK ? "OK" : "FAILED/NOT PRESENT");
-    Serial.printf("Sensor 2 (Tap Changer): %s\n", tapChangerSensorOK ? "OK" : "FAILED/NOT PRESENT");
-    Serial.printf("Sensor 3: %s\n", sensor3SensorOK ? "OK" : "FAILED/NOT PRESENT");
-    Serial.printf("Sensor 4: %s\n", sensor4SensorOK ? "OK" : "FAILED/NOT PRESENT");
+    Serial.printf("Main Tank: %s\n", mainTankSensorOK ? "OK" : "FAILED");
+    Serial.printf("Tap Changer: %s\n", tapChangerSensorOK ? "OK" : "FAILED");
 #endif
 }
 
@@ -415,11 +359,11 @@ void readSensors() {
 #ifdef USE_MCP9600
     Serial.println("\n--- Reading MCP9600 Sensors ---");
 
-    // Read Sensor 1 (Main Tank) temperature
+    // Read Main Tank temperature
     if (mainTankSensorOK) {
-        mainTankTemp = mcp9600_sensor1.readThermocouple();
-        ambientTemp = mcp9600_sensor1.readAmbient();  // Cold junction temperature!
-        Serial.printf("Sensor 1 (Main Tank): %.1f C (Ambient: %.1f C)\n", mainTankTemp, ambientTemp);
+        mainTankTemp = mcp9600_mainTank.readThermocouple();
+        ambientTemp = mcp9600_mainTank.readAmbient();  // Cold junction temperature!
+        Serial.printf("Main Tank: %.1f C (Ambient: %.1f C)\n", mainTankTemp, ambientTemp);
 
         if (mainTankTemp >= mainTankAlarm) {
             mainTankStatus = "ALRM";
@@ -431,13 +375,13 @@ void readSensors() {
     } else {
         mainTankTemp = -999.0;
         mainTankStatus = "ERR";
-        Serial.println("Sensor 1 (Main Tank): SENSOR ERROR");
+        Serial.println("Main Tank: SENSOR ERROR");
     }
 
-    // Read Sensor 2 (Tap Changer) temperature (if enabled and present)
-    if (sensor2Enabled && tapChangerSensorOK) {
-        tapChangerTemp = mcp9600_sensor2.readThermocouple();
-        Serial.printf("Sensor 2 (Tap Changer): %.1f C\n", tapChangerTemp);
+    // Read Tap Changer temperature
+    if (tapChangerSensorOK) {
+        tapChangerTemp = mcp9600_tapChanger.readThermocouple();
+        Serial.printf("Tap Changer: %.1f C\n", tapChangerTemp);
 
         if (tapChangerTemp >= tapChangerAlarm) {
             tapChangerStatus = "ALRM";
@@ -446,60 +390,13 @@ void readSensors() {
         } else {
             tapChangerStatus = "OK";
         }
-    } else if (sensor2Enabled) {
+    } else {
         tapChangerTemp = -999.0;
         tapChangerStatus = "ERR";
-        Serial.println("Sensor 2 (Tap Changer): SENSOR ERROR");
-    } else {
-        tapChangerTemp = 0.0;
-        tapChangerStatus = "---";
+        Serial.println("Tap Changer: SENSOR ERROR");
     }
 
-    // Read Sensor 3 temperature (if enabled and present)
-    if (sensor3Enabled && sensor3SensorOK && mcp9600_sensor3) {
-        sensor3Temp = mcp9600_sensor3->readThermocouple();
-        Serial.printf("Sensor 3: %.1f C\n", sensor3Temp);
-
-        if (sensor3Temp >= sensor3Alarm) {
-            sensor3Status = "ALRM";
-        } else if (sensor3Temp >= sensor3Warning) {
-            sensor3Status = "WARN";
-        } else {
-            sensor3Status = "OK";
-        }
-    } else if (sensor3Enabled) {
-        sensor3Temp = -999.0;
-        sensor3Status = "ERR";
-        Serial.println("Sensor 3: SENSOR ERROR");
-    } else {
-        sensor3Temp = 0.0;
-        sensor3Status = "---";
-    }
-
-    // Read Sensor 4 temperature (if enabled and present)
-    if (sensor4Enabled && sensor4SensorOK && mcp9600_sensor4) {
-        sensor4Temp = mcp9600_sensor4->readThermocouple();
-        Serial.printf("Sensor 4: %.1f C\n", sensor4Temp);
-
-        if (sensor4Temp >= sensor4Alarm) {
-            sensor4Status = "ALRM";
-        } else if (sensor4Temp >= sensor4Warning) {
-            sensor4Status = "WARN";
-        } else {
-            sensor4Status = "OK";
-        }
-    } else if (sensor4Enabled) {
-        sensor4Temp = -999.0;
-        sensor4Status = "ERR";
-        Serial.println("Sensor 4: SENSOR ERROR");
-    } else {
-        sensor4Temp = 0.0;
-        sensor4Status = "---";
-    }
-
-    Serial.printf("Status - S1: %s, S2: %s, S3: %s, S4: %s\n",
-        mainTankStatus.c_str(), tapChangerStatus.c_str(),
-        sensor3Status.c_str(), sensor4Status.c_str());
+    Serial.printf("Status - Main: %s, Tap: %s\n", mainTankStatus.c_str(), tapChangerStatus.c_str());
 #endif
 }
 
@@ -513,8 +410,8 @@ void uploadToSupabase() {
         return;
     }
 
-    // Don't upload if no sensors are working
-    if (!mainTankSensorOK && !tapChangerSensorOK && !sensor3SensorOK && !sensor4SensorOK) {
+    // Don't upload error readings
+    if (!mainTankSensorOK && !tapChangerSensorOK) {
         Serial.println("Skipping upload - no valid sensor data");
         return;
     }
@@ -528,6 +425,13 @@ void uploadToSupabase() {
     http.addHeader("Authorization", "Bearer " + supabaseKey);
     http.addHeader("Prefer", "return=minimal");
 
+    // Build JSON payload
+    String json = "{";
+    json += "\"device_id\":\"" + String(DEVICE_ID) + "\",";
+    json += "\"main_tank_temp\":" + String(mainTankSensorOK ? mainTankTemp : 0, 1) + ",";
+    json += "\"tap_changer_temp\":" + String(tapChangerSensorOK ? tapChangerTemp : 0, 1) + ",";
+    json += "\"ambient_temp\":" + String(ambientTemp, 1) + ",";
+
     // Convert status for database
     String mtStatus = (mainTankStatus == "ALRM") ? "alarm" :
                       (mainTankStatus == "WARN") ? "warning" :
@@ -535,38 +439,9 @@ void uploadToSupabase() {
     String tcStatus = (tapChangerStatus == "ALRM") ? "alarm" :
                       (tapChangerStatus == "WARN") ? "warning" :
                       (tapChangerStatus == "ERR") ? "error" : "normal";
-    String s3Status = (sensor3Status == "ALRM") ? "alarm" :
-                      (sensor3Status == "WARN") ? "warning" :
-                      (sensor3Status == "ERR") ? "error" : "normal";
-    String s4Status = (sensor4Status == "ALRM") ? "alarm" :
-                      (sensor4Status == "WARN") ? "warning" :
-                      (sensor4Status == "ERR") ? "error" : "normal";
 
-    // Build JSON payload
-    String json = "{";
-    json += "\"device_id\":\"" + String(DEVICE_ID) + "\",";
-    json += "\"main_tank_temp\":" + String(mainTankSensorOK ? mainTankTemp : 0, 1) + ",";
     json += "\"main_tank_status\":\"" + mtStatus + "\",";
-
-    // Include sensor 2 if enabled
-    if (sensor2Enabled) {
-        json += "\"tap_changer_temp\":" + String(tapChangerSensorOK ? tapChangerTemp : 0, 1) + ",";
-        json += "\"tap_changer_status\":\"" + tcStatus + "\",";
-    }
-
-    // Include sensor 3 if enabled
-    if (sensor3Enabled) {
-        json += "\"sensor_3_temp\":" + String(sensor3SensorOK ? sensor3Temp : 0, 1) + ",";
-        json += "\"sensor_3_status\":\"" + s3Status + "\",";
-    }
-
-    // Include sensor 4 if enabled
-    if (sensor4Enabled) {
-        json += "\"sensor_4_temp\":" + String(sensor4SensorOK ? sensor4Temp : 0, 1) + ",";
-        json += "\"sensor_4_status\":\"" + s4Status + "\",";
-    }
-
-    json += "\"ambient_temp\":" + String(ambientTemp, 1);
+    json += "\"tap_changer_status\":\"" + tcStatus + "\"";
     json += "}";
 
     Serial.println("Uploading to Supabase...");
@@ -617,123 +492,6 @@ void updateDeviceStatus() {
     http.end();
 }
 
-// Helper function to extract a numeric value from JSON
-float extractJsonFloat(const String& json, const char* key, float defaultVal) {
-    String searchKey = "\"" + String(key) + "\":";
-    int start = json.indexOf(searchKey);
-    if (start < 0) return defaultVal;
-
-    start += searchKey.length();
-    int end = json.indexOf(",", start);
-    if (end < 0) end = json.indexOf("}", start);
-    if (end <= start) return defaultVal;
-
-    return json.substring(start, end).toFloat();
-}
-
-// Helper function to extract a boolean value from JSON
-bool extractJsonBool(const String& json, const char* key, bool defaultVal) {
-    String searchKey = "\"" + String(key) + "\":";
-    int start = json.indexOf(searchKey);
-    if (start < 0) return defaultVal;
-
-    start += searchKey.length();
-    return json.substring(start, start + 4) == "true";
-}
-
-// Helper function to extract an integer value from JSON
-int extractJsonInt(const String& json, const char* key, int defaultVal) {
-    String searchKey = "\"" + String(key) + "\":";
-    int start = json.indexOf(searchKey);
-    if (start < 0) return defaultVal;
-
-    start += searchKey.length();
-    int end = json.indexOf(",", start);
-    if (end < 0) end = json.indexOf("}", start);
-    if (end <= start) return defaultVal;
-
-    return json.substring(start, end).toInt();
-}
-
-// Helper function to extract a string value from JSON
-String extractJsonString(const String& json, const char* key, const String& defaultVal) {
-    String searchKey = "\"" + String(key) + "\":\"";
-    int start = json.indexOf(searchKey);
-    if (start < 0) return defaultVal;
-
-    start += searchKey.length();
-    int end = json.indexOf("\"", start);
-    if (end <= start) return defaultVal;
-
-    return json.substring(start, end);
-}
-
-void fetchConfigFromSupabase() {
-    if (!wifiConnected || supabaseUrl.length() == 0 || supabaseKey.length() == 0) {
-        return;
-    }
-
-    HTTPClient http;
-    String url = supabaseUrl + "/rest/v1/device_config?device_id=eq." + String(DEVICE_ID) +
-        "&select=report_interval,sensors_enabled,sensor_2_enabled,sensor_3_enabled,sensor_4_enabled," +
-        "main_tank_warning,main_tank_alarm,tap_changer_warning,tap_changer_alarm," +
-        "sensor_3_warning,sensor_3_alarm,sensor_4_warning,sensor_4_alarm," +
-        "sensor_1_thermocouple_type,sensor_2_thermocouple_type,sensor_3_thermocouple_type,sensor_4_thermocouple_type";
-
-    http.begin(url);
-    http.addHeader("apikey", supabaseKey);
-    http.addHeader("Authorization", "Bearer " + supabaseKey);
-
-    int httpCode = http.GET();
-
-    if (httpCode == 200) {
-        String payload = http.getString();
-        Serial.println("Config fetched from Supabase");
-
-        // Extract report_interval
-        int newInterval = extractJsonInt(payload, "report_interval", 30);
-        if (newInterval >= 10 && newInterval <= 3600) {
-            uploadInterval = newInterval * 1000UL;  // Convert to milliseconds
-            Serial.printf("Upload interval set to %d seconds\n", newInterval);
-        }
-
-        // Extract sensor enable flags
-        sensorsEnabled = extractJsonInt(payload, "sensors_enabled", 2);
-        sensor2Enabled = extractJsonBool(payload, "sensor_2_enabled", true);
-        sensor3Enabled = extractJsonBool(payload, "sensor_3_enabled", false);
-        sensor4Enabled = extractJsonBool(payload, "sensor_4_enabled", false);
-
-        // Extract thresholds
-        mainTankWarning = extractJsonFloat(payload, "main_tank_warning", 85.0);
-        mainTankAlarm = extractJsonFloat(payload, "main_tank_alarm", 95.0);
-        tapChangerWarning = extractJsonFloat(payload, "tap_changer_warning", 70.0);
-        tapChangerAlarm = extractJsonFloat(payload, "tap_changer_alarm", 85.0);
-        sensor3Warning = extractJsonFloat(payload, "sensor_3_warning", 70.0);
-        sensor3Alarm = extractJsonFloat(payload, "sensor_3_alarm", 85.0);
-        sensor4Warning = extractJsonFloat(payload, "sensor_4_warning", 70.0);
-        sensor4Alarm = extractJsonFloat(payload, "sensor_4_alarm", 85.0);
-
-        // Extract thermocouple types
-        sensor1ThermocoupleType = extractJsonString(payload, "sensor_1_thermocouple_type", "K");
-        sensor2ThermocoupleType = extractJsonString(payload, "sensor_2_thermocouple_type", "K");
-        sensor3ThermocoupleType = extractJsonString(payload, "sensor_3_thermocouple_type", "K");
-        sensor4ThermocoupleType = extractJsonString(payload, "sensor_4_thermocouple_type", "K");
-
-        Serial.printf("Sensors enabled: %d (S2: %s, S3: %s, S4: %s)\n",
-            sensorsEnabled, sensor2Enabled ? "yes" : "no", sensor3Enabled ? "yes" : "no", sensor4Enabled ? "yes" : "no");
-        Serial.printf("Thresholds - S1: %.1f/%.1f, S2: %.1f/%.1f, S3: %.1f/%.1f, S4: %.1f/%.1f\n",
-            mainTankWarning, mainTankAlarm, tapChangerWarning, tapChangerAlarm,
-            sensor3Warning, sensor3Alarm, sensor4Warning, sensor4Alarm);
-        Serial.printf("Thermocouple types - S1: %s, S2: %s, S3: %s, S4: %s\n",
-            sensor1ThermocoupleType.c_str(), sensor2ThermocoupleType.c_str(),
-            sensor3ThermocoupleType.c_str(), sensor4ThermocoupleType.c_str());
-    } else {
-        Serial.printf("Config fetch failed: %d\n", httpCode);
-    }
-
-    http.end();
-}
-
 // ============================================================================
 // WiFi & Web Server
 // ============================================================================
@@ -779,7 +537,7 @@ void handleRoot() {
     html += "button { width: 100%; padding: 12px; background: #4fc3f7; border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; margin-top: 20px; }";
     html += "</style></head><body>";
     html += "<div class='card'>";
-    html += "<h1>Temperature Monitor Setup</h1>";
+    html += "<h1>01TR03 Setup</h1>";
     html += "<form action='/save' method='POST'>";
 
     // WiFi Settings
@@ -884,7 +642,7 @@ void setup() {
     Serial.begin(115200);
     delay(500);
 
-    Serial.println("\n\n=== Temperature Monitor ===");
+    Serial.println("\n\n=== 01TR03 Transformer Monitor ===");
     Serial.printf("Firmware: %s\n", FIRMWARE_VERSION);
 
     // Initialize display FIRST (like StationBoards)
@@ -906,10 +664,8 @@ void setup() {
         displayBoot(70, "Starting AP...");
         startAP();
     } else {
-        displayBoot(80, "Registering...");
+        displayBoot(90, "Registering...");
         updateDeviceStatus();  // Update device info in Supabase
-        displayBoot(90, "Fetching config...");
-        fetchConfigFromSupabase();  // Get config from Supabase
         displayBoot(100, "Ready!");
         delay(500);
     }
@@ -937,15 +693,9 @@ void loop() {
     }
 
     // Upload to Supabase periodically
-    if (now - lastDataUpload >= uploadInterval) {
+    if (now - lastDataUpload >= UPLOAD_INTERVAL) {
         uploadToSupabase();
         lastDataUpload = now;
-    }
-
-    // Fetch config from Supabase periodically
-    if (now - lastConfigFetch >= CONFIG_FETCH_INTERVAL) {
-        fetchConfigFromSupabase();
-        lastConfigFetch = now;
     }
 
     // Update display every second
