@@ -471,39 +471,36 @@ export default function Settings() {
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
                 />
               </div>
-              {settings.sensor_2_enabled && (
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Sensor 2 Label (Tap Changer)</label>
-                  <input
-                    type="text"
-                    value={settings.tap_changer_label}
-                    onChange={(e) => handleTextChange('tap_changer_label', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
-              )}
-              {settings.sensor_3_enabled && (
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Sensor 3 Label</label>
-                  <input
-                    type="text"
-                    value={settings.sensor_3_label}
-                    onChange={(e) => handleTextChange('sensor_3_label', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
-              )}
-              {settings.sensor_4_enabled && (
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Sensor 4 Label</label>
-                  <input
-                    type="text"
-                    value={settings.sensor_4_label}
-                    onChange={(e) => handleTextChange('sensor_4_label', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Sensor 2 Label (Tap Changer)</label>
+                <input
+                  type="text"
+                  value={settings.tap_changer_label}
+                  onChange={(e) => handleTextChange('tap_changer_label', e.target.value)}
+                  disabled={!settings.sensor_2_enabled}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Sensor 3 Label</label>
+                <input
+                  type="text"
+                  value={settings.sensor_3_label}
+                  onChange={(e) => handleTextChange('sensor_3_label', e.target.value)}
+                  disabled={!settings.sensor_3_enabled}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Sensor 4 Label</label>
+                <input
+                  type="text"
+                  value={settings.sensor_4_label}
+                  onChange={(e) => handleTextChange('sensor_4_label', e.target.value)}
+                  disabled={!settings.sensor_4_enabled}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                />
+              </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Differential Label</label>
                 <input
@@ -553,85 +550,85 @@ export default function Settings() {
               </div>
 
               {/* Tap Changer Range */}
-              {settings.sensor_2_enabled && (
-                <div>
-                  <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.tap_changer_min}
-                        onChange={(e) => handleNumberChange('tap_changer_min', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.tap_changer_max}
-                        onChange={(e) => handleNumberChange('tap_changer_max', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
+              <div className={!settings.sensor_2_enabled ? 'opacity-50' : ''}>
+                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.tap_changer_min}
+                      onChange={(e) => handleNumberChange('tap_changer_min', e.target.value)}
+                      disabled={!settings.sensor_2_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.tap_changer_max}
+                      onChange={(e) => handleNumberChange('tap_changer_max', e.target.value)}
+                      disabled={!settings.sensor_2_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Sensor 3 Range */}
-              {settings.sensor_3_enabled && (
-                <div>
-                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_3_min}
-                        onChange={(e) => handleNumberChange('sensor_3_min', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_3_max}
-                        onChange={(e) => handleNumberChange('sensor_3_max', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
+              <div className={!settings.sensor_3_enabled ? 'opacity-50' : ''}>
+                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_3_min}
+                      onChange={(e) => handleNumberChange('sensor_3_min', e.target.value)}
+                      disabled={!settings.sensor_3_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_3_max}
+                      onChange={(e) => handleNumberChange('sensor_3_max', e.target.value)}
+                      disabled={!settings.sensor_3_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Sensor 4 Range */}
-              {settings.sensor_4_enabled && (
-                <div>
-                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_4_min}
-                        onChange={(e) => handleNumberChange('sensor_4_min', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_4_max}
-                        onChange={(e) => handleNumberChange('sensor_4_max', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
+              <div className={!settings.sensor_4_enabled ? 'opacity-50' : ''}>
+                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_4_min}
+                      onChange={(e) => handleNumberChange('sensor_4_min', e.target.value)}
+                      disabled={!settings.sensor_4_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Max (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_4_max}
+                      onChange={(e) => handleNumberChange('sensor_4_max', e.target.value)}
+                      disabled={!settings.sensor_4_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Differential Range */}
               <div>
@@ -734,85 +731,85 @@ export default function Settings() {
               </div>
 
               {/* Tap Changer */}
-              {settings.sensor_2_enabled && (
-                <div>
-                  <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.tap_changer_warning}
-                        onChange={(e) => handleNumberChange('tap_changer_warning', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.tap_changer_alarm}
-                        onChange={(e) => handleNumberChange('tap_changer_alarm', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
+              <div className={!settings.sensor_2_enabled ? 'opacity-50' : ''}>
+                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.tap_changer_warning}
+                      onChange={(e) => handleNumberChange('tap_changer_warning', e.target.value)}
+                      disabled={!settings.sensor_2_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.tap_changer_alarm}
+                      onChange={(e) => handleNumberChange('tap_changer_alarm', e.target.value)}
+                      disabled={!settings.sensor_2_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Sensor 3 */}
-              {settings.sensor_3_enabled && (
-                <div>
-                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_3_warning}
-                        onChange={(e) => handleNumberChange('sensor_3_warning', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_3_alarm}
-                        onChange={(e) => handleNumberChange('sensor_3_alarm', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
+              <div className={!settings.sensor_3_enabled ? 'opacity-50' : ''}>
+                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_3_warning}
+                      onChange={(e) => handleNumberChange('sensor_3_warning', e.target.value)}
+                      disabled={!settings.sensor_3_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_3_alarm}
+                      onChange={(e) => handleNumberChange('sensor_3_alarm', e.target.value)}
+                      disabled={!settings.sensor_3_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Sensor 4 */}
-              {settings.sensor_4_enabled && (
-                <div>
-                  <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_4_warning}
-                        onChange={(e) => handleNumberChange('sensor_4_warning', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
-                      <input
-                        type="number"
-                        value={settings.sensor_4_alarm}
-                        onChange={(e) => handleNumberChange('sensor_4_alarm', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
-                      />
-                    </div>
+              <div className={!settings.sensor_4_enabled ? 'opacity-50' : ''}>
+                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_4_warning}
+                      onChange={(e) => handleNumberChange('sensor_4_warning', e.target.value)}
+                      disabled={!settings.sensor_4_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Alarm (°C)</label>
+                    <input
+                      type="number"
+                      value={settings.sensor_4_alarm}
+                      onChange={(e) => handleNumberChange('sensor_4_alarm', e.target.value)}
+                      disabled={!settings.sensor_4_enabled}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    />
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Differential */}
               <div>
