@@ -253,7 +253,8 @@ void displayTemperatures() {
 
 #ifdef USE_MCP9600
 // Convert thermocouple type string to MCP9600 enum
-mcp9600_thermocouple_type_t getThermocoupleTypeEnum(const String& tcType) {
+// Note: Library has typo "Themocouple" instead of "Thermocouple"
+MCP9600_ThemocoupleType getThermocoupleTypeEnum(const String& tcType) {
     if (tcType == "K") return MCP9600_TYPE_K;
     if (tcType == "J") return MCP9600_TYPE_J;
     if (tcType == "T") return MCP9600_TYPE_T;
