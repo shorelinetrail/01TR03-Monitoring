@@ -641,6 +641,12 @@ export default function Dashboard() {
                 thresholds={thresholds}
                 yAxisMin={chart.yMin}
                 yAxisMax={chart.yMax}
+                sensors={{
+                  sensor1: { enabled: true, label: labels.mainTank },
+                  sensor2: { enabled: display.sensor2Enabled, label: labels.tapChanger },
+                  sensor3: { enabled: display.sensor3Enabled, label: labels.sensor3 },
+                  sensor4: { enabled: display.sensor4Enabled, label: labels.sensor4 },
+                }}
               />
             </div>
           </div>
