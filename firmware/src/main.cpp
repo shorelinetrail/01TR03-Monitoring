@@ -52,9 +52,9 @@
   #define I2C_SCL       26
   // MCP9600 addresses: 0x60-0x67 based on ADDR pin voltage divider
   #define MCP9600_ADDR_1  0x60  // Sensor 1 (ADDR pin to GND)
-  #define MCP9600_ADDR_2  0x61  // Sensor 2 (47k to VCC, 10k to GND)
-  #define MCP9600_ADDR_3  0x65  // Sensor 3 (3.9k to VCC, 10k to GND)
-  #define MCP9600_ADDR_4  0x67  // Sensor 4 (ADDR pin to VCC)
+  #define MCP9600_ADDR_2  0x67  // Sensor 2 (ADDR pin to VCC)
+  #define MCP9600_ADDR_3  0x61  // Sensor 3 (47k to VCC, 10k to GND)
+  #define MCP9600_ADDR_4  0x65  // Sensor 4 (3.9k to VCC, 10k to GND)
 #endif
 
 // Temperature thresholds (defaults, configurable via web interface)
