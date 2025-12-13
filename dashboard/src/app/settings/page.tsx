@@ -463,7 +463,7 @@ export default function Settings() {
             </div>
             <div className="card-body space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Sensor 1 Label (Main Tank)</label>
+                <label className="block text-sm text-gray-400 mb-1">Sensor 1 Label</label>
                 <input
                   type="text"
                   value={settings.main_tank_label}
@@ -472,7 +472,7 @@ export default function Settings() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Sensor 2 Label (Tap Changer)</label>
+                <label className="block text-sm text-gray-400 mb-1">Sensor 2 Label</label>
                 <input
                   type="text"
                   value={settings.tap_changer_label}
