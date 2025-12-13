@@ -265,6 +265,19 @@ export async function updateDeviceConfig(
   config: Partial<DeviceConfig>
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // First, ensure the device exists in the devices table (required for foreign key)
+    const { error: deviceError } = await supabase
+      .from('devices')
+      .upsert(
+        { device_id: deviceId, name: 'Temperature Monitor' },
+        { onConflict: 'device_id', ignoreDuplicates: true }
+      );
+
+    if (deviceError) {
+      console.error('Error ensuring device exists:', deviceError.message);
+      // Continue anyway - device might already exist
+    }
+
     // Remove any undefined values and id field (let DB handle it)
     const cleanConfig: Record<string, unknown> = { device_id: deviceId };
     for (const [key, value] of Object.entries(config)) {
@@ -273,7 +286,7 @@ export async function updateDeviceConfig(
       }
     }
 
-    console.log('Saving config for device:', deviceId, cleanConfig);
+    console.log('Saving config for device:', deviceId);
 
     // Use upsert to insert if row doesn't exist, or update if it does
     const { data, error } = await supabase
