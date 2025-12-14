@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   LineChart,
   Line,
@@ -58,8 +58,11 @@ export default function TemperatureChart({
     sensor4: { enabled: false, label: 'Sensor 4' },
   }
 }: TemperatureChartProps) {
-  // Use ref to store brush indices without causing re-renders during drag
-  const brushIndicesRef = useRef<{ startIndex?: number; endIndex?: number }>({});
+  // Store time range (timestamps) instead of indices so zoom persists across data updates
+  const [timeRange, setTimeRange] = useState<{ start: number | null; end: number | null }>({
+    start: null,
+    end: null,
+  });
 
   // Track which sensors are visible on the chart (local toggle state)
   const [visibleSensors, setVisibleSensors] = useState({
@@ -70,20 +73,46 @@ export default function TemperatureChart({
   });
 
   // Transform data for recharts
-  const chartData = data.map((reading) => ({
+  const chartData = useMemo(() => data.map((reading) => ({
     time: new Date(reading.recorded_at).getTime(),
     sensor1: reading.main_tank_temp,
     sensor2: reading.tap_changer_temp,
     sensor3: reading.sensor_3_temp,
     sensor4: reading.sensor_4_temp,
-  }));
+  })), [data]);
 
-  // Store brush position without triggering re-render
-  const handleBrushChange = useCallback((newIndex: { startIndex?: number; endIndex?: number }) => {
-    if (newIndex.startIndex !== undefined && newIndex.endIndex !== undefined) {
-      brushIndicesRef.current = newIndex;
+  // Calculate brush indices from stored time range
+  const brushIndices = useMemo(() => {
+    if (!timeRange.start || !timeRange.end || chartData.length === 0) {
+      return { startIndex: undefined, endIndex: undefined };
     }
-  }, []);
+
+    let startIndex = 0;
+    let endIndex = chartData.length - 1;
+
+    // Find closest indices to the stored time range
+    for (let i = 0; i < chartData.length; i++) {
+      if (chartData[i].time >= timeRange.start && startIndex === 0) {
+        startIndex = Math.max(0, i - 1);
+      }
+      if (chartData[i].time <= timeRange.end) {
+        endIndex = i;
+      }
+    }
+
+    return { startIndex, endIndex };
+  }, [timeRange, chartData]);
+
+  // Handle brush change - store time range, not indices
+  const handleBrushChange = useCallback((newIndex: { startIndex?: number; endIndex?: number }) => {
+    if (newIndex.startIndex !== undefined && newIndex.endIndex !== undefined && chartData.length > 0) {
+      const startTime = chartData[newIndex.startIndex]?.time;
+      const endTime = chartData[newIndex.endIndex]?.time;
+      if (startTime && endTime) {
+        setTimeRange({ start: startTime, end: endTime });
+      }
+    }
+  }, [chartData]);
 
   const toggleSensor = (sensor: keyof typeof visibleSensors) => {
     setVisibleSensors(prev => ({
@@ -245,13 +274,15 @@ export default function TemperatureChart({
               />
             )}
 
-            {/* X-axis range slider - uncontrolled for smooth dragging */}
+            {/* X-axis range slider */}
             <Brush
               dataKey="time"
               height={30}
               stroke="rgba(255,255,255,0.3)"
               fill="rgba(30,30,30,0.8)"
               tickFormatter={formatXAxis}
+              startIndex={brushIndices.startIndex}
+              endIndex={brushIndices.endIndex}
               onChange={handleBrushChange}
               travellerWidth={10}
             />
