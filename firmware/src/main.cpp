@@ -319,9 +319,9 @@ void initSensors() {
 
         Serial.printf("Pin states - SDA: %d, SCL: %d\n", digitalRead(I2C_SDA), digitalRead(I2C_SCL));
 
-        // Initialize Wire
+        // Initialize Wire with slow clock (MCP9600 can be sensitive)
         Wire.begin(I2C_SDA, I2C_SCL);
-        Wire.setClock(100000);
+        Wire.setClock(50000);  // 50kHz - slower for reliability
         delay(100);
 
         // Scan I2C bus
