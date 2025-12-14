@@ -48,9 +48,8 @@
 
 #ifdef USE_MCP9600
   // MCP9600 I2C pins and addresses
-  // Try GPIO 25/26 if 21/22 don't work
-  #define I2C_SDA       25
-  #define I2C_SCL       26
+  #define I2C_SDA       21
+  #define I2C_SCL       22
   #define MCP9600_ADDR_1  0x60  // Main Tank (ADDR pin to GND)
   #define MCP9600_ADDR_2  0x67  // Tap Changer (ADDR pin to VCC)
 #endif
