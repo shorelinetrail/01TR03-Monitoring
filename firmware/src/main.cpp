@@ -633,12 +633,12 @@ void updateDeviceStatus() {
     http.addHeader("Prefer", "return=minimal");
 
     // Build JSON payload with device info
+    // Note: last_seen should be handled by database trigger or use current timestamp
     String json = "{";
     json += "\"firmware_version\":\"" + String(FIRMWARE_VERSION) + "\",";
     json += "\"ip_address\":\"" + WiFi.localIP().toString() + "\",";
     json += "\"mac_address\":\"" + WiFi.macAddress() + "\",";
-    json += "\"is_online\":true,";
-    json += "\"last_seen\":\"" + String("now()") + "\"";
+    json += "\"is_online\":true";
     json += "}";
 
     int httpCode = http.PATCH(json);
@@ -992,6 +992,7 @@ void loop() {
     // Upload to Supabase periodically
     if (now - lastDataUpload >= uploadInterval) {
         uploadToSupabase();
+        updateDeviceStatus();  // Update last_seen timestamp
         lastDataUpload = now;
     }
 
