@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   LineChart,
   Line,
@@ -58,8 +58,8 @@ export default function TemperatureChart({
     sensor4: { enabled: false, label: 'Sensor 4' },
   }
 }: TemperatureChartProps) {
-  // Track brush indices to persist across re-renders
-  const [brushIndices, setBrushIndices] = useState<{ startIndex?: number; endIndex?: number }>({});
+  // Use ref to store brush indices without causing re-renders during drag
+  const brushIndicesRef = useRef<{ startIndex?: number; endIndex?: number }>({});
 
   // Track which sensors are visible on the chart (local toggle state)
   const [visibleSensors, setVisibleSensors] = useState({
@@ -78,11 +78,12 @@ export default function TemperatureChart({
     sensor4: reading.sensor_4_temp,
   }));
 
-  const handleBrushChange = (newIndex: { startIndex?: number; endIndex?: number }) => {
+  // Store brush position without triggering re-render
+  const handleBrushChange = useCallback((newIndex: { startIndex?: number; endIndex?: number }) => {
     if (newIndex.startIndex !== undefined && newIndex.endIndex !== undefined) {
-      setBrushIndices(newIndex);
+      brushIndicesRef.current = newIndex;
     }
-  };
+  }, []);
 
   const toggleSensor = (sensor: keyof typeof visibleSensors) => {
     setVisibleSensors(prev => ({
@@ -244,16 +245,15 @@ export default function TemperatureChart({
               />
             )}
 
-            {/* X-axis range slider */}
+            {/* X-axis range slider - uncontrolled for smooth dragging */}
             <Brush
               dataKey="time"
               height={30}
               stroke="rgba(255,255,255,0.3)"
               fill="rgba(30,30,30,0.8)"
               tickFormatter={formatXAxis}
-              startIndex={brushIndices.startIndex}
-              endIndex={brushIndices.endIndex}
               onChange={handleBrushChange}
+              travellerWidth={10}
             />
           </LineChart>
         </ResponsiveContainer>
