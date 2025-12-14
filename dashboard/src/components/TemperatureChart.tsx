@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -81,9 +81,26 @@ export default function TemperatureChart({
     sensor4: reading.sensor_4_temp,
   })), [data]);
 
-  // Calculate brush indices from stored time range
+  // Track data changes to restore zoom only when data updates, not during drag
+  const prevDataRef = useRef<string>('');
+  const [shouldRestoreZoom, setShouldRestoreZoom] = useState(false);
+
+  // Detect when chart data actually changes (new data points)
+  useEffect(() => {
+    const dataKey = chartData.length > 0
+      ? `${chartData[0]?.time}-${chartData[chartData.length - 1]?.time}-${chartData.length}`
+      : '';
+
+    if (prevDataRef.current && prevDataRef.current !== dataKey && timeRange.start) {
+      // Data changed and we have a stored zoom - restore it
+      setShouldRestoreZoom(true);
+    }
+    prevDataRef.current = dataKey;
+  }, [chartData, timeRange.start]);
+
+  // Calculate brush indices - only used for restoration after data changes
   const brushIndices = useMemo(() => {
-    if (!timeRange.start || !timeRange.end || chartData.length === 0) {
+    if (!shouldRestoreZoom || !timeRange.start || !timeRange.end || chartData.length === 0) {
       return { startIndex: undefined, endIndex: undefined };
     }
 
@@ -106,7 +123,16 @@ export default function TemperatureChart({
     }
 
     return { startIndex, endIndex };
-  }, [timeRange, chartData]);
+  }, [shouldRestoreZoom, timeRange, chartData]);
+
+  // Clear the restore flag after indices have been applied
+  useEffect(() => {
+    if (shouldRestoreZoom && brushIndices.startIndex !== undefined) {
+      // Small delay to let Brush apply the indices before clearing
+      const timer = setTimeout(() => setShouldRestoreZoom(false), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldRestoreZoom, brushIndices]);
 
   // Handle brush change - store time range, not indices
   const handleBrushChange = useCallback((newIndex: { startIndex?: number; endIndex?: number }) => {
