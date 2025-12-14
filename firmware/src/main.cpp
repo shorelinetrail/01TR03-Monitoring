@@ -48,6 +48,7 @@
 
 #ifdef USE_MCP9600
   // MCP9600 I2C pins and addresses
+  // Try GPIO 25/26 if 21/22 don't work
   #define I2C_SDA       21
   #define I2C_SCL       22
   #define MCP9600_ADDR_1  0x60  // Main Tank (ADDR pin to GND)
@@ -275,95 +276,29 @@ void initSensors() {
 #endif
 
 #ifdef USE_MCP9600
-    Serial.printf("\n=== I2C Debug ===\n");
+    Serial.printf("\n=== I2C Setup ===\n");
     Serial.printf("SDA: GPIO%d, SCL: GPIO%d\n", I2C_SDA, I2C_SCL);
 
-    // Check initial pin states
-    pinMode(I2C_SDA, INPUT);
-    pinMode(I2C_SCL, INPUT);
-    delay(10);
-    Serial.printf("Initial pin states - SDA: %d, SCL: %d\n", digitalRead(I2C_SDA), digitalRead(I2C_SCL));
-
-    // Enable internal pull-ups and check again
+    // Enable internal pull-ups
     pinMode(I2C_SDA, INPUT_PULLUP);
     pinMode(I2C_SCL, INPUT_PULLUP);
-    delay(50);
-    Serial.printf("With pull-ups - SDA: %d, SCL: %d\n", digitalRead(I2C_SDA), digitalRead(I2C_SCL));
-
-    // If either line is LOW, there's a hardware issue
-    if (digitalRead(I2C_SDA) == LOW) {
-        Serial.println("WARNING: SDA line stuck LOW - check wiring!");
-    }
-    if (digitalRead(I2C_SCL) == LOW) {
-        Serial.println("WARNING: SCL line stuck LOW - check wiring!");
-    }
-
-    // Try toggling SCL to unstick any device
-    Serial.println("Attempting I2C bus recovery...");
-    pinMode(I2C_SCL, OUTPUT);
-    for (int i = 0; i < 16; i++) {
-        digitalWrite(I2C_SCL, LOW);
-        delayMicroseconds(10);
-        digitalWrite(I2C_SCL, HIGH);
-        delayMicroseconds(10);
-    }
-    pinMode(I2C_SCL, INPUT_PULLUP);
     delay(10);
-    Serial.printf("After recovery - SDA: %d, SCL: %d\n", digitalRead(I2C_SDA), digitalRead(I2C_SCL));
 
-    // Initialize Wire
-    Serial.println("Calling Wire.begin()...");
     Wire.begin(I2C_SDA, I2C_SCL);
-    Wire.setClock(100000);
+    Wire.setClock(100000);  // 100kHz I2C speed
     delay(100);
-    Serial.println("Wire.begin() complete");
 
-    // Scan I2C bus multiple times with different approaches
-    Serial.println("\n--- I2C Scan (attempt 1) ---");
+    // Scan I2C bus
+    Serial.println("\nScanning I2C bus...");
     int deviceCount = 0;
     for (byte addr = 1; addr < 127; addr++) {
         Wire.beginTransmission(addr);
-        uint8_t error = Wire.endTransmission();
-        if (error == 0) {
+        if (Wire.endTransmission() == 0) {
             Serial.printf("  Found device at 0x%02X\n", addr);
             deviceCount++;
-        } else if (error == 4) {
-            Serial.printf("  Unknown error at 0x%02X\n", addr);
         }
     }
-    Serial.printf("Scan 1 complete. Found %d device(s)\n", deviceCount);
-
-    // If no devices, try slower clock
-    if (deviceCount == 0) {
-        Serial.println("\n--- Trying slower I2C (50kHz) ---");
-        Wire.setClock(50000);
-        delay(50);
-        for (byte addr = 0x60; addr <= 0x67; addr++) {
-            Wire.beginTransmission(addr);
-            uint8_t error = Wire.endTransmission();
-            Serial.printf("  Addr 0x%02X: error=%d\n", addr, error);
-            if (error == 0) deviceCount++;
-        }
-    }
-
-    // Try reinitializing Wire
-    if (deviceCount == 0) {
-        Serial.println("\n--- Reinitializing Wire ---");
-        Wire.end();
-        delay(100);
-        Wire.begin(I2C_SDA, I2C_SCL);
-        Wire.setClock(100000);
-        delay(200);
-
-        for (byte addr = 0x60; addr <= 0x67; addr++) {
-            Wire.beginTransmission(addr);
-            uint8_t error = Wire.endTransmission();
-            Serial.printf("  Addr 0x%02X: error=%d\n", addr, error);
-            if (error == 0) deviceCount++;
-        }
-    }
-
-    Serial.printf("\n=== Final device count: %d ===\n\n", deviceCount);
+    Serial.printf("Scan complete. Found %d device(s)\n\n", deviceCount);
 
     mainTankSensorOK = initMCP9600(mcp9600_mainTank, MCP9600_ADDR_1, "Main Tank");
     tapChangerSensorOK = initMCP9600(mcp9600_tapChanger, MCP9600_ADDR_2, "Tap Changer");
