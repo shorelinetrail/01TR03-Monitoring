@@ -51,8 +51,8 @@
   // Try GPIO 25/26 if 21/22 don't work
   #define I2C_SDA       21
   #define I2C_SCL       22
-  #define MCP9600_ADDR_1  0x60  // Main Tank (ADDR pin to GND)
-  #define MCP9600_ADDR_2  0x67  // Tap Changer (ADDR pin to VCC)
+  #define MCP9600_ADDR_1  0x67  // Main Tank (ADDR pin to VCC)
+  #define MCP9600_ADDR_2  0x60  // Tap Changer (ADDR pin to GND) - if present
 #endif
 
 // Temperature thresholds (defaults, configurable via web interface)
@@ -299,6 +299,8 @@ void initSensors() {
         }
     }
     Serial.printf("Scan complete. Found %d device(s)\n\n", deviceCount);
+
+    delay(100);  // Give I2C bus time to settle after scan
 
     mainTankSensorOK = initMCP9600(mcp9600_mainTank, MCP9600_ADDR_1, "Main Tank");
     tapChangerSensorOK = initMCP9600(mcp9600_tapChanger, MCP9600_ADDR_2, "Tap Changer");
