@@ -762,6 +762,24 @@ void fetchConfigFromSupabase() {
         Serial.printf("Thermocouple types - S1: %s, S2: %s, S3: %s, S4: %s\n",
             sensor1ThermocoupleType.c_str(), sensor2ThermocoupleType.c_str(),
             sensor3ThermocoupleType.c_str(), sensor4ThermocoupleType.c_str());
+
+        // Apply thermocouple types to sensors (they were initialized with defaults)
+        if (mainTankSensorOK) {
+            mcp9600_sensor1.setThermocoupleType(getThermocoupleTypeEnum(sensor1ThermocoupleType));
+            Serial.printf("Sensor 1 set to Type %s\n", sensor1ThermocoupleType.c_str());
+        }
+        if (tapChangerSensorOK) {
+            mcp9600_sensor2.setThermocoupleType(getThermocoupleTypeEnum(sensor2ThermocoupleType));
+            Serial.printf("Sensor 2 set to Type %s\n", sensor2ThermocoupleType.c_str());
+        }
+        if (sensor3SensorOK) {
+            mcp9600_sensor3.setThermocoupleType(getThermocoupleTypeEnum(sensor3ThermocoupleType));
+            Serial.printf("Sensor 3 set to Type %s\n", sensor3ThermocoupleType.c_str());
+        }
+        if (sensor4SensorOK) {
+            mcp9600_sensor4.setThermocoupleType(getThermocoupleTypeEnum(sensor4ThermocoupleType));
+            Serial.printf("Sensor 4 set to Type %s\n", sensor4ThermocoupleType.c_str());
+        }
     } else {
         Serial.printf("Config fetch failed: %d\n", httpCode);
     }
