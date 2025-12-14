@@ -929,6 +929,29 @@ bool connectWiFi() {
     return false;
 }
 
+// Handle config refresh request from dashboard
+void handleRefreshConfig() {
+    Serial.println("Config refresh requested via HTTP");
+    fetchConfigFromSupabase();
+    webServer.sendHeader("Access-Control-Allow-Origin", "*");
+    webServer.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+// Handle CORS preflight
+void handleCORS() {
+    webServer.sendHeader("Access-Control-Allow-Origin", "*");
+    webServer.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    webServer.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+    webServer.send(204);
+}
+
+void startWebServer() {
+    webServer.on("/refresh", HTTP_GET, handleRefreshConfig);
+    webServer.on("/refresh", HTTP_OPTIONS, handleCORS);
+    webServer.begin();
+    Serial.printf("Web server started on port 80\n");
+}
+
 // ============================================================================
 // Setup & Loop
 // ============================================================================
@@ -961,8 +984,10 @@ void setup() {
     } else {
         displayBoot(80, "Registering...");
         updateDeviceStatus();  // Update device info in Supabase
-        displayBoot(90, "Fetching config...");
+        displayBoot(85, "Fetching config...");
         fetchConfigFromSupabase();  // Get config from Supabase
+        displayBoot(95, "Starting server...");
+        startWebServer();  // Start web server for config refresh endpoint
         displayBoot(100, "Ready!");
         delay(500);
     }
@@ -973,9 +998,11 @@ void setup() {
 void loop() {
     unsigned long now = millis();
 
-    // Handle AP mode web server
+    // Handle web server (both AP mode and station mode)
+    webServer.handleClient();
+
+    // In AP mode, only handle web server
     if (apMode) {
-        webServer.handleClient();
         return;
     }
 

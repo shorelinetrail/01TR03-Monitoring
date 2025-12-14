@@ -301,6 +301,30 @@ export async function updateDeviceConfig(
     }
 
     console.log('Config saved successfully:', data);
+
+    // Try to notify the device to refresh its config immediately
+    try {
+      const { data: deviceData } = await supabase
+        .from('devices')
+        .select('ip_address')
+        .eq('device_id', deviceId)
+        .single();
+
+      if (deviceData?.ip_address) {
+        console.log('Notifying device at', deviceData.ip_address);
+        // Fire and forget - don't wait for response
+        fetch(`http://${deviceData.ip_address}/refresh`, {
+          method: 'GET',
+          mode: 'no-cors', // Device might not have proper CORS
+        }).catch(() => {
+          // Ignore errors - device might be unreachable
+          console.log('Could not reach device for immediate refresh');
+        });
+      }
+    } catch {
+      // Ignore - device notification is best-effort
+    }
+
     return { success: true };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';
