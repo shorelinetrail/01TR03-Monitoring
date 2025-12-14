@@ -279,11 +279,39 @@ void initSensors() {
     Serial.printf("\n=== I2C Setup ===\n");
     Serial.printf("SDA: GPIO%d, SCL: GPIO%d\n", I2C_SDA, I2C_SCL);
 
-    // Enable internal pull-ups
+    // Aggressive I2C bus recovery - needed because MCP9600 can get stuck
+    // when ESP32 resets without power cycling the sensor
+    pinMode(I2C_SDA, INPUT_PULLUP);
+    pinMode(I2C_SCL, OUTPUT);
+
+    // Clock out up to 9 bits to release any stuck slave
+    for (int i = 0; i < 9; i++) {
+        digitalWrite(I2C_SCL, LOW);
+        delayMicroseconds(100);
+        digitalWrite(I2C_SCL, HIGH);
+        delayMicroseconds(100);
+        // Check if SDA is released
+        if (digitalRead(I2C_SDA) == HIGH) {
+            Serial.printf("SDA released after %d clocks\n", i + 1);
+            break;
+        }
+    }
+
+    // Generate STOP condition
+    pinMode(I2C_SDA, OUTPUT);
+    digitalWrite(I2C_SDA, LOW);
+    delayMicroseconds(100);
+    digitalWrite(I2C_SCL, HIGH);
+    delayMicroseconds(100);
+    digitalWrite(I2C_SDA, HIGH);
+    delayMicroseconds(100);
+
+    // Return pins to input mode
     pinMode(I2C_SDA, INPUT_PULLUP);
     pinMode(I2C_SCL, INPUT_PULLUP);
-    delay(10);
+    delay(50);
 
+    // Now initialize Wire
     Wire.begin(I2C_SDA, I2C_SCL);
     Wire.setClock(100000);  // 100kHz I2C speed
     delay(100);
