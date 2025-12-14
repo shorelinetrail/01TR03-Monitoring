@@ -87,17 +87,22 @@ export default function TemperatureChart({
       return { startIndex: undefined, endIndex: undefined };
     }
 
-    let startIndex = 0;
-    let endIndex = chartData.length - 1;
+    // Find the index of the first point >= start time
+    let startIndex = chartData.findIndex(d => d.time >= timeRange.start);
+    if (startIndex === -1) startIndex = 0;
 
-    // Find closest indices to the stored time range
-    for (let i = 0; i < chartData.length; i++) {
-      if (chartData[i].time >= timeRange.start && startIndex === 0) {
-        startIndex = Math.max(0, i - 1);
-      }
+    // Find the index of the last point <= end time
+    let endIndex = chartData.length - 1;
+    for (let i = chartData.length - 1; i >= 0; i--) {
       if (chartData[i].time <= timeRange.end) {
         endIndex = i;
+        break;
       }
+    }
+
+    // Ensure valid range
+    if (startIndex > endIndex) {
+      startIndex = endIndex;
     }
 
     return { startIndex, endIndex };
