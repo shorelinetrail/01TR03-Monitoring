@@ -120,7 +120,7 @@ unsigned long lastDisplayUpdate = 0;
 unsigned long lastDataUpload = 0;
 unsigned long lastConfigFetch = 0;
 unsigned long uploadInterval = 30000;  // Default 30 seconds, fetched from Supabase
-const unsigned long CONFIG_FETCH_INTERVAL = 300000;  // Fetch config every 5 minutes
+const unsigned long CONFIG_FETCH_INTERVAL = 30000;  // Fetch config every 30 seconds
 
 // Configuration
 String wifiSSID = "";
