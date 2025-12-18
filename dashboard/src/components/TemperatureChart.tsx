@@ -217,11 +217,21 @@ export default function TemperatureChart({
       </div>
 
       {/* Chart */}
-      <div className="h-96">
+      <div className="h-64 sm:h-96">
+        {chartData.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-gray-500">
+            <div className="text-center">
+              <svg className="w-12 h-12 mx-auto mb-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <p className="text-sm">No data available</p>
+            </div>
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 30 }}
+            margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
             <XAxis
@@ -322,6 +332,7 @@ export default function TemperatureChart({
             />
           </LineChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
