@@ -104,14 +104,17 @@ export default function TemperatureChart({
       return { startIndex: undefined, endIndex: undefined };
     }
 
+    const startTime = timeRange.start;
+    const endTime = timeRange.end;
+
     // Find the index of the first point >= start time
-    let startIndex = chartData.findIndex(d => d.time >= timeRange.start);
+    let startIndex = chartData.findIndex(d => d.time >= startTime);
     if (startIndex === -1) startIndex = 0;
 
     // Find the index of the last point <= end time
     let endIndex = chartData.length - 1;
     for (let i = chartData.length - 1; i >= 0; i--) {
-      if (chartData[i].time <= timeRange.end) {
+      if (chartData[i].time <= endTime) {
         endIndex = i;
         break;
       }
