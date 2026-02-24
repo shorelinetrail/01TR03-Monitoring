@@ -36,10 +36,28 @@ export default function TemperatureGauge({
     : 0;
 
   // SVG arc calculations
+  const centerX = 100;
+  const centerY = 130;
   const radius = 80;
-  const circumference = 2 * Math.PI * radius;
-  const arcLength = circumference * 0.75; // 270 degrees
-  const dashOffset = arcLength * (1 - normalizedValue);
+
+  // Arc spans 270 degrees, from 225° (bottom-left) to -45° (bottom-right)
+  // In SVG coords: 225° = start, going clockwise to 315° (-45°)
+  const startAngle = 225; // degrees from positive X axis
+  const endAngle = -45;   // degrees (or 315)
+  const angleRange = 270; // total degrees
+
+  // Calculate needle angle based on normalized value
+  // 0 = 225° (left), 1 = -45° (right)
+  const needleAngle = startAngle - (normalizedValue * angleRange);
+  const needleAngleRad = (needleAngle * Math.PI) / 180;
+
+  // Needle endpoint (longer needle)
+  const needleLength = 70;
+  const needleX = centerX + needleLength * Math.cos(needleAngleRad);
+  const needleY = centerY - needleLength * Math.sin(needleAngleRad);
+
+  // Needle base (small circle at center)
+  const needleBaseRadius = 8;
 
   // Color based on status
   const getStatusColor = () => {
@@ -68,9 +86,30 @@ export default function TemperatureGauge({
     }
   };
 
-  // Calculate threshold positions on the gauge
-  const warningPos = warningThreshold !== undefined ? (warningThreshold - minValue) / (maxValue - minValue) : 0;
-  const alarmPos = alarmThreshold !== undefined ? (alarmThreshold - minValue) / (maxValue - minValue) : 0;
+  // Calculate threshold positions on the gauge (as angles)
+  const warningPos = warningThreshold !== undefined
+    ? Math.min(Math.max((warningThreshold - minValue) / (maxValue - minValue), 0), 1)
+    : 1;
+  const alarmPos = alarmThreshold !== undefined
+    ? Math.min(Math.max((alarmThreshold - minValue) / (maxValue - minValue), 0), 1)
+    : 1;
+
+  // Helper to create arc path
+  const createArcPath = (startNorm: number, endNorm: number) => {
+    const startAng = startAngle - (startNorm * angleRange);
+    const endAng = startAngle - (endNorm * angleRange);
+    const startRad = (startAng * Math.PI) / 180;
+    const endRad = (endAng * Math.PI) / 180;
+
+    const x1 = centerX + radius * Math.cos(startRad);
+    const y1 = centerY - radius * Math.sin(startRad);
+    const x2 = centerX + radius * Math.cos(endRad);
+    const y2 = centerY - radius * Math.sin(endRad);
+
+    const largeArc = (endNorm - startNorm) > 0.5 ? 1 : 0;
+
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
+  };
 
   return (
     <div className={`flex flex-col items-center ${getStatusClass()} gauge-container`}>
@@ -79,55 +118,87 @@ export default function TemperatureGauge({
           viewBox="0 0 200 150"
           className="w-full h-full"
         >
-          {/* Background arc */}
+          {/* Background arc - normal zone (green) */}
           <path
-            d="M 20 130 A 80 80 0 1 1 180 130"
+            d={createArcPath(0, warningPos)}
             fill="none"
-            stroke="rgba(255,255,255,0.1)"
+            stroke="rgba(76,175,80,0.3)"
             strokeWidth="12"
             strokeLinecap="round"
           />
 
-          {/* Warning zone indicator */}
-          {showThresholds && warningThreshold !== undefined && (
+          {/* Warning zone (orange) */}
+          {showThresholds && warningThreshold !== undefined && warningPos < 1 && (
             <path
-              d="M 20 130 A 80 80 0 1 1 180 130"
+              d={createArcPath(warningPos, alarmPos)}
               fill="none"
-              stroke="rgba(255,152,0,0.2)"
+              stroke="rgba(255,152,0,0.4)"
               strokeWidth="12"
-              strokeLinecap="round"
-              strokeDasharray={`${arcLength * (1 - warningPos)} ${arcLength * warningPos}`}
-              strokeDashoffset={arcLength * warningPos}
+              strokeLinecap="butt"
             />
           )}
 
-          {/* Alarm zone indicator */}
-          {showThresholds && alarmThreshold !== undefined && (
+          {/* Alarm zone (red) */}
+          {showThresholds && alarmThreshold !== undefined && alarmPos < 1 && (
             <path
-              d="M 20 130 A 80 80 0 1 1 180 130"
+              d={createArcPath(alarmPos, 1)}
               fill="none"
-              stroke="rgba(244,67,54,0.2)"
+              stroke="rgba(244,67,54,0.4)"
               strokeWidth="12"
               strokeLinecap="round"
-              strokeDasharray={`${arcLength * (1 - alarmPos)} ${arcLength * alarmPos}`}
-              strokeDashoffset={arcLength * alarmPos}
             />
           )}
 
-          {/* Value arc */}
-          <path
-            d="M 20 130 A 80 80 0 1 1 180 130"
-            fill="none"
-            stroke={getStatusColor()}
-            strokeWidth="12"
-            strokeLinecap="round"
-            strokeDasharray={arcLength}
-            strokeDashoffset={dashOffset}
-            className="gauge-circle transition-all duration-500"
-            style={{
-              filter: status === 'alarm' ? 'drop-shadow(0 0 8px rgba(244,67,54,0.5))' : undefined,
-            }}
-          />
+          {/* Tick marks */}
+          {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+            const tickAngle = startAngle - (tick * angleRange);
+            const tickRad = (tickAngle * Math.PI) / 180;
+            const innerR = radius - 6;
+            const outerR = radius + 6;
+            const x1 = centerX + innerR * Math.cos(tickRad);
+            const y1 = centerY - innerR * Math.sin(tickRad);
+            const x2 = centerX + outerR * Math.cos(tickRad);
+            const y2 = centerY - outerR * Math.sin(tickRad);
+            return (
+              <line
+                key={tick}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="rgba(255,255,255,0.3)"
+                strokeWidth="2"
+              />
+            );
+          })}
+
+          {/* Needle */}
+          {value !== null && (
+            <>
+              <line
+                x1={centerX}
+                y1={centerY}
+                x2={needleX}
+                y2={needleY}
+                stroke={getStatusColor()}
+                strokeWidth="3"
+                strokeLinecap="round"
+                className="transition-all duration-500"
+                style={{
+                  filter: status === 'alarm' ? 'drop-shadow(0 0 6px rgba(244,67,54,0.8))' :
+                          status === 'warning' ? 'drop-shadow(0 0 4px rgba(255,152,0,0.6))' :
+                          'drop-shadow(0 0 4px rgba(76,175,80,0.4))',
+                }}
+              />
+              <circle
+                cx={centerX}
+                cy={centerY}
+                r={needleBaseRadius}
+                fill={getStatusColor()}
+                className="transition-all duration-500"
+              />
+            </>
+          )}
 
           {/* Center text */}
           <text
