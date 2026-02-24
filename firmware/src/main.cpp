@@ -28,9 +28,21 @@
 
 // Configuration
 #define DEVICE_ID           "DEVICE01"
-#define FIRMWARE_VERSION    "1.3.0"
+#define FIRMWARE_VERSION    "1.4.0"
 #define WIFI_AP_SSID        "TempMonitor-Setup"
 #define WIFI_AP_PASSWORD    "transformer"
+
+// Remote logging buffer
+#define LOG_BUFFER_SIZE 20
+struct LogEntry {
+    String level;
+    String message;
+};
+LogEntry logBuffer[LOG_BUFFER_SIZE];
+int logBufferHead = 0;
+int logBufferCount = 0;
+unsigned long lastLogUpload = 0;
+const unsigned long LOG_UPLOAD_INTERVAL = 5000;  // Upload logs every 5 seconds
 
 // Display pins (matching StationBoards)
 #define OLED_CS   5
@@ -128,6 +140,120 @@ String wifiSSID = "";
 String wifiPassword = "";
 String supabaseUrl = "";
 String supabaseKey = "";
+
+// ============================================================================
+// Remote Logging Functions
+// ============================================================================
+
+void addLog(const char* level, const char* format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    // Print to serial
+    Serial.printf("[%s] %s\n", level, buffer);
+
+    // Add to ring buffer
+    int idx = (logBufferHead + logBufferCount) % LOG_BUFFER_SIZE;
+    if (logBufferCount < LOG_BUFFER_SIZE) {
+        logBufferCount++;
+    } else {
+        logBufferHead = (logBufferHead + 1) % LOG_BUFFER_SIZE;
+    }
+    logBuffer[idx].level = level;
+    logBuffer[idx].message = buffer;
+}
+
+void logDebug(const char* format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    addLog("DEBUG", "%s", buffer);
+}
+
+void logInfo(const char* format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    addLog("INFO", "%s", buffer);
+}
+
+void logWarn(const char* format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    addLog("WARN", "%s", buffer);
+}
+
+void logError(const char* format, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    addLog("ERROR", "%s", buffer);
+}
+
+void uploadLogs() {
+    if (!wifiConnected || supabaseUrl.length() == 0 || supabaseKey.length() == 0) {
+        return;
+    }
+
+    if (logBufferCount == 0) {
+        return;
+    }
+
+    HTTPClient http;
+    String url = supabaseUrl + "/rest/v1/device_logs";
+
+    http.begin(url);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("apikey", supabaseKey);
+    http.addHeader("Authorization", "Bearer " + supabaseKey);
+    http.addHeader("Prefer", "return=minimal");
+
+    // Build JSON array of log entries
+    String json = "[";
+    bool first = true;
+
+    while (logBufferCount > 0) {
+        LogEntry& entry = logBuffer[logBufferHead];
+
+        if (!first) json += ",";
+        first = false;
+
+        // Escape special characters in message
+        String escapedMsg = entry.message;
+        escapedMsg.replace("\\", "\\\\");
+        escapedMsg.replace("\"", "\\\"");
+        escapedMsg.replace("\n", "\\n");
+        escapedMsg.replace("\r", "\\r");
+
+        json += "{\"device_id\":\"" + String(DEVICE_ID) + "\",";
+        json += "\"level\":\"" + entry.level + "\",";
+        json += "\"message\":\"" + escapedMsg + "\"}";
+
+        logBufferHead = (logBufferHead + 1) % LOG_BUFFER_SIZE;
+        logBufferCount--;
+    }
+    json += "]";
+
+    int httpCode = http.POST(json);
+
+    if (httpCode != 201 && httpCode != 200) {
+        Serial.printf("Log upload failed: %d\n", httpCode);
+    }
+
+    http.end();
+}
 
 // ============================================================================
 // Display Functions
@@ -267,37 +393,148 @@ MCP9600_ThemocoupleType getThermocoupleTypeEnum(const String& tcType) {
 }
 
 bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, const String& tcType) {
-    Serial.printf("\n--- Initializing MCP9600 %s at 0x%02X ---\n", name, addr);
+    logInfo("Initializing MCP9600 %s at 0x%02X", name, addr);
 
     // Check if device responds on I2C
     Wire.beginTransmission(addr);
     uint8_t error = Wire.endTransmission();
     if (error != 0) {
-        Serial.printf("I2C error %d - no device at 0x%02X\n", error, addr);
+        logError("MCP9600 %s: I2C error %d - no device at 0x%02X", name, error, addr);
         return false;
     }
-    Serial.printf("I2C device found at 0x%02X\n", addr);
+    logDebug("MCP9600 %s: I2C device found at 0x%02X", name, addr);
 
     if (!sensor.begin(addr)) {
-        Serial.printf("MCP9600 %s (0x%02X) begin() failed!\n", name, addr);
+        logError("MCP9600 %s (0x%02X): begin() failed", name, addr);
         return false;
     }
-    Serial.printf("MCP9600 begin() OK\n");
+    logDebug("MCP9600 %s: begin() OK", name);
 
     // Configure thermocouple type from settings
     sensor.setADCresolution(MCP9600_ADCRESOLUTION_18);
     sensor.setThermocoupleType(getThermocoupleTypeEnum(tcType));
     sensor.setFilterCoefficient(3);  // Medium filtering
     sensor.enable(true);
-    Serial.printf("Configured for Type %s thermocouple\n", tcType.c_str());
+    logInfo("MCP9600 %s: Configured for Type %s thermocouple", name, tcType.c_str());
 
     // Test read
     float testTemp = sensor.readThermocouple();
     float testAmbient = sensor.readAmbient();
-    Serial.printf("Test read - Thermocouple: %.1f C, Ambient: %.1f C\n", testTemp, testAmbient);
+    logInfo("MCP9600 %s: Test read - TC: %.1f C, Ambient: %.1f C", name, testTemp, testAmbient);
 
-    Serial.printf("MCP9600 %s (0x%02X) initialized OK\n", name, addr);
+    logInfo("MCP9600 %s (0x%02X): initialized OK", name, addr);
     return true;
+}
+
+// Read MCP9600 registers for diagnostics
+void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
+    logInfo("=== MCP9600 %s (0x%02X) Diagnostics ===", name, addr);
+
+    // Check I2C communication
+    Wire.beginTransmission(addr);
+    uint8_t i2cError = Wire.endTransmission();
+    if (i2cError != 0) {
+        logError("%s: I2C communication failed (error %d)", name, i2cError);
+        return;
+    }
+    logDebug("%s: I2C communication OK", name);
+
+    // Read Device ID register (0x20)
+    Wire.beginTransmission(addr);
+    Wire.write(0x20);  // Device ID register
+    Wire.endTransmission(false);
+    Wire.requestFrom(addr, (uint8_t)2);
+    if (Wire.available() >= 2) {
+        uint8_t devIdHigh = Wire.read();
+        uint8_t devIdLow = Wire.read();
+        uint16_t devId = (devIdHigh << 8) | devIdLow;
+        logInfo("%s: Device ID = 0x%04X (expected 0x40xx for MCP9600)", name, devId);
+    } else {
+        logError("%s: Failed to read Device ID register", name);
+    }
+
+    // Read Status register (0x04)
+    Wire.beginTransmission(addr);
+    Wire.write(0x04);  // Status register
+    Wire.endTransmission(false);
+    Wire.requestFrom(addr, (uint8_t)1);
+    if (Wire.available()) {
+        uint8_t status = Wire.read();
+        logInfo("%s: Status register = 0x%02X", name, status);
+        logDebug("%s:   Burst complete: %d", name, (status >> 7) & 1);
+        logDebug("%s:   TH update: %d", name, (status >> 6) & 1);
+        logDebug("%s:   Input range: %d", name, (status >> 4) & 1);
+        logDebug("%s:   Alert 4-1: %d%d%d%d", name,
+            (status >> 3) & 1, (status >> 2) & 1, (status >> 1) & 1, status & 1);
+    }
+
+    // Read Sensor Config register (0x05)
+    Wire.beginTransmission(addr);
+    Wire.write(0x05);  // Sensor Config register
+    Wire.endTransmission(false);
+    Wire.requestFrom(addr, (uint8_t)1);
+    if (Wire.available()) {
+        uint8_t sensorCfg = Wire.read();
+        uint8_t tcType = (sensorCfg >> 4) & 0x07;
+        uint8_t filterCoeff = sensorCfg & 0x07;
+        const char* tcNames[] = {"K", "J", "T", "N", "S", "E", "B", "R"};
+        logInfo("%s: Sensor Config = 0x%02X (Type %s, Filter %d)",
+            name, sensorCfg, tcNames[tcType], filterCoeff);
+    }
+
+    // Read Device Config register (0x06)
+    Wire.beginTransmission(addr);
+    Wire.write(0x06);  // Device Config register
+    Wire.endTransmission(false);
+    Wire.requestFrom(addr, (uint8_t)1);
+    if (Wire.available()) {
+        uint8_t devCfg = Wire.read();
+        uint8_t adcRes = (devCfg >> 5) & 0x03;
+        uint8_t burstSamples = (devCfg >> 2) & 0x07;
+        uint8_t shutdown = devCfg & 0x03;
+        const char* resNames[] = {"18-bit", "16-bit", "14-bit", "12-bit"};
+        logInfo("%s: Device Config = 0x%02X (ADC: %s, Shutdown: %d)",
+            name, devCfg, resNames[adcRes], shutdown);
+    }
+
+    // Read raw ADC value register (0x03)
+    Wire.beginTransmission(addr);
+    Wire.write(0x03);  // Raw ADC Data register
+    Wire.endTransmission(false);
+    Wire.requestFrom(addr, (uint8_t)3);
+    if (Wire.available() >= 3) {
+        int32_t rawAdc = 0;
+        rawAdc = (int32_t)Wire.read() << 16;
+        rawAdc |= (int32_t)Wire.read() << 8;
+        rawAdc |= Wire.read();
+        // Sign extend if negative (18-bit two's complement)
+        if (rawAdc & 0x020000) {
+            rawAdc |= 0xFFFC0000;
+        }
+        float microvolts = rawAdc * 2.0;  // 2uV resolution for 18-bit
+        logInfo("%s: Raw ADC = %ld (%.1f uV)", name, rawAdc, microvolts);
+    }
+
+    // Read hot junction temperature (0x00)
+    float hotJunction = sensor.readThermocouple();
+    logInfo("%s: Hot Junction (TC) = %.2f C", name, hotJunction);
+
+    // Read cold junction temperature (0x02)
+    float coldJunction = sensor.readAmbient();
+    logInfo("%s: Cold Junction (Ambient) = %.2f C", name, coldJunction);
+
+    // Read delta temperature (0x01)
+    Wire.beginTransmission(addr);
+    Wire.write(0x01);  // Delta Temp register
+    Wire.endTransmission(false);
+    Wire.requestFrom(addr, (uint8_t)2);
+    if (Wire.available() >= 2) {
+        int16_t delta = (Wire.read() << 8) | Wire.read();
+        float deltaTemp = delta * 0.0625;  // 0.0625 C resolution
+        logInfo("%s: Delta Temp = %.2f C", name, deltaTemp);
+    }
+
+    logInfo("=== End %s Diagnostics ===", name);
 }
 #endif
 
@@ -319,14 +556,14 @@ void initSensors() {
 #endif
 
 #ifdef USE_MCP9600
-    Serial.printf("\n=== I2C Setup ===\n");
-    Serial.printf("SDA: GPIO%d, SCL: GPIO%d\n", I2C_SDA, I2C_SCL);
+    logInfo("=== I2C Setup ===");
+    logInfo("SDA: GPIO%d, SCL: GPIO%d", I2C_SDA, I2C_SCL);
 
     int deviceCount = 0;
 
     // Try multiple times with I2C bus recovery
     for (int attempt = 0; attempt < 3 && deviceCount == 0; attempt++) {
-        Serial.printf("\n--- Attempt %d ---\n", attempt + 1);
+        logInfo("I2C scan attempt %d", attempt + 1);
 
         // Fully reset Wire peripheral
         Wire.end();
@@ -360,7 +597,7 @@ void initSensors() {
         pinMode(I2C_SCL, INPUT_PULLUP);
         delay(100);
 
-        Serial.printf("Pin states - SDA: %d, SCL: %d\n", digitalRead(I2C_SDA), digitalRead(I2C_SCL));
+        logDebug("Pin states - SDA: %d, SCL: %d", digitalRead(I2C_SDA), digitalRead(I2C_SCL));
 
         // Initialize Wire with slow clock (10kHz for weak internal pull-ups)
         Wire.begin(I2C_SDA, I2C_SCL);
@@ -369,23 +606,23 @@ void initSensors() {
         delay(200);
 
         // Scan I2C bus
-        Serial.println("Scanning I2C bus...");
+        logInfo("Scanning I2C bus...");
         for (byte addr = 1; addr < 127; addr++) {
             Wire.beginTransmission(addr);
             if (Wire.endTransmission() == 0) {
-                Serial.printf("  Found device at 0x%02X\n", addr);
+                logInfo("  Found device at 0x%02X", addr);
                 deviceCount++;
             }
         }
-        Serial.printf("Scan complete. Found %d device(s)\n", deviceCount);
+        logInfo("Scan complete. Found %d device(s)", deviceCount);
 
         if (deviceCount == 0) {
-            Serial.println("No devices found, will retry...");
+            logWarn("No devices found, will retry...");
             delay(500);
         }
     }
 
-    Serial.printf("\n=== Final: Found %d device(s) ===\n\n", deviceCount);
+    logInfo("=== Final: Found %d device(s) ===", deviceCount);
     delay(100);
 
     mainTankSensorOK = initMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)", sensor1ThermocoupleType);
@@ -393,11 +630,17 @@ void initSensors() {
     sensor3SensorOK = initMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3", sensor3ThermocoupleType);
     sensor4SensorOK = initMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4", sensor4ThermocoupleType);
 
-    Serial.printf("\n=== Sensor Status ===\n");
-    Serial.printf("Sensor 1 (Main Tank): %s\n", mainTankSensorOK ? "OK" : "FAILED/NOT PRESENT");
-    Serial.printf("Sensor 2 (Tap Changer): %s\n", tapChangerSensorOK ? "OK" : "FAILED/NOT PRESENT");
-    Serial.printf("Sensor 3: %s\n", sensor3SensorOK ? "OK" : "FAILED/NOT PRESENT");
-    Serial.printf("Sensor 4: %s\n", sensor4SensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("=== Sensor Status ===");
+    logInfo("Sensor 1 (Main Tank): %s", mainTankSensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("Sensor 2 (Tap Changer): %s", tapChangerSensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("Sensor 3: %s", sensor3SensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("Sensor 4: %s", sensor4SensorOK ? "OK" : "FAILED/NOT PRESENT");
+
+    // Run diagnostics on all sensors
+    if (mainTankSensorOK) diagnoseMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1");
+    if (tapChangerSensorOK) diagnoseMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2");
+    diagnoseMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3");  // Always diagnose 3&4
+    diagnoseMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4");
 #endif
 }
 
@@ -932,10 +1175,40 @@ bool connectWiFi() {
 
 // Handle config refresh request from dashboard
 void handleRefreshConfig() {
-    Serial.println("Config refresh requested via HTTP");
+    logInfo("Config refresh requested via HTTP");
     fetchConfigFromSupabase();
     webServer.sendHeader("Access-Control-Allow-Origin", "*");
     webServer.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+// Handle diagnostics request
+void handleDiagnostics() {
+    logInfo("Diagnostics requested via HTTP");
+    webServer.sendHeader("Access-Control-Allow-Origin", "*");
+    webServer.send(200, "application/json", "{\"status\":\"running\"}");
+
+#ifdef USE_MCP9600
+    // Run I2C scan
+    logInfo("=== I2C Bus Scan ===");
+    for (byte addr = 0x60; addr <= 0x67; addr++) {
+        Wire.beginTransmission(addr);
+        uint8_t error = Wire.endTransmission();
+        if (error == 0) {
+            logInfo("Device found at 0x%02X", addr);
+        } else {
+            logDebug("No device at 0x%02X (error %d)", addr, error);
+        }
+    }
+
+    // Run diagnostics on each sensor
+    diagnoseMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)");
+    diagnoseMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2 (Tap Changer)");
+    diagnoseMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3");
+    diagnoseMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4");
+#endif
+
+    // Upload logs immediately after diagnostics
+    uploadLogs();
 }
 
 // Handle CORS preflight
@@ -949,8 +1222,10 @@ void handleCORS() {
 void startWebServer() {
     webServer.on("/refresh", HTTP_GET, handleRefreshConfig);
     webServer.on("/refresh", HTTP_OPTIONS, handleCORS);
+    webServer.on("/diagnostics", HTTP_GET, handleDiagnostics);
+    webServer.on("/diagnostics", HTTP_OPTIONS, handleCORS);
     webServer.begin();
-    Serial.printf("Web server started on port 80\n");
+    logInfo("Web server started on port 80");
 }
 
 // ============================================================================
@@ -961,8 +1236,8 @@ void setup() {
     Serial.begin(115200);
     delay(500);
 
-    Serial.println("\n\n=== Temperature Monitor ===");
-    Serial.printf("Firmware: %s\n", FIRMWARE_VERSION);
+    logInfo("=== Temperature Monitor ===");
+    logInfo("Firmware: %s", FIRMWARE_VERSION);
 
     // Initialize display FIRST (like StationBoards)
     u8g2.begin();
@@ -1028,6 +1303,12 @@ void loop() {
     if (now - lastConfigFetch >= CONFIG_FETCH_INTERVAL) {
         fetchConfigFromSupabase();
         lastConfigFetch = now;
+    }
+
+    // Upload logs periodically
+    if (now - lastLogUpload >= LOG_UPLOAD_INTERVAL) {
+        uploadLogs();
+        lastLogUpload = now;
     }
 
     // Update display every second

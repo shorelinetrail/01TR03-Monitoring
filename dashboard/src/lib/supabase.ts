@@ -135,6 +135,14 @@ export interface Camera {
   last_seen: string | null;
 }
 
+export interface DeviceLog {
+  id: number;
+  device_id: string;
+  level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+  message: string;
+  created_at: string;
+}
+
 // Helper functions
 export async function getLatestReading(deviceId: string): Promise<TemperatureReading | null> {
   const { data, error } = await supabase
@@ -385,6 +393,54 @@ export function subscribeToAlerts(
       },
       (payload) => {
         callback(payload.new as Alert);
+      }
+    )
+    .subscribe();
+}
+
+// Device logs functions
+export async function getDeviceLogs(
+  deviceId: string,
+  limit: number = 500,
+  level?: string
+): Promise<DeviceLog[]> {
+  let query = supabase
+    .from('device_logs')
+    .select('*')
+    .eq('device_id', deviceId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (level && level !== 'ALL') {
+    query = query.eq('level', level);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching device logs:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export function subscribeToDeviceLogs(
+  deviceId: string,
+  callback: (log: DeviceLog) => void
+) {
+  return supabase
+    .channel('device_logs')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'device_logs',
+        filter: `device_id=eq.${deviceId}`,
+      },
+      (payload) => {
+        callback(payload.new as DeviceLog);
       }
     )
     .subscribe();
