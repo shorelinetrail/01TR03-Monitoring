@@ -87,7 +87,7 @@ Detailed hardware specifications and wiring information.
   │                   │     │   │   │   │   │                   │
   │   MCP9600 #1      │     │   │   │   │   │   MCP9600 #2      │
   │   (Sensor 1)      │     │   │   │   │   │   (Sensor 2)      │
-  │   Addr: 0x60      │     │   │   │   │   │   Addr: 0x61      │
+  │   Addr: 0x60      │     │   │   │   │   │   Addr: 0x67      │
   │   ┌──────────┐    │     │   │   │   │   │   ┌──────────┐    │
   │   │ VCC  ────┼────┼─────┘   │   │   │   │   │ VCC  ────┼────┘
   │   │ GND  ────┼────┼─────────┘   │   │   │   │ GND  ────┼────┘
@@ -124,20 +124,35 @@ Detailed hardware specifications and wiring information.
 
 ## I2C Address Configuration (MCP9600)
 
-The Seeed Grove MCP9600 modules have an ADDR pin for setting the I2C address:
+The MCP9600 ADDR pin voltage determines the I2C address (8 levels at 1/8 VDD
+increments, detection window ±VDD/32). A resistor divider from VCC to GND sets
+the voltage. All resistors are 0603 values from the Vishay D11/CRCW0603 e3
+sample kit.
 
-| ADDR Pin Configuration | I2C Address |
-|------------------------|-------------|
-| ADDR to GND | 0x60 |
-| 47k to VCC, 10k to GND | 0x61 |
-| 3.9k to VCC, 10k to GND | 0x65 |
-| ADDR to VCC | 0x67 |
+| Sensor | I2C Address | R1 (ADDR to VCC) | R2 (ADDR to GND) | VADDR/VDD |
+|--------|-------------|-------------------|-------------------|-----------|
+| Sensor 1 (Main Tank) | 0x60 | — | 0Ω (jumper to GND) | 0.000 |
+| Sensor 2 (Tap Changer) | 0x67 | 0Ω (jumper to VCC) | — | 1.000 |
+| Sensor 3 | 0x64 | 10kΩ | 10kΩ | 0.500 |
+| Sensor 4 | 0x61 | 64.9kΩ | 10kΩ | 0.134 |
+
+```
+         VCC (3.3V)
+          │
+         [R1]  ← Resistor to VCC
+          │
+  ADDR ───┤
+          │
+         [R2]  ← Resistor to GND
+          │
+         GND
+```
 
 For this project:
-- **Sensor 1:** Address `0x60`
-- **Sensor 2:** Address `0x61`
-- **Sensor 3:** Address `0x65`
-- **Sensor 4:** Address `0x67`
+- **Sensor 1 (Main Tank):** Address `0x60` — ADDR to GND, no resistors
+- **Sensor 2 (Tap Changer):** Address `0x67` — ADDR to VCC, no resistors
+- **Sensor 3:** Address `0x64` — 10kΩ to VCC + 10kΩ to GND (dead center)
+- **Sensor 4:** Address `0x61` — 64.9kΩ to VCC + 10kΩ to GND
 
 ---
 
