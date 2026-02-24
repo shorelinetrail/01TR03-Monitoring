@@ -97,7 +97,7 @@ export default function TemperatureGauge({
               strokeWidth="12"
               strokeLinecap="round"
               strokeDasharray={`${arcLength * (1 - warningPos)} ${arcLength * warningPos}`}
-              strokeDashoffset={-arcLength * warningPos}
+              strokeDashoffset={arcLength * warningPos}
             />
           )}
 
@@ -110,7 +110,7 @@ export default function TemperatureGauge({
               strokeWidth="12"
               strokeLinecap="round"
               strokeDasharray={`${arcLength * (1 - alarmPos)} ${arcLength * alarmPos}`}
-              strokeDashoffset={-arcLength * alarmPos}
+              strokeDashoffset={arcLength * alarmPos}
             />
           )}
 
