@@ -36,9 +36,10 @@ export default function TemperatureGauge({
     : 0;
 
   // SVG arc calculations
+  // The path "M 20 130 A 80 80 0 1 1 180 130" is a semicircle (180°)
+  // Endpoints are 160px apart = 2*radius, so they're diametrically opposite
   const radius = 80;
-  const circumference = 2 * Math.PI * radius;
-  const arcLength = circumference * 0.75; // 270 degrees
+  const arcLength = Math.PI * radius; // 180 degrees (semicircle)
 
   // Color based on status
   const getStatusColor = () => {
