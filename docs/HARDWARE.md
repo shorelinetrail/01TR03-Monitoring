@@ -134,7 +134,7 @@ sample kit.
 | Sensor 1 (Main Tank) | 0x60 | — | 0Ω (jumper to GND) | 0.000 |
 | Sensor 2 (Tap Changer) | 0x67 | 0Ω (jumper to VCC) | — | 1.000 |
 | Sensor 3 | 0x64 | 9.09kΩ | 10kΩ | 0.524 |
-| Sensor 4 | 0x62 | 30.1kΩ | 10kΩ | 0.249 |
+| Sensor 4 | 0x62 | 28.7kΩ | 10kΩ | 0.258 |
 
 ```
          VCC (3.3V)
@@ -152,7 +152,7 @@ For this project:
 - **Sensor 1 (Main Tank):** Address `0x60` — ADDR to GND, no resistors
 - **Sensor 2 (Tap Changer):** Address `0x67` — ADDR to VCC, no resistors
 - **Sensor 3:** Address `0x64` — 9.09kΩ to VCC + 10kΩ to GND
-- **Sensor 4:** Address `0x62` — 30.1kΩ to VCC + 10kΩ to GND
+- **Sensor 4:** Address `0x62` — 28.7kΩ to VCC + 10kΩ to GND
 
 ---
 
