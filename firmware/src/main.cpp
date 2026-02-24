@@ -53,8 +53,8 @@
   // Resistor values from Vishay D11/CRCW0603 e3 sample kit
   #define MCP9600_ADDR_1  0x60  // Sensor 1 (ADDR pin to GND)
   #define MCP9600_ADDR_2  0x67  // Sensor 2 (ADDR pin to VCC)
-  #define MCP9600_ADDR_3  0x64  // Sensor 3 (9.09k to VCC, 10k to GND)
-  #define MCP9600_ADDR_4  0x62  // Sensor 4 (28.7k to VCC, 10k to GND)
+  #define MCP9600_ADDR_3  0x63  // Sensor 3 (16.9k to VCC, 10k to GND)
+  #define MCP9600_ADDR_4  0x61  // Sensor 4 (69.8k to VCC, 10k to GND)
 #endif
 
 // Temperature thresholds (defaults, configurable via web interface)
