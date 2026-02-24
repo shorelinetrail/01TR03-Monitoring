@@ -83,15 +83,15 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
     const rows = readings.map((reading) => {
       const mainTemp = reading.main_tank_temp;
       const tapTemp = reading.tap_changer_temp;
-      const differential = mainTemp !== null && tapTemp !== null ? mainTemp - tapTemp : null;
+      const differential = mainTemp != null && tapTemp != null ? mainTemp - tapTemp : null;
 
       return [
         format(new Date(reading.recorded_at), 'yyyy-MM-dd HH:mm:ss'),
-        mainTemp !== null ? mainTemp.toFixed(2) : '',
+        mainTemp != null ? mainTemp.toFixed(2) : '',
         reading.main_tank_status,
-        tapTemp !== null ? tapTemp.toFixed(2) : '',
+        tapTemp != null ? tapTemp.toFixed(2) : '',
         reading.tap_changer_status,
-        differential !== null ? differential.toFixed(2) : '',
+        differential != null ? differential.toFixed(2) : '',
       ];
     });
 
