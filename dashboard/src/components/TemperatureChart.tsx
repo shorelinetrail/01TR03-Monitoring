@@ -130,6 +130,9 @@ export default function TemperatureChart({
     sensor4: true,
   });
 
+  // Whether to show raw signals alongside filtered (off by default)
+  const [showRaw, setShowRaw] = useState(false);
+
   // Transform data for recharts with client-side filtering
   const chartData = useMemo(() => {
     // Extract raw values for each sensor
@@ -287,7 +290,7 @@ export default function TemperatureChart({
   return (
     <div className="w-full">
       {/* Sensor Toggle Controls */}
-      <div className="flex flex-wrap gap-2 sm:gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
         {enabledSensors.map((sensor) => (
           <button
             key={sensor.key}
@@ -311,6 +314,26 @@ export default function TemperatureChart({
             </span>
           </button>
         ))}
+        {filterEnabled && (
+          <>
+            <span className="text-gray-600 text-xs hidden sm:inline">|</span>
+            <button
+              onClick={() => setShowRaw(prev => !prev)}
+              className={`
+                flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm
+                transition-all duration-200
+                ${showRaw
+                  ? 'bg-gray-700 text-white'
+                  : 'bg-gray-800 text-gray-500'}
+              `}
+            >
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4 3" d="M4 12h16" />
+              </svg>
+              <span>Show Raw</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Chart */}
@@ -364,7 +387,7 @@ export default function TemperatureChart({
             )}
 
             {/* Sensor 1 (Main Tank) - Raw */}
-            {sensors.sensor1.enabled && visibleSensors.sensor1 && (
+            {sensors.sensor1.enabled && visibleSensors.sensor1 && (!filterEnabled || showRaw) && (
               <Line
                 type="monotone"
                 dataKey="sensor1"
@@ -381,7 +404,7 @@ export default function TemperatureChart({
               <Line
                 type="monotone"
                 dataKey="sensor1_filtered"
-                name={`${sensors.sensor1.label} (Filtered)`}
+                name={sensors.sensor1.label}
                 stroke={SENSOR_COLORS.sensor1}
                 strokeWidth={2}
                 dot={false}
@@ -390,7 +413,7 @@ export default function TemperatureChart({
             )}
 
             {/* Sensor 2 (Tap Changer) - Raw */}
-            {sensors.sensor2.enabled && visibleSensors.sensor2 && (
+            {sensors.sensor2.enabled && visibleSensors.sensor2 && (!filterEnabled || showRaw) && (
               <Line
                 type="monotone"
                 dataKey="sensor2"
@@ -407,7 +430,7 @@ export default function TemperatureChart({
               <Line
                 type="monotone"
                 dataKey="sensor2_filtered"
-                name={`${sensors.sensor2.label} (Filtered)`}
+                name={sensors.sensor2.label}
                 stroke={SENSOR_COLORS.sensor2}
                 strokeWidth={2}
                 dot={false}
@@ -416,7 +439,7 @@ export default function TemperatureChart({
             )}
 
             {/* Sensor 3 - Raw */}
-            {sensors.sensor3.enabled && visibleSensors.sensor3 && (
+            {sensors.sensor3.enabled && visibleSensors.sensor3 && (!filterEnabled || showRaw) && (
               <Line
                 type="monotone"
                 dataKey="sensor3"
@@ -433,7 +456,7 @@ export default function TemperatureChart({
               <Line
                 type="monotone"
                 dataKey="sensor3_filtered"
-                name={`${sensors.sensor3.label} (Filtered)`}
+                name={sensors.sensor3.label}
                 stroke={SENSOR_COLORS.sensor3}
                 strokeWidth={2}
                 dot={false}
@@ -442,7 +465,7 @@ export default function TemperatureChart({
             )}
 
             {/* Sensor 4 - Raw */}
-            {sensors.sensor4.enabled && visibleSensors.sensor4 && (
+            {sensors.sensor4.enabled && visibleSensors.sensor4 && (!filterEnabled || showRaw) && (
               <Line
                 type="monotone"
                 dataKey="sensor4"
@@ -459,7 +482,7 @@ export default function TemperatureChart({
               <Line
                 type="monotone"
                 dataKey="sensor4_filtered"
-                name={`${sensors.sensor4.label} (Filtered)`}
+                name={sensors.sensor4.label}
                 stroke={SENSOR_COLORS.sensor4}
                 strokeWidth={2}
                 dot={false}
