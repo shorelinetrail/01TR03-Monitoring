@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS temperature_readings (
     tap_changer_status VARCHAR(20) DEFAULT 'normal',
     sensor_3_status VARCHAR(20) DEFAULT 'normal',
     sensor_4_status VARCHAR(20) DEFAULT 'normal',
+    -- Filtered temperature values (computed by trigger)
+    main_tank_temp_filtered DECIMAL(6,2),
+    tap_changer_temp_filtered DECIMAL(6,2),
+    sensor_3_temp_filtered DECIMAL(6,2),
+    sensor_4_temp_filtered DECIMAL(6,2),
     recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 
     CONSTRAINT fk_device
@@ -158,6 +163,12 @@ CREATE TABLE IF NOT EXISTS device_config (
     sensor_2_thermocouple_type VARCHAR(10) DEFAULT 'K',
     sensor_3_thermocouple_type VARCHAR(10) DEFAULT 'K',
     sensor_4_thermocouple_type VARCHAR(10) DEFAULT 'K',
+
+    -- Signal filtering settings
+    filter_enabled BOOLEAN DEFAULT FALSE,
+    filter_type VARCHAR(20) DEFAULT 'moving_average',
+    filter_window INTEGER DEFAULT 5,
+    filter_alpha DECIMAL(4,3) DEFAULT 0.3,
 
     -- Supabase connection settings (for device reference)
     supabase_url TEXT DEFAULT NULL,
@@ -310,6 +321,90 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Function to compute filtered temperatures (AFTER INSERT trigger)
+CREATE OR REPLACE FUNCTION compute_filtered_temperatures()
+RETURNS TRIGGER AS $$
+DECLARE
+    config_rec device_config%ROWTYPE;
+    v_main_filtered DECIMAL(6,2);
+    v_tap_filtered DECIMAL(6,2);
+    v_s3_filtered DECIMAL(6,2);
+    v_s4_filtered DECIMAL(6,2);
+    v_prev_main DECIMAL(6,2);
+    v_prev_tap DECIMAL(6,2);
+    v_prev_s3 DECIMAL(6,2);
+    v_prev_s4 DECIMAL(6,2);
+BEGIN
+    SELECT * INTO config_rec FROM device_config WHERE device_id = NEW.device_id;
+
+    IF config_rec IS NULL OR NOT config_rec.filter_enabled THEN
+        RETURN NEW;
+    END IF;
+
+    IF config_rec.filter_type = 'moving_average' THEN
+        SELECT
+            ROUND(AVG(main_tank_temp), 2),
+            ROUND(AVG(tap_changer_temp), 2),
+            ROUND(AVG(sensor_3_temp), 2),
+            ROUND(AVG(sensor_4_temp), 2)
+        INTO v_main_filtered, v_tap_filtered, v_s3_filtered, v_s4_filtered
+        FROM (
+            SELECT main_tank_temp, tap_changer_temp, sensor_3_temp, sensor_4_temp
+            FROM temperature_readings
+            WHERE device_id = NEW.device_id
+            ORDER BY recorded_at DESC
+            LIMIT config_rec.filter_window
+        ) recent;
+
+    ELSIF config_rec.filter_type = 'exponential' THEN
+        SELECT
+            main_tank_temp_filtered,
+            tap_changer_temp_filtered,
+            sensor_3_temp_filtered,
+            sensor_4_temp_filtered
+        INTO v_prev_main, v_prev_tap, v_prev_s3, v_prev_s4
+        FROM temperature_readings
+        WHERE device_id = NEW.device_id
+          AND id != NEW.id
+        ORDER BY recorded_at DESC
+        LIMIT 1;
+
+        IF NEW.main_tank_temp IS NOT NULL THEN
+            v_main_filtered := ROUND(
+                config_rec.filter_alpha * NEW.main_tank_temp
+                + (1 - config_rec.filter_alpha) * COALESCE(v_prev_main, NEW.main_tank_temp), 2);
+        END IF;
+
+        IF NEW.tap_changer_temp IS NOT NULL THEN
+            v_tap_filtered := ROUND(
+                config_rec.filter_alpha * NEW.tap_changer_temp
+                + (1 - config_rec.filter_alpha) * COALESCE(v_prev_tap, NEW.tap_changer_temp), 2);
+        END IF;
+
+        IF NEW.sensor_3_temp IS NOT NULL THEN
+            v_s3_filtered := ROUND(
+                config_rec.filter_alpha * NEW.sensor_3_temp
+                + (1 - config_rec.filter_alpha) * COALESCE(v_prev_s3, NEW.sensor_3_temp), 2);
+        END IF;
+
+        IF NEW.sensor_4_temp IS NOT NULL THEN
+            v_s4_filtered := ROUND(
+                config_rec.filter_alpha * NEW.sensor_4_temp
+                + (1 - config_rec.filter_alpha) * COALESCE(v_prev_s4, NEW.sensor_4_temp), 2);
+        END IF;
+    END IF;
+
+    UPDATE temperature_readings SET
+        main_tank_temp_filtered = v_main_filtered,
+        tap_changer_temp_filtered = v_tap_filtered,
+        sensor_3_temp_filtered = v_s3_filtered,
+        sensor_4_temp_filtered = v_s4_filtered
+    WHERE id = NEW.id;
+
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- Function to get latest reading for a device
 CREATE OR REPLACE FUNCTION get_latest_reading(p_device_id VARCHAR)
 RETURNS TABLE (
@@ -407,6 +502,12 @@ CREATE TRIGGER check_temps_on_insert
     BEFORE INSERT ON temperature_readings
     FOR EACH ROW
     EXECUTE FUNCTION check_temperature_thresholds();
+
+-- Trigger to compute filtered temperatures after new readings
+CREATE TRIGGER compute_filtered_on_insert
+    AFTER INSERT ON temperature_readings
+    FOR EACH ROW
+    EXECUTE FUNCTION compute_filtered_temperatures();
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)

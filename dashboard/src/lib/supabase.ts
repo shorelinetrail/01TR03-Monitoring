@@ -33,6 +33,11 @@ export interface TemperatureReading {
   tap_changer_status: 'normal' | 'warning' | 'alarm' | 'error';
   sensor_3_status: 'normal' | 'warning' | 'alarm' | 'error';
   sensor_4_status: 'normal' | 'warning' | 'alarm' | 'error';
+  // Filtered temperature values (computed by DB trigger, null when filtering disabled)
+  main_tank_temp_filtered: number | null;
+  tap_changer_temp_filtered: number | null;
+  sensor_3_temp_filtered: number | null;
+  sensor_4_temp_filtered: number | null;
   recorded_at: string;
 }
 
@@ -119,6 +124,11 @@ export interface DeviceConfig {
   sensor_2_thermocouple_type: string;
   sensor_3_thermocouple_type: string;
   sensor_4_thermocouple_type: string;
+  // Signal filtering settings
+  filter_enabled: boolean;
+  filter_type: string;
+  filter_window: number;
+  filter_alpha: number;
   // Supabase connection settings
   supabase_url: string | null;
   supabase_key: string | null;
@@ -356,6 +366,8 @@ export async function getCameras(): Promise<Camera[]> {
 }
 
 // Real-time subscription helper
+// Subscribes to both INSERT and UPDATE events because the AFTER INSERT trigger
+// performs an UPDATE to set filtered values after the row is inserted
 export function subscribeToReadings(
   deviceId: string,
   callback: (reading: TemperatureReading) => void
@@ -366,6 +378,18 @@ export function subscribeToReadings(
       'postgres_changes',
       {
         event: 'INSERT',
+        schema: 'public',
+        table: 'temperature_readings',
+        filter: `device_id=eq.${deviceId}`,
+      },
+      (payload) => {
+        callback(payload.new as TemperatureReading);
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
         schema: 'public',
         table: 'temperature_readings',
         filter: `device_id=eq.${deviceId}`,

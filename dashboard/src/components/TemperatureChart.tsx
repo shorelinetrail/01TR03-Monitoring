@@ -30,6 +30,7 @@ interface TemperatureChartProps {
   };
   yAxisMin?: number | null;
   yAxisMax?: number | null;
+  filterEnabled?: boolean;
   sensors?: {
     sensor1: SensorConfig;
     sensor2: SensorConfig;
@@ -51,6 +52,7 @@ export default function TemperatureChart({
   thresholds,
   yAxisMin,
   yAxisMax,
+  filterEnabled = false,
   sensors = {
     sensor1: { enabled: true, label: 'Main Tank' },
     sensor2: { enabled: true, label: 'Tap Changer' },
@@ -79,6 +81,10 @@ export default function TemperatureChart({
     sensor2: reading.tap_changer_temp,
     sensor3: reading.sensor_3_temp,
     sensor4: reading.sensor_4_temp,
+    sensor1_filtered: reading.main_tank_temp_filtered,
+    sensor2_filtered: reading.tap_changer_temp_filtered,
+    sensor3_filtered: reading.sensor_3_temp_filtered,
+    sensor4_filtered: reading.sensor_4_temp_filtered,
   })), [data]);
 
   // Track data changes to restore zoom only when data updates, not during drag
@@ -266,12 +272,25 @@ export default function TemperatureChart({
               </>
             )}
 
-            {/* Sensor 1 (Main Tank) */}
+            {/* Sensor 1 (Main Tank) - Raw */}
             {sensors.sensor1.enabled && visibleSensors.sensor1 && (
               <Line
                 type="monotone"
                 dataKey="sensor1"
-                name={sensors.sensor1.label}
+                name={filterEnabled ? `${sensors.sensor1.label} (Raw)` : sensors.sensor1.label}
+                stroke={SENSOR_COLORS.sensor1}
+                strokeWidth={filterEnabled ? 1 : 2}
+                strokeDasharray={filterEnabled ? "4 3" : undefined}
+                dot={false}
+                activeDot={{ r: filterEnabled ? 4 : 6 }}
+              />
+            )}
+            {/* Sensor 1 (Main Tank) - Filtered */}
+            {filterEnabled && sensors.sensor1.enabled && visibleSensors.sensor1 && (
+              <Line
+                type="monotone"
+                dataKey="sensor1_filtered"
+                name={`${sensors.sensor1.label} (Filtered)`}
                 stroke={SENSOR_COLORS.sensor1}
                 strokeWidth={2}
                 dot={false}
@@ -279,12 +298,25 @@ export default function TemperatureChart({
               />
             )}
 
-            {/* Sensor 2 (Tap Changer) */}
+            {/* Sensor 2 (Tap Changer) - Raw */}
             {sensors.sensor2.enabled && visibleSensors.sensor2 && (
               <Line
                 type="monotone"
                 dataKey="sensor2"
-                name={sensors.sensor2.label}
+                name={filterEnabled ? `${sensors.sensor2.label} (Raw)` : sensors.sensor2.label}
+                stroke={SENSOR_COLORS.sensor2}
+                strokeWidth={filterEnabled ? 1 : 2}
+                strokeDasharray={filterEnabled ? "4 3" : undefined}
+                dot={false}
+                activeDot={{ r: filterEnabled ? 4 : 6 }}
+              />
+            )}
+            {/* Sensor 2 (Tap Changer) - Filtered */}
+            {filterEnabled && sensors.sensor2.enabled && visibleSensors.sensor2 && (
+              <Line
+                type="monotone"
+                dataKey="sensor2_filtered"
+                name={`${sensors.sensor2.label} (Filtered)`}
                 stroke={SENSOR_COLORS.sensor2}
                 strokeWidth={2}
                 dot={false}
@@ -292,12 +324,25 @@ export default function TemperatureChart({
               />
             )}
 
-            {/* Sensor 3 */}
+            {/* Sensor 3 - Raw */}
             {sensors.sensor3.enabled && visibleSensors.sensor3 && (
               <Line
                 type="monotone"
                 dataKey="sensor3"
-                name={sensors.sensor3.label}
+                name={filterEnabled ? `${sensors.sensor3.label} (Raw)` : sensors.sensor3.label}
+                stroke={SENSOR_COLORS.sensor3}
+                strokeWidth={filterEnabled ? 1 : 2}
+                strokeDasharray={filterEnabled ? "4 3" : undefined}
+                dot={false}
+                activeDot={{ r: filterEnabled ? 4 : 6 }}
+              />
+            )}
+            {/* Sensor 3 - Filtered */}
+            {filterEnabled && sensors.sensor3.enabled && visibleSensors.sensor3 && (
+              <Line
+                type="monotone"
+                dataKey="sensor3_filtered"
+                name={`${sensors.sensor3.label} (Filtered)`}
                 stroke={SENSOR_COLORS.sensor3}
                 strokeWidth={2}
                 dot={false}
@@ -305,12 +350,25 @@ export default function TemperatureChart({
               />
             )}
 
-            {/* Sensor 4 */}
+            {/* Sensor 4 - Raw */}
             {sensors.sensor4.enabled && visibleSensors.sensor4 && (
               <Line
                 type="monotone"
                 dataKey="sensor4"
-                name={sensors.sensor4.label}
+                name={filterEnabled ? `${sensors.sensor4.label} (Raw)` : sensors.sensor4.label}
+                stroke={SENSOR_COLORS.sensor4}
+                strokeWidth={filterEnabled ? 1 : 2}
+                strokeDasharray={filterEnabled ? "4 3" : undefined}
+                dot={false}
+                activeDot={{ r: filterEnabled ? 4 : 6 }}
+              />
+            )}
+            {/* Sensor 4 - Filtered */}
+            {filterEnabled && sensors.sensor4.enabled && visibleSensors.sensor4 && (
+              <Line
+                type="monotone"
+                dataKey="sensor4_filtered"
+                name={`${sensors.sensor4.label} (Filtered)`}
                 stroke={SENSOR_COLORS.sensor4}
                 strokeWidth={2}
                 dot={false}

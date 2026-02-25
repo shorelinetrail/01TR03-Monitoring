@@ -74,8 +74,10 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
     const headers = [
       'Timestamp',
       labels.mainTank,
+      `${labels.mainTank} (Filtered)`,
       'Main Tank Status',
       labels.tapChanger,
+      `${labels.tapChanger} (Filtered)`,
       'Tap Changer Status',
       labels.differential,
     ];
@@ -88,8 +90,10 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
       return [
         format(new Date(reading.recorded_at), 'yyyy-MM-dd HH:mm:ss'),
         mainTemp != null ? mainTemp.toFixed(2) : '',
+        reading.main_tank_temp_filtered != null ? reading.main_tank_temp_filtered.toFixed(2) : '',
         reading.main_tank_status,
         tapTemp != null ? tapTemp.toFixed(2) : '',
+        reading.tap_changer_temp_filtered != null ? reading.tap_changer_temp_filtered.toFixed(2) : '',
         reading.tap_changer_status,
         differential != null ? differential.toFixed(2) : '',
       ];

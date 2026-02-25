@@ -99,6 +99,11 @@ const DEFAULT_SETTINGS = {
   sensor_2_thermocouple_type: 'K',
   sensor_3_thermocouple_type: 'K',
   sensor_4_thermocouple_type: 'K',
+  // Signal filtering
+  filter_enabled: false,
+  filter_type: 'moving_average',
+  filter_window: 5,
+  filter_alpha: 0.3,
   // Connection settings
   supabase_url: '',
   supabase_key: '',
@@ -163,6 +168,10 @@ export default function Settings() {
           sensor_2_thermocouple_type: config.sensor_2_thermocouple_type ?? DEFAULT_SETTINGS.sensor_2_thermocouple_type,
           sensor_3_thermocouple_type: config.sensor_3_thermocouple_type ?? DEFAULT_SETTINGS.sensor_3_thermocouple_type,
           sensor_4_thermocouple_type: config.sensor_4_thermocouple_type ?? DEFAULT_SETTINGS.sensor_4_thermocouple_type,
+          filter_enabled: config.filter_enabled ?? DEFAULT_SETTINGS.filter_enabled,
+          filter_type: config.filter_type ?? DEFAULT_SETTINGS.filter_type,
+          filter_window: config.filter_window ?? DEFAULT_SETTINGS.filter_window,
+          filter_alpha: config.filter_alpha ?? DEFAULT_SETTINGS.filter_alpha,
           supabase_url: config.supabase_url ?? DEFAULT_SETTINGS.supabase_url,
           supabase_key: config.supabase_key ?? DEFAULT_SETTINGS.supabase_key,
         });
@@ -448,6 +457,89 @@ export default function Settings() {
                   How often the device uploads temperature readings (10-3600 seconds). Device will apply on next restart.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Signal Filtering */}
+        <section className="mb-4 sm:mb-8">
+          <div className="card">
+            <div className="card-header">
+              <h2 className="text-base sm:text-lg font-semibold text-white">Signal Filtering</h2>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                Apply smoothing to temperature readings to reduce noise. The filter runs on the database when new readings arrive.
+              </p>
+            </div>
+            <div className="card-body space-y-4">
+              {/* Enable toggle */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <label className="text-sm text-white">Enable Signal Filtering</label>
+                  <p className="text-xs text-gray-500">Smooth temperature readings using a digital filter</p>
+                </div>
+                <ToggleSwitch
+                  enabled={settings.filter_enabled}
+                  onChange={() => handleBooleanChange('filter_enabled', !settings.filter_enabled)}
+                />
+              </div>
+
+              {/* Filter Type */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Filter Type</label>
+                <select
+                  value={settings.filter_type}
+                  onChange={(e) => handleTextChange('filter_type', e.target.value)}
+                  disabled={!settings.filter_enabled}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                >
+                  <option value="moving_average">Moving Average</option>
+                  <option value="exponential">Exponential Smoothing (EMA)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {settings.filter_type === 'moving_average'
+                    ? 'Averages the last N readings. Good for steady-state monitoring.'
+                    : 'Weights recent readings more heavily. Good for tracking trends.'}
+                </p>
+              </div>
+
+              {/* Window Size (for Moving Average) */}
+              {settings.filter_type === 'moving_average' && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Window Size</label>
+                  <input
+                    type="number"
+                    value={settings.filter_window}
+                    onChange={(e) => handleNumberChange('filter_window', e.target.value)}
+                    min="2"
+                    max="50"
+                    disabled={!settings.filter_enabled}
+                    className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Number of readings to average (2-50). Higher = smoother but slower to respond.
+                  </p>
+                </div>
+              )}
+
+              {/* Alpha (for Exponential) */}
+              {settings.filter_type === 'exponential' && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Smoothing Factor (Alpha)</label>
+                  <input
+                    type="number"
+                    value={settings.filter_alpha}
+                    onChange={(e) => handleNumberChange('filter_alpha', e.target.value)}
+                    min="0.01"
+                    max="1.0"
+                    step="0.05"
+                    disabled={!settings.filter_enabled}
+                    className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Weight given to the newest reading (0.01-1.0). Lower = smoother, higher = more responsive.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </section>

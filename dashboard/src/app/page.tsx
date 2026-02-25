@@ -74,6 +74,14 @@ const DEFAULT_CHART = {
   yMax: null as number | null,
 };
 
+// Default filter settings
+const DEFAULT_FILTER = {
+  enabled: false,
+  type: 'moving_average',
+  window: 5,
+  alpha: 0.3,
+};
+
 // Default display settings
 const DEFAULT_DISPLAY = {
   title: 'Temperature Monitor',
@@ -112,6 +120,7 @@ export default function Dashboard() {
   const [ranges, setRanges] = useState(DEFAULT_RANGES);
   const [chart, setChart] = useState(DEFAULT_CHART);
   const [display, setDisplay] = useState(DEFAULT_DISPLAY);
+  const [filter, setFilter] = useState(DEFAULT_FILTER);
   const [showExportModal, setShowExportModal] = useState(false);
   const [useCustomDateRange, setUseCustomDateRange] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(() => {
@@ -195,6 +204,12 @@ export default function Dashboard() {
           sensor3ThermocoupleType: configData.sensor_3_thermocouple_type ?? DEFAULT_DISPLAY.sensor3ThermocoupleType,
           sensor4ThermocoupleType: configData.sensor_4_thermocouple_type ?? DEFAULT_DISPLAY.sensor4ThermocoupleType,
         });
+        setFilter({
+          enabled: configData.filter_enabled ?? DEFAULT_FILTER.enabled,
+          type: configData.filter_type ?? DEFAULT_FILTER.type,
+          window: configData.filter_window ?? DEFAULT_FILTER.window,
+          alpha: configData.filter_alpha ?? DEFAULT_FILTER.alpha,
+        });
       }
       setLatestReading(reading);
       setHistoricalData(readings);
@@ -216,10 +231,22 @@ export default function Dashboard() {
   }, [fetchData]);
 
   // Real-time subscriptions
+  // Handles both INSERT (new reading) and UPDATE (filtered values computed by trigger)
   useEffect(() => {
     const readingsChannel = subscribeToReadings(DEVICE_ID, (newReading) => {
       setLatestReading(newReading);
-      setHistoricalData((prev) => [...prev, newReading].slice(-1000));
+      setHistoricalData((prev) => {
+        // Check if this reading already exists (UPDATE event for same row)
+        const existingIndex = prev.findIndex(r => r.id === newReading.id);
+        if (existingIndex >= 0) {
+          // Replace the existing entry with the updated one (now has filtered values)
+          const updated = [...prev];
+          updated[existingIndex] = newReading;
+          return updated;
+        }
+        // New reading (INSERT event) - append and trim
+        return [...prev, newReading].slice(-1000);
+      });
       setLastUpdate(new Date());
     });
 
@@ -279,13 +306,29 @@ export default function Dashboard() {
     return 'normal';
   };
 
+  // Get the display value for a sensor: filtered if available and enabled, raw otherwise
+  const getDisplayTemp = (
+    reading: TemperatureReading | null,
+    sensor: 'main_tank' | 'tap_changer' | 'sensor_3' | 'sensor_4'
+  ): number | null => {
+    if (!reading) return null;
+    if (filter.enabled) {
+      const filteredKey = `${sensor}_temp_filtered` as keyof TemperatureReading;
+      const filtered = reading[filteredKey] as number | null;
+      if (filtered !== null) return filtered;
+    }
+    const rawKey = `${sensor}_temp` as keyof TemperatureReading;
+    return reading[rawKey] as number | null;
+  };
+
   // Calculate temperature differential and status
   const getDifferential = (): number | null => {
-    if (latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined ||
-        latestReading?.tap_changer_temp === null || latestReading?.tap_changer_temp === undefined) {
+    const mainTemp = getDisplayTemp(latestReading, 'main_tank');
+    const tapTemp = getDisplayTemp(latestReading, 'tap_changer');
+    if (mainTemp === null || tapTemp === null) {
       return null;
     }
-    return latestReading.main_tank_temp - latestReading.tap_changer_temp;
+    return mainTemp - tapTemp;
   };
 
   const getDifferentialStatus = (): 'normal' | 'warning' | 'alarm' | 'offline' => {
@@ -503,7 +546,7 @@ export default function Dashboard() {
             <div className="card card-body">
               <TemperatureGauge
                 label={labels.mainTank}
-                value={latestReading?.main_tank_temp ?? null}
+                value={getDisplayTemp(latestReading, 'main_tank')}
                 status={getMainTankStatus()}
                 warningThreshold={thresholds.mainTankWarning}
                 alarmThreshold={thresholds.mainTankAlarm}
@@ -517,7 +560,7 @@ export default function Dashboard() {
               <div className="card card-body">
                 <TemperatureGauge
                   label={labels.tapChanger}
-                  value={latestReading?.tap_changer_temp ?? null}
+                  value={getDisplayTemp(latestReading, 'tap_changer')}
                   status={getTapChangerStatus()}
                   warningThreshold={thresholds.tapChangerWarning}
                   alarmThreshold={thresholds.tapChangerAlarm}
@@ -532,7 +575,7 @@ export default function Dashboard() {
               <div className="card card-body">
                 <TemperatureGauge
                   label={labels.sensor3}
-                  value={latestReading?.sensor_3_temp ?? null}
+                  value={getDisplayTemp(latestReading, 'sensor_3')}
                   status={getSensor3Status()}
                   warningThreshold={thresholds.sensor3Warning}
                   alarmThreshold={thresholds.sensor3Alarm}
@@ -547,7 +590,7 @@ export default function Dashboard() {
               <div className="card card-body">
                 <TemperatureGauge
                   label={labels.sensor4}
-                  value={latestReading?.sensor_4_temp ?? null}
+                  value={getDisplayTemp(latestReading, 'sensor_4')}
                   status={getSensor4Status()}
                   warningThreshold={thresholds.sensor4Warning}
                   alarmThreshold={thresholds.sensor4Alarm}
@@ -641,6 +684,7 @@ export default function Dashboard() {
                 thresholds={thresholds}
                 yAxisMin={chart.yMin}
                 yAxisMax={chart.yMax}
+                filterEnabled={filter.enabled}
                 sensors={{
                   sensor1: { enabled: true, label: labels.mainTank },
                   sensor2: { enabled: display.sensor2Enabled, label: labels.tapChanger },
