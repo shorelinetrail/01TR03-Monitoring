@@ -48,18 +48,14 @@ UPDATE device_config SET
 -- Add constraints for filter parameters
 -- ============================================================================
 
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_filter_window') THEN
-        ALTER TABLE device_config ADD CONSTRAINT check_filter_window CHECK (filter_window >= 2 AND filter_window <= 50);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_filter_alpha') THEN
-        ALTER TABLE device_config ADD CONSTRAINT check_filter_alpha CHECK (filter_alpha >= 0.01 AND filter_alpha <= 1.0);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'check_filter_type') THEN
-        ALTER TABLE device_config ADD CONSTRAINT check_filter_type CHECK (filter_type IN ('moving_average', 'exponential'));
-    END IF;
-END $$;
+ALTER TABLE device_config DROP CONSTRAINT IF EXISTS check_filter_window;
+ALTER TABLE device_config ADD CONSTRAINT check_filter_window CHECK (filter_window >= 2 AND filter_window <= 50);
+
+ALTER TABLE device_config DROP CONSTRAINT IF EXISTS check_filter_alpha;
+ALTER TABLE device_config ADD CONSTRAINT check_filter_alpha CHECK (filter_alpha >= 0.01 AND filter_alpha <= 1.0);
+
+ALTER TABLE device_config DROP CONSTRAINT IF EXISTS check_filter_type;
+ALTER TABLE device_config ADD CONSTRAINT check_filter_type CHECK (filter_type IN ('moving_average', 'exponential'));
 
 -- ============================================================================
 -- Signal filtering trigger function
