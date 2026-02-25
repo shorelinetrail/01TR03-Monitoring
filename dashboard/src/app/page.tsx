@@ -685,6 +685,12 @@ export default function Dashboard() {
                 yAxisMin={chart.yMin}
                 yAxisMax={chart.yMax}
                 filterEnabled={filter.enabled}
+                filterConfig={{
+                  enabled: filter.enabled,
+                  type: filter.type as 'moving_average' | 'exponential',
+                  window: filter.window,
+                  alpha: filter.alpha,
+                }}
                 sensors={{
                   sensor1: { enabled: true, label: labels.mainTank },
                   sensor2: { enabled: display.sensor2Enabled, label: labels.tapChanger },

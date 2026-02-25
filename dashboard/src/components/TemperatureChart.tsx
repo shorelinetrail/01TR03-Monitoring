@@ -20,6 +20,13 @@ interface SensorConfig {
   label: string;
 }
 
+interface FilterConfig {
+  enabled: boolean;
+  type: 'moving_average' | 'exponential';
+  window: number;
+  alpha: number;
+}
+
 interface TemperatureChartProps {
   data: TemperatureReading[];
   thresholds?: {
@@ -31,6 +38,7 @@ interface TemperatureChartProps {
   yAxisMin?: number | null;
   yAxisMax?: number | null;
   filterEnabled?: boolean;
+  filterConfig?: FilterConfig;
   sensors?: {
     sensor1: SensorConfig;
     sensor2: SensorConfig;
@@ -47,12 +55,60 @@ const SENSOR_COLORS = {
   sensor4: '#ff9800', // Orange
 };
 
+// Apply moving average filter to an array of values
+function applyMovingAverage(values: (number | null)[], windowSize: number): (number | null)[] {
+  const result: (number | null)[] = [];
+  for (let i = 0; i < values.length; i++) {
+    if (values[i] === null) {
+      result.push(null);
+      continue;
+    }
+    // Get window of values (up to windowSize previous values including current)
+    const windowStart = Math.max(0, i - windowSize + 1);
+    const window = values.slice(windowStart, i + 1).filter((v): v is number => v !== null);
+    if (window.length === 0) {
+      result.push(null);
+    } else {
+      const avg = window.reduce((sum, v) => sum + v, 0) / window.length;
+      result.push(avg);
+    }
+  }
+  return result;
+}
+
+// Apply exponential smoothing filter to an array of values
+function applyExponentialSmoothing(values: (number | null)[], alpha: number): (number | null)[] {
+  const result: (number | null)[] = [];
+  let prevFiltered: number = 0;
+  let hasPrev = false;
+  for (let i = 0; i < values.length; i++) {
+    const current = values[i];
+    if (current === null) {
+      result.push(null);
+      continue;
+    }
+    if (!hasPrev) {
+      // First valid value - no smoothing possible
+      result.push(current);
+      prevFiltered = current;
+      hasPrev = true;
+    } else {
+      // EMA formula: filtered = alpha * current + (1 - alpha) * previous_filtered
+      const filtered: number = alpha * current + (1 - alpha) * prevFiltered;
+      result.push(filtered);
+      prevFiltered = filtered;
+    }
+  }
+  return result;
+}
+
 export default function TemperatureChart({
   data,
   thresholds,
   yAxisMin,
   yAxisMax,
   filterEnabled = false,
+  filterConfig = { enabled: false, type: 'moving_average', window: 5, alpha: 0.3 },
   sensors = {
     sensor1: { enabled: true, label: 'Main Tank' },
     sensor2: { enabled: true, label: 'Tap Changer' },
@@ -74,18 +130,53 @@ export default function TemperatureChart({
     sensor4: true,
   });
 
-  // Transform data for recharts
-  const chartData = useMemo(() => data.map((reading) => ({
-    time: new Date(reading.recorded_at).getTime(),
-    sensor1: reading.main_tank_temp,
-    sensor2: reading.tap_changer_temp,
-    sensor3: reading.sensor_3_temp,
-    sensor4: reading.sensor_4_temp,
-    sensor1_filtered: reading.main_tank_temp_filtered,
-    sensor2_filtered: reading.tap_changer_temp_filtered,
-    sensor3_filtered: reading.sensor_3_temp_filtered,
-    sensor4_filtered: reading.sensor_4_temp_filtered,
-  })), [data]);
+  // Transform data for recharts with client-side filtering
+  const chartData = useMemo(() => {
+    // Extract raw values for each sensor
+    const sensor1Raw = data.map(r => r.main_tank_temp);
+    const sensor2Raw = data.map(r => r.tap_changer_temp);
+    const sensor3Raw = data.map(r => r.sensor_3_temp);
+    const sensor4Raw = data.map(r => r.sensor_4_temp);
+
+    // Apply client-side filtering based on current filter settings
+    let sensor1Filtered: (number | null)[];
+    let sensor2Filtered: (number | null)[];
+    let sensor3Filtered: (number | null)[];
+    let sensor4Filtered: (number | null)[];
+
+    if (filterConfig.enabled) {
+      if (filterConfig.type === 'moving_average') {
+        sensor1Filtered = applyMovingAverage(sensor1Raw, filterConfig.window);
+        sensor2Filtered = applyMovingAverage(sensor2Raw, filterConfig.window);
+        sensor3Filtered = applyMovingAverage(sensor3Raw, filterConfig.window);
+        sensor4Filtered = applyMovingAverage(sensor4Raw, filterConfig.window);
+      } else {
+        // exponential smoothing
+        sensor1Filtered = applyExponentialSmoothing(sensor1Raw, filterConfig.alpha);
+        sensor2Filtered = applyExponentialSmoothing(sensor2Raw, filterConfig.alpha);
+        sensor3Filtered = applyExponentialSmoothing(sensor3Raw, filterConfig.alpha);
+        sensor4Filtered = applyExponentialSmoothing(sensor4Raw, filterConfig.alpha);
+      }
+    } else {
+      // Filtering disabled - no filtered values
+      sensor1Filtered = data.map(() => null);
+      sensor2Filtered = data.map(() => null);
+      sensor3Filtered = data.map(() => null);
+      sensor4Filtered = data.map(() => null);
+    }
+
+    return data.map((reading, i) => ({
+      time: new Date(reading.recorded_at).getTime(),
+      sensor1: reading.main_tank_temp,
+      sensor2: reading.tap_changer_temp,
+      sensor3: reading.sensor_3_temp,
+      sensor4: reading.sensor_4_temp,
+      sensor1_filtered: sensor1Filtered[i],
+      sensor2_filtered: sensor2Filtered[i],
+      sensor3_filtered: sensor3Filtered[i],
+      sensor4_filtered: sensor4Filtered[i],
+    }));
+  }, [data, filterConfig]);
 
   // Track data changes to restore zoom only when data updates, not during drag
   const prevDataRef = useRef<string>('');
