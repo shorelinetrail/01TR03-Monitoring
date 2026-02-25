@@ -5,6 +5,7 @@ import Link from 'next/link';
 import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
 import ExportModal from '@/components/ExportModal';
+import { downloadBulkUploadTemplate } from '@/components/BulkUploadTemplate';
 import {
   supabase,
   TemperatureReading,
@@ -624,16 +625,28 @@ export default function Dashboard() {
             <div className="card-header">
               <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                 <h2 className="text-base sm:text-lg font-semibold text-white">Temperature Trend</h2>
-                <button
-                  onClick={() => setShowExportModal(true)}
-                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
-                  title="Export data to CSV"
-                >
-                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  <span className="hidden sm:inline">Export</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => downloadBulkUploadTemplate(labels)}
+                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                    title="Download CSV template for bulk upload"
+                  >
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="hidden sm:inline">Template</span>
+                  </button>
+                  <button
+                    onClick={() => setShowExportModal(true)}
+                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                    title="Export data to CSV"
+                  >
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                </div>
               </div>
               <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
                 <div className="flex gap-1.5 sm:gap-2">
