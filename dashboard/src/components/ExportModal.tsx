@@ -11,6 +11,8 @@ interface ExportModalProps {
   labels: {
     mainTank: string;
     tapChanger: string;
+    sensor3: string;
+    sensor4: string;
     differential: string;
   };
 }
@@ -75,16 +77,24 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
       'Timestamp',
       labels.mainTank,
       `${labels.mainTank} (Filtered)`,
-      'Main Tank Status',
+      `${labels.mainTank} Status`,
       labels.tapChanger,
       `${labels.tapChanger} (Filtered)`,
-      'Tap Changer Status',
+      `${labels.tapChanger} Status`,
+      labels.sensor3,
+      `${labels.sensor3} (Filtered)`,
+      `${labels.sensor3} Status`,
+      labels.sensor4,
+      `${labels.sensor4} (Filtered)`,
+      `${labels.sensor4} Status`,
       labels.differential,
     ];
 
     const rows = readings.map((reading) => {
       const mainTemp = reading.main_tank_temp;
       const tapTemp = reading.tap_changer_temp;
+      const sensor3Temp = reading.sensor_3_temp;
+      const sensor4Temp = reading.sensor_4_temp;
       const differential = mainTemp != null && tapTemp != null ? mainTemp - tapTemp : null;
 
       return [
@@ -95,6 +105,12 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
         tapTemp != null ? tapTemp.toFixed(2) : '',
         reading.tap_changer_temp_filtered != null ? reading.tap_changer_temp_filtered.toFixed(2) : '',
         reading.tap_changer_status,
+        sensor3Temp != null ? sensor3Temp.toFixed(2) : '',
+        reading.sensor_3_temp_filtered != null ? reading.sensor_3_temp_filtered.toFixed(2) : '',
+        reading.sensor_3_status,
+        sensor4Temp != null ? sensor4Temp.toFixed(2) : '',
+        reading.sensor_4_temp_filtered != null ? reading.sensor_4_temp_filtered.toFixed(2) : '',
+        reading.sensor_4_status,
         differential != null ? differential.toFixed(2) : '',
       ];
     });
