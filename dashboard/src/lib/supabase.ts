@@ -198,20 +198,36 @@ export async function getReadingsByDateRange(
   startDate: Date,
   endDate: Date
 ): Promise<TemperatureReading[]> {
-  const { data, error } = await supabase
-    .from('temperature_readings')
-    .select('*')
-    .eq('device_id', deviceId)
-    .gte('recorded_at', startDate.toISOString())
-    .lte('recorded_at', endDate.toISOString())
-    .order('recorded_at', { ascending: true });
+  const allData: TemperatureReading[] = [];
+  const pageSize = 1000;
+  let offset = 0;
+  let hasMore = true;
 
-  if (error) {
-    console.error('Error fetching readings by date range:', error);
-    return [];
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('temperature_readings')
+      .select('*')
+      .eq('device_id', deviceId)
+      .gte('recorded_at', startDate.toISOString())
+      .lte('recorded_at', endDate.toISOString())
+      .order('recorded_at', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) {
+      console.error('Error fetching readings by date range:', error);
+      return allData;
+    }
+
+    if (data && data.length > 0) {
+      allData.push(...data);
+      offset += data.length;
+      hasMore = data.length === pageSize;
+    } else {
+      hasMore = false;
+    }
   }
 
-  return data || [];
+  return allData;
 }
 
 export async function getUnacknowledgedAlerts(deviceId: string): Promise<Alert[]> {
