@@ -104,8 +104,7 @@ U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
 #endif
 
 #ifdef USE_MCP9600
-  // Second I2C bus instance
-  TwoWire Wire1 = TwoWire(1);
+  // Wire1 is already defined by the ESP32 Arduino framework - just use it directly
 
   Adafruit_MCP9600 mcp9600_sensor1;  // Bus 0, ADDR=GND (0x60) - Main Tank
   Adafruit_MCP9600 mcp9600_sensor2;  // Bus 0, ADDR=VCC (0x67) - Tap Changer
