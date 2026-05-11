@@ -28,7 +28,7 @@
 
 // Configuration
 #define DEVICE_ID           "DEVICE01"
-#define FIRMWARE_VERSION    "1.4.0"
+#define FIRMWARE_VERSION    "1.5.0"
 #define WIFI_AP_SSID        "TempMonitor-Setup"
 #define WIFI_AP_PASSWORD    "transformer"
 
@@ -58,15 +58,18 @@ const unsigned long LOG_UPLOAD_INTERVAL = 5000;  // Upload logs every 5 seconds
 #endif
 
 #ifdef USE_MCP9600
-  // MCP9600 I2C pins and addresses
-  #define I2C_SDA       21
-  #define I2C_SCL       22
-  // MCP9600 addresses: 0x60-0x67 based on ADDR pin voltage divider
-  // Resistor values from Vishay D11/CRCW0603 e3 sample kit
-  #define MCP9600_ADDR_1  0x60  // Sensor 1 (ADDR pin to GND)
-  #define MCP9600_ADDR_2  0x67  // Sensor 2 (ADDR pin to VCC)
-  #define MCP9600_ADDR_3  0x63  // Sensor 3 (16.9k to VCC, 10k to GND)
-  #define MCP9600_ADDR_4  0x61  // Sensor 4 (69.8k to VCC, 10k to GND)
+  // Dual I2C bus configuration - no resistors needed!
+  // Bus 0 (Wire):  Sensors 1 & 2
+  #define I2C0_SDA      21
+  #define I2C0_SCL      22
+  // Bus 1 (Wire1): Sensors 3 & 4
+  #define I2C1_SDA      25
+  #define I2C1_SCL      26
+
+  // MCP9600 addresses - only need ADDR pin to GND or VCC
+  // Each bus has one sensor at 0x60 (ADDR=GND) and one at 0x67 (ADDR=VCC)
+  #define MCP9600_ADDR_GND  0x60  // ADDR pin tied to GND
+  #define MCP9600_ADDR_VCC  0x67  // ADDR pin tied to VCC
 #endif
 
 // Temperature thresholds (defaults, configurable via web interface)
@@ -101,10 +104,13 @@ U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R0, OLED_CS, OLED_DC, OLED_RST);
 #endif
 
 #ifdef USE_MCP9600
-  Adafruit_MCP9600 mcp9600_sensor1;  // Main Tank
-  Adafruit_MCP9600 mcp9600_sensor2;  // Tap Changer
-  Adafruit_MCP9600 mcp9600_sensor3;  // Sensor 3
-  Adafruit_MCP9600 mcp9600_sensor4;  // Sensor 4
+  // Second I2C bus instance
+  TwoWire Wire1 = TwoWire(1);
+
+  Adafruit_MCP9600 mcp9600_sensor1;  // Bus 0, ADDR=GND (0x60) - Main Tank
+  Adafruit_MCP9600 mcp9600_sensor2;  // Bus 0, ADDR=VCC (0x67) - Tap Changer
+  Adafruit_MCP9600 mcp9600_sensor3;  // Bus 1, ADDR=GND (0x60) - Sensor 3
+  Adafruit_MCP9600 mcp9600_sensor4;  // Bus 1, ADDR=VCC (0x67) - Sensor 4
 #endif
 
 bool mainTankSensorOK = false;
@@ -392,19 +398,19 @@ MCP9600_ThemocoupleType getThermocoupleTypeEnum(const String& tcType) {
     return MCP9600_TYPE_K;  // Default to Type K
 }
 
-bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, const String& tcType) {
+bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, const String& tcType, TwoWire &wirePort = Wire) {
     logInfo("Initializing MCP9600 %s at 0x%02X", name, addr);
 
     // Check if device responds on I2C
-    Wire.beginTransmission(addr);
-    uint8_t error = Wire.endTransmission();
+    wirePort.beginTransmission(addr);
+    uint8_t error = wirePort.endTransmission();
     if (error != 0) {
         logError("MCP9600 %s: I2C error %d - no device at 0x%02X", name, error, addr);
         return false;
     }
     logDebug("MCP9600 %s: I2C device found at 0x%02X", name, addr);
 
-    if (!sensor.begin(addr)) {
+    if (!sensor.begin(addr, &wirePort)) {
         logError("MCP9600 %s (0x%02X): begin() failed", name, addr);
         return false;
     }
@@ -427,12 +433,12 @@ bool initMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, const
 }
 
 // Read MCP9600 registers for diagnostics
-void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
+void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name, TwoWire &wirePort = Wire) {
     logInfo("=== MCP9600 %s (0x%02X) Diagnostics ===", name, addr);
 
     // Check I2C communication
-    Wire.beginTransmission(addr);
-    uint8_t i2cError = Wire.endTransmission();
+    wirePort.beginTransmission(addr);
+    uint8_t i2cError = wirePort.endTransmission();
     if (i2cError != 0) {
         logError("%s: I2C communication failed (error %d)", name, i2cError);
         return;
@@ -440,13 +446,13 @@ void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     logDebug("%s: I2C communication OK", name);
 
     // Read Device ID register (0x20)
-    Wire.beginTransmission(addr);
-    Wire.write(0x20);  // Device ID register
-    Wire.endTransmission(false);
-    Wire.requestFrom(addr, (uint8_t)2);
-    if (Wire.available() >= 2) {
-        uint8_t devIdHigh = Wire.read();
-        uint8_t devIdLow = Wire.read();
+    wirePort.beginTransmission(addr);
+    wirePort.write(0x20);  // Device ID register
+    wirePort.endTransmission(false);
+    wirePort.requestFrom(addr, (uint8_t)2);
+    if (wirePort.available() >= 2) {
+        uint8_t devIdHigh = wirePort.read();
+        uint8_t devIdLow = wirePort.read();
         uint16_t devId = (devIdHigh << 8) | devIdLow;
         logInfo("%s: Device ID = 0x%04X (expected 0x40xx for MCP9600)", name, devId);
     } else {
@@ -454,12 +460,12 @@ void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     }
 
     // Read Status register (0x04)
-    Wire.beginTransmission(addr);
-    Wire.write(0x04);  // Status register
-    Wire.endTransmission(false);
-    Wire.requestFrom(addr, (uint8_t)1);
-    if (Wire.available()) {
-        uint8_t status = Wire.read();
+    wirePort.beginTransmission(addr);
+    wirePort.write(0x04);  // Status register
+    wirePort.endTransmission(false);
+    wirePort.requestFrom(addr, (uint8_t)1);
+    if (wirePort.available()) {
+        uint8_t status = wirePort.read();
         logInfo("%s: Status register = 0x%02X", name, status);
         logDebug("%s:   Burst complete: %d", name, (status >> 7) & 1);
         logDebug("%s:   TH update: %d", name, (status >> 6) & 1);
@@ -469,12 +475,12 @@ void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     }
 
     // Read Sensor Config register (0x05)
-    Wire.beginTransmission(addr);
-    Wire.write(0x05);  // Sensor Config register
-    Wire.endTransmission(false);
-    Wire.requestFrom(addr, (uint8_t)1);
-    if (Wire.available()) {
-        uint8_t sensorCfg = Wire.read();
+    wirePort.beginTransmission(addr);
+    wirePort.write(0x05);  // Sensor Config register
+    wirePort.endTransmission(false);
+    wirePort.requestFrom(addr, (uint8_t)1);
+    if (wirePort.available()) {
+        uint8_t sensorCfg = wirePort.read();
         uint8_t tcType = (sensorCfg >> 4) & 0x07;
         uint8_t filterCoeff = sensorCfg & 0x07;
         const char* tcNames[] = {"K", "J", "T", "N", "S", "E", "B", "R"};
@@ -483,12 +489,12 @@ void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     }
 
     // Read Device Config register (0x06)
-    Wire.beginTransmission(addr);
-    Wire.write(0x06);  // Device Config register
-    Wire.endTransmission(false);
-    Wire.requestFrom(addr, (uint8_t)1);
-    if (Wire.available()) {
-        uint8_t devCfg = Wire.read();
+    wirePort.beginTransmission(addr);
+    wirePort.write(0x06);  // Device Config register
+    wirePort.endTransmission(false);
+    wirePort.requestFrom(addr, (uint8_t)1);
+    if (wirePort.available()) {
+        uint8_t devCfg = wirePort.read();
         uint8_t adcRes = (devCfg >> 5) & 0x03;
         uint8_t burstSamples = (devCfg >> 2) & 0x07;
         uint8_t shutdown = devCfg & 0x03;
@@ -498,15 +504,15 @@ void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     }
 
     // Read raw ADC value register (0x03)
-    Wire.beginTransmission(addr);
-    Wire.write(0x03);  // Raw ADC Data register
-    Wire.endTransmission(false);
-    Wire.requestFrom(addr, (uint8_t)3);
-    if (Wire.available() >= 3) {
+    wirePort.beginTransmission(addr);
+    wirePort.write(0x03);  // Raw ADC Data register
+    wirePort.endTransmission(false);
+    wirePort.requestFrom(addr, (uint8_t)3);
+    if (wirePort.available() >= 3) {
         int32_t rawAdc = 0;
-        rawAdc = (int32_t)Wire.read() << 16;
-        rawAdc |= (int32_t)Wire.read() << 8;
-        rawAdc |= Wire.read();
+        rawAdc = (int32_t)wirePort.read() << 16;
+        rawAdc |= (int32_t)wirePort.read() << 8;
+        rawAdc |= wirePort.read();
         // Sign extend if negative (18-bit two's complement)
         if (rawAdc & 0x020000) {
             rawAdc |= 0xFFFC0000;
@@ -524,12 +530,12 @@ void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     logInfo("%s: Cold Junction (Ambient) = %.2f C", name, coldJunction);
 
     // Read delta temperature (0x01)
-    Wire.beginTransmission(addr);
-    Wire.write(0x01);  // Delta Temp register
-    Wire.endTransmission(false);
-    Wire.requestFrom(addr, (uint8_t)2);
-    if (Wire.available() >= 2) {
-        int16_t delta = (Wire.read() << 8) | Wire.read();
+    wirePort.beginTransmission(addr);
+    wirePort.write(0x01);  // Delta Temp register
+    wirePort.endTransmission(false);
+    wirePort.requestFrom(addr, (uint8_t)2);
+    if (wirePort.available() >= 2) {
+        int16_t delta = (wirePort.read() << 8) | wirePort.read();
         float deltaTemp = delta * 0.0625;  // 0.0625 C resolution
         logInfo("%s: Delta Temp = %.2f C", name, deltaTemp);
     }
@@ -537,6 +543,76 @@ void diagnoseMCP9600(Adafruit_MCP9600 &sensor, uint8_t addr, const char* name) {
     logInfo("=== End %s Diagnostics ===", name);
 }
 #endif
+
+// Helper function to initialize and scan an I2C bus
+int initI2CBus(TwoWire &wirePort, int sdaPin, int sclPin, const char* busName) {
+    logInfo("=== %s Setup (SDA: GPIO%d, SCL: GPIO%d) ===", busName, sdaPin, sclPin);
+
+    int deviceCount = 0;
+
+    // Try multiple times with I2C bus recovery
+    for (int attempt = 0; attempt < 3 && deviceCount == 0; attempt++) {
+        logInfo("%s scan attempt %d", busName, attempt + 1);
+
+        // Fully reset Wire peripheral
+        wirePort.end();
+        delay(100);
+
+        // Manual bus recovery
+        pinMode(sdaPin, INPUT_PULLUP);
+        pinMode(sclPin, OUTPUT);
+        digitalWrite(sclPin, HIGH);
+        delay(10);
+
+        // Clock out up to 18 bits to release any stuck slave
+        for (int i = 0; i < 18; i++) {
+            digitalWrite(sclPin, LOW);
+            delayMicroseconds(50);
+            digitalWrite(sclPin, HIGH);
+            delayMicroseconds(50);
+        }
+
+        // Generate STOP condition
+        pinMode(sdaPin, OUTPUT);
+        digitalWrite(sdaPin, LOW);
+        delay(1);
+        digitalWrite(sclPin, HIGH);
+        delay(1);
+        digitalWrite(sdaPin, HIGH);
+        delay(10);
+
+        // Return pins to input mode with pull-ups
+        pinMode(sdaPin, INPUT_PULLUP);
+        pinMode(sclPin, INPUT_PULLUP);
+        delay(100);
+
+        logDebug("%s pin states - SDA: %d, SCL: %d", busName, digitalRead(sdaPin), digitalRead(sclPin));
+
+        // Initialize Wire with slow clock (10kHz for weak internal pull-ups)
+        wirePort.begin(sdaPin, sclPin);
+        wirePort.setTimeOut(50);
+        wirePort.setClock(10000);
+        delay(200);
+
+        // Scan I2C bus
+        logInfo("Scanning %s...", busName);
+        for (byte addr = 1; addr < 127; addr++) {
+            wirePort.beginTransmission(addr);
+            if (wirePort.endTransmission() == 0) {
+                logInfo("  %s: Found device at 0x%02X", busName, addr);
+                deviceCount++;
+            }
+        }
+        logInfo("%s scan complete. Found %d device(s)", busName, deviceCount);
+
+        if (deviceCount == 0) {
+            logWarn("%s: No devices found, will retry...", busName);
+            delay(500);
+        }
+    }
+
+    return deviceCount;
+}
 
 void initSensors() {
 #ifdef USE_MAX6675
@@ -556,91 +632,39 @@ void initSensors() {
 #endif
 
 #ifdef USE_MCP9600
-    logInfo("=== I2C Setup ===");
-    logInfo("SDA: GPIO%d, SCL: GPIO%d", I2C_SDA, I2C_SCL);
+    // Initialize Bus 0 (Sensors 1 & 2)
+    int bus0Count = initI2CBus(Wire, I2C0_SDA, I2C0_SCL, "I2C Bus 0");
+    logInfo("Bus 0: Found %d device(s)", bus0Count);
 
-    int deviceCount = 0;
+    // Initialize Bus 1 (Sensors 3 & 4)
+    int bus1Count = initI2CBus(Wire1, I2C1_SDA, I2C1_SCL, "I2C Bus 1");
+    logInfo("Bus 1: Found %d device(s)", bus1Count);
 
-    // Try multiple times with I2C bus recovery
-    for (int attempt = 0; attempt < 3 && deviceCount == 0; attempt++) {
-        logInfo("I2C scan attempt %d", attempt + 1);
-
-        // Fully reset Wire peripheral
-        Wire.end();
-        delay(100);
-
-        // Manual bus recovery
-        pinMode(I2C_SDA, INPUT_PULLUP);
-        pinMode(I2C_SCL, OUTPUT);
-        digitalWrite(I2C_SCL, HIGH);
-        delay(10);
-
-        // Clock out up to 18 bits to release any stuck slave
-        for (int i = 0; i < 18; i++) {
-            digitalWrite(I2C_SCL, LOW);
-            delayMicroseconds(50);
-            digitalWrite(I2C_SCL, HIGH);
-            delayMicroseconds(50);
-        }
-
-        // Generate STOP condition
-        pinMode(I2C_SDA, OUTPUT);
-        digitalWrite(I2C_SDA, LOW);
-        delay(1);
-        digitalWrite(I2C_SCL, HIGH);
-        delay(1);
-        digitalWrite(I2C_SDA, HIGH);
-        delay(10);
-
-        // Return pins to input mode with pull-ups
-        pinMode(I2C_SDA, INPUT_PULLUP);
-        pinMode(I2C_SCL, INPUT_PULLUP);
-        delay(100);
-
-        logDebug("Pin states - SDA: %d, SCL: %d", digitalRead(I2C_SDA), digitalRead(I2C_SCL));
-
-        // Initialize Wire with slow clock (10kHz for weak internal pull-ups)
-        Wire.begin(I2C_SDA, I2C_SCL);
-        Wire.setTimeOut(50);
-        Wire.setClock(10000);
-        delay(200);
-
-        // Scan I2C bus
-        logInfo("Scanning I2C bus...");
-        for (byte addr = 1; addr < 127; addr++) {
-            Wire.beginTransmission(addr);
-            if (Wire.endTransmission() == 0) {
-                logInfo("  Found device at 0x%02X", addr);
-                deviceCount++;
-            }
-        }
-        logInfo("Scan complete. Found %d device(s)", deviceCount);
-
-        if (deviceCount == 0) {
-            logWarn("No devices found, will retry...");
-            delay(500);
-        }
-    }
-
-    logInfo("=== Final: Found %d device(s) ===", deviceCount);
     delay(100);
 
-    mainTankSensorOK = initMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)", sensor1ThermocoupleType);
-    tapChangerSensorOK = initMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2 (Tap Changer)", sensor2ThermocoupleType);
-    sensor3SensorOK = initMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3", sensor3ThermocoupleType);
-    sensor4SensorOK = initMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4", sensor4ThermocoupleType);
+    // Initialize sensors on Bus 0
+    // Sensor 1: ADDR pin to GND = 0x60
+    // Sensor 2: ADDR pin to VCC = 0x67
+    mainTankSensorOK = initMCP9600(mcp9600_sensor1, MCP9600_ADDR_GND, "Sensor 1 (Main Tank)", sensor1ThermocoupleType, Wire);
+    tapChangerSensorOK = initMCP9600(mcp9600_sensor2, MCP9600_ADDR_VCC, "Sensor 2 (Tap Changer)", sensor2ThermocoupleType, Wire);
+
+    // Initialize sensors on Bus 1
+    // Sensor 3: ADDR pin to GND = 0x60
+    // Sensor 4: ADDR pin to VCC = 0x67
+    sensor3SensorOK = initMCP9600(mcp9600_sensor3, MCP9600_ADDR_GND, "Sensor 3", sensor3ThermocoupleType, Wire1);
+    sensor4SensorOK = initMCP9600(mcp9600_sensor4, MCP9600_ADDR_VCC, "Sensor 4", sensor4ThermocoupleType, Wire1);
 
     logInfo("=== Sensor Status ===");
-    logInfo("Sensor 1 (Main Tank): %s", mainTankSensorOK ? "OK" : "FAILED/NOT PRESENT");
-    logInfo("Sensor 2 (Tap Changer): %s", tapChangerSensorOK ? "OK" : "FAILED/NOT PRESENT");
-    logInfo("Sensor 3: %s", sensor3SensorOK ? "OK" : "FAILED/NOT PRESENT");
-    logInfo("Sensor 4: %s", sensor4SensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("Bus 0 - Sensor 1 (Main Tank) @ 0x%02X: %s", MCP9600_ADDR_GND, mainTankSensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("Bus 0 - Sensor 2 (Tap Changer) @ 0x%02X: %s", MCP9600_ADDR_VCC, tapChangerSensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("Bus 1 - Sensor 3 @ 0x%02X: %s", MCP9600_ADDR_GND, sensor3SensorOK ? "OK" : "FAILED/NOT PRESENT");
+    logInfo("Bus 1 - Sensor 4 @ 0x%02X: %s", MCP9600_ADDR_VCC, sensor4SensorOK ? "OK" : "FAILED/NOT PRESENT");
 
     // Run diagnostics on all sensors
-    if (mainTankSensorOK) diagnoseMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1");
-    if (tapChangerSensorOK) diagnoseMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2");
-    diagnoseMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3");  // Always diagnose 3&4
-    diagnoseMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4");
+    if (mainTankSensorOK) diagnoseMCP9600(mcp9600_sensor1, MCP9600_ADDR_GND, "Sensor 1", Wire);
+    if (tapChangerSensorOK) diagnoseMCP9600(mcp9600_sensor2, MCP9600_ADDR_VCC, "Sensor 2", Wire);
+    if (sensor3SensorOK) diagnoseMCP9600(mcp9600_sensor3, MCP9600_ADDR_GND, "Sensor 3", Wire1);
+    if (sensor4SensorOK) diagnoseMCP9600(mcp9600_sensor4, MCP9600_ADDR_VCC, "Sensor 4", Wire1);
 #endif
 }
 
@@ -1188,23 +1212,32 @@ void handleDiagnostics() {
     webServer.send(200, "application/json", "{\"status\":\"running\"}");
 
 #ifdef USE_MCP9600
-    // Run I2C scan
-    logInfo("=== I2C Bus Scan ===");
-    for (byte addr = 0x60; addr <= 0x67; addr++) {
+    // Scan Bus 0
+    logInfo("=== I2C Bus 0 Scan (GPIO%d/GPIO%d) ===", I2C0_SDA, I2C0_SCL);
+    for (byte addr = 1; addr < 127; addr++) {
         Wire.beginTransmission(addr);
         uint8_t error = Wire.endTransmission();
         if (error == 0) {
-            logInfo("Device found at 0x%02X", addr);
-        } else {
-            logDebug("No device at 0x%02X (error %d)", addr, error);
+            logInfo("Bus 0: Device found at 0x%02X", addr);
+        }
+    }
+
+    // Scan Bus 1
+    logInfo("=== I2C Bus 1 Scan (GPIO%d/GPIO%d) ===", I2C1_SDA, I2C1_SCL);
+    for (byte addr = 1; addr < 127; addr++) {
+        Wire1.beginTransmission(addr);
+        uint8_t error = Wire1.endTransmission();
+        if (error == 0) {
+            logInfo("Bus 1: Device found at 0x%02X", addr);
         }
     }
 
     // Run diagnostics on each sensor
-    diagnoseMCP9600(mcp9600_sensor1, MCP9600_ADDR_1, "Sensor 1 (Main Tank)");
-    diagnoseMCP9600(mcp9600_sensor2, MCP9600_ADDR_2, "Sensor 2 (Tap Changer)");
-    diagnoseMCP9600(mcp9600_sensor3, MCP9600_ADDR_3, "Sensor 3");
-    diagnoseMCP9600(mcp9600_sensor4, MCP9600_ADDR_4, "Sensor 4");
+    logInfo("=== Sensor Diagnostics ===");
+    diagnoseMCP9600(mcp9600_sensor1, MCP9600_ADDR_GND, "Sensor 1 (Main Tank) [Bus 0]", Wire);
+    diagnoseMCP9600(mcp9600_sensor2, MCP9600_ADDR_VCC, "Sensor 2 (Tap Changer) [Bus 0]", Wire);
+    diagnoseMCP9600(mcp9600_sensor3, MCP9600_ADDR_GND, "Sensor 3 [Bus 1]", Wire1);
+    diagnoseMCP9600(mcp9600_sensor4, MCP9600_ADDR_VCC, "Sensor 4 [Bus 1]", Wire1);
 #endif
 
     // Upload logs immediately after diagnostics
