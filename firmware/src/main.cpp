@@ -800,6 +800,10 @@ void readSensors() {
     Serial.printf("Status - S1: %s, S2: %s, S3: %s, S4: %s\n",
         mainTankStatus.c_str(), tapChangerStatus.c_str(),
         sensor3Status.c_str(), sensor4Status.c_str());
+
+    // Log sensor readings for remote monitoring
+    logInfo("Temps: S1=%.1fC S2=%.1fC S3=%.1fC S4=%.1fC Amb=%.1fC",
+        mainTankTemp, tapChangerTemp, sensor3Temp, sensor4Temp, ambientTemp);
 #endif
 }
 
@@ -874,9 +878,11 @@ void uploadToSupabase() {
 
     if (httpCode == 201 || httpCode == 200) {
         Serial.println("Upload successful!");
+        logDebug("Data upload OK");
     } else {
         Serial.printf("Upload failed! HTTP code: %d\n", httpCode);
         Serial.println(http.getString());
+        logError("Data upload failed: HTTP %d", httpCode);
     }
 
     http.end();
