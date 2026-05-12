@@ -47,6 +47,7 @@ export default function LogsPage() {
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const logsContainerRef = useRef<HTMLDivElement>(null);
+  const isScrollingProgrammatically = useRef(false);
 
   const runDiagnostics = async () => {
     setRunningDiagnostics(true);
@@ -74,10 +75,14 @@ export default function LogsPage() {
       setLogs(data.reverse());
       setLoading(false);
       // Scroll to bottom after initial load
+      isScrollingProgrammatically.current = true;
       setTimeout(() => {
         if (logsContainerRef.current) {
           logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
         }
+        setTimeout(() => {
+          isScrollingProgrammatically.current = false;
+        }, 100);
       }, 100);
     }
     loadLogs();
@@ -108,21 +113,28 @@ export default function LogsPage() {
   // Auto-scroll to bottom
   useEffect(() => {
     if (autoScroll && logsContainerRef.current) {
-      // Use requestAnimationFrame to ensure DOM has updated
+      isScrollingProgrammatically.current = true;
       requestAnimationFrame(() => {
         if (logsContainerRef.current) {
           logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
         }
+        // Reset flag after a short delay to allow scroll event to pass
+        setTimeout(() => {
+          isScrollingProgrammatically.current = false;
+        }, 100);
       });
     }
   }, [logs, autoScroll]);
 
-  // Detect manual scroll
+  // Detect manual scroll - only disable autoscroll on user scroll
   const handleScroll = () => {
+    if (isScrollingProgrammatically.current) return;
     if (!logsContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = logsContainerRef.current;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
-    setAutoScroll(isAtBottom);
+    if (!isAtBottom) {
+      setAutoScroll(false);
+    }
   };
 
   const clearLogs = () => {
@@ -206,7 +218,7 @@ export default function LogsPage() {
         </div>
       </header>
 
-      {/* Log count and auto-scroll indicator */}
+      {/* Log count and auto-scroll toggle */}
       <div className="bg-gray-900/30 border-b border-gray-800 px-3 sm:px-6 py-2">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-xs text-gray-500">
           <span>{logs.length} log entries (24h retention)</span>
@@ -217,9 +229,21 @@ export default function LogsPage() {
                 Paused
               </span>
             )}
-            <span className={autoScroll ? 'text-green-500' : 'text-gray-500'}>
+            <button
+              onClick={() => {
+                setAutoScroll(!autoScroll);
+                if (!autoScroll && logsContainerRef.current) {
+                  logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+                }
+              }}
+              className={`px-2 py-1 rounded transition-colors ${
+                autoScroll
+                  ? 'bg-green-600/20 text-green-400 hover:bg-green-600/30'
+                  : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+              }`}
+            >
               Auto-scroll: {autoScroll ? 'On' : 'Off'}
-            </span>
+            </button>
           </div>
         </div>
       </div>

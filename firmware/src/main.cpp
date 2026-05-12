@@ -1303,6 +1303,9 @@ void setup() {
         displayBoot(70, "Starting AP...");
         startAP();
     } else {
+        // Upload startup logs immediately after WiFi connects
+        displayBoot(75, "Uploading logs...");
+        uploadLogs();
         displayBoot(80, "Registering...");
         updateDeviceStatus();  // Update device info in Supabase
         displayBoot(85, "Fetching config...");
@@ -1311,6 +1314,8 @@ void setup() {
         startWebServer();  // Start web server for config refresh endpoint
         displayBoot(100, "Ready!");
         delay(500);
+        // Upload any remaining logs from config fetch
+        uploadLogs();
     }
 
     Serial.println("Setup complete");
