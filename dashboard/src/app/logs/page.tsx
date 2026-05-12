@@ -73,6 +73,12 @@ export default function LogsPage() {
       // Reverse to show oldest first (natural log order)
       setLogs(data.reverse());
       setLoading(false);
+      // Scroll to bottom after initial load
+      setTimeout(() => {
+        if (logsContainerRef.current) {
+          logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+        }
+      }, 100);
     }
     loadLogs();
   }, [filter]);
@@ -101,8 +107,13 @@ export default function LogsPage() {
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (autoScroll && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (autoScroll && logsContainerRef.current) {
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        if (logsContainerRef.current) {
+          logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+        }
+      });
     }
   }, [logs, autoScroll]);
 

@@ -33,7 +33,7 @@
 #define WIFI_AP_PASSWORD    "transformer"
 
 // Remote logging buffer
-#define LOG_BUFFER_SIZE 20
+#define LOG_BUFFER_SIZE 100
 struct LogEntry {
     String level;
     String message;
