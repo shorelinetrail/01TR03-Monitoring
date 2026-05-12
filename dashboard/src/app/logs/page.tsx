@@ -69,7 +69,7 @@ export default function LogsPage() {
   // Load initial logs
   useEffect(() => {
     async function loadLogs() {
-      const data = await getDeviceLogs(DEVICE_ID, 500, filter === 'ALL' ? undefined : filter);
+      const data = await getDeviceLogs(DEVICE_ID, 1000, filter === 'ALL' ? undefined : filter);
       // Reverse to show oldest first (natural log order)
       setLogs(data.reverse());
       setLoading(false);
