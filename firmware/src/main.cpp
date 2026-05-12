@@ -33,7 +33,7 @@
 #define WIFI_AP_PASSWORD    "transformer"
 
 // Remote logging buffer
-#define LOG_BUFFER_SIZE 100
+#define LOG_BUFFER_SIZE 200
 struct LogEntry {
     String level;
     String message;
@@ -209,12 +209,16 @@ void logError(const char* format, ...) {
 
 void uploadLogs() {
     if (!wifiConnected || supabaseUrl.length() == 0 || supabaseKey.length() == 0) {
+        Serial.printf("uploadLogs skipped: wifi=%d, url=%d, key=%d\n",
+            wifiConnected, supabaseUrl.length(), supabaseKey.length());
         return;
     }
 
     if (logBufferCount == 0) {
         return;
     }
+
+    Serial.printf("Uploading %d log entries...\n", logBufferCount);
 
     HTTPClient http;
     String url = supabaseUrl + "/rest/v1/device_logs";
@@ -253,7 +257,9 @@ void uploadLogs() {
 
     int httpCode = http.POST(json);
 
-    if (httpCode != 201 && httpCode != 200) {
+    if (httpCode == 201 || httpCode == 200) {
+        Serial.println("Log upload OK");
+    } else {
         Serial.printf("Log upload failed: %d\n", httpCode);
     }
 
