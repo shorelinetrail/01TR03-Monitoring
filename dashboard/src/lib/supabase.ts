@@ -441,7 +441,7 @@ export function subscribeToAlerts(
 // Device logs functions
 export async function getDeviceLogs(
   deviceId: string,
-  limit: number = 500,
+  limit: number = 1000,
   level?: string
 ): Promise<DeviceLog[]> {
   let query = supabase
