@@ -87,7 +87,7 @@ export default function TemperatureGauge({
           <path
             d="M 20 130 A 80 80 0 1 1 180 130"
             fill="none"
-            stroke="rgba(255,255,255,0.1)"
+            className="stroke-gray-300 dark:stroke-white/10"
             strokeWidth="12"
             strokeLinecap="round"
           />
@@ -138,7 +138,7 @@ export default function TemperatureGauge({
             x="100"
             y="95"
             textAnchor="middle"
-            className="fill-white text-3xl font-bold"
+            className="fill-gray-900 dark:fill-white text-3xl font-bold"
           >
             {value !== null ? value.toFixed(1) : '---'}
           </text>
@@ -146,7 +146,7 @@ export default function TemperatureGauge({
             x="100"
             y="115"
             textAnchor="middle"
-            className="fill-gray-400 text-sm"
+            className="fill-gray-500 dark:fill-gray-400 text-sm"
           >
             {unit}
           </text>
@@ -175,9 +175,9 @@ export default function TemperatureGauge({
 
       {/* Label */}
       <div className="flex flex-col items-center mt-1 sm:mt-2">
-        <h3 className="text-sm sm:text-lg font-semibold text-white truncate max-w-[140px] sm:max-w-none">{label}</h3>
+        <h3 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white truncate max-w-[140px] sm:max-w-none">{label}</h3>
         {thermocoupleType && (
-          <span className="text-xs text-gray-400 mt-0.5">Type {thermocoupleType}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Type {thermocoupleType}</span>
         )}
         {showStatus && (
           <span
