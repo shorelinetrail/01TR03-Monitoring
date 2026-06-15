@@ -31,8 +31,8 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () =>
         h-5 w-11
         items-center rounded-full
         transition-colors duration-200 ease-in-out
-        focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900
-        ${enabled ? 'bg-primary-600' : 'bg-gray-500'}
+        focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900
+        ${enabled ? 'bg-primary-600' : 'bg-gray-400 dark:bg-gray-500'}
       `}
     >
       <span
@@ -265,29 +265,29 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-950">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-400">Loading settings...</p>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Loading settings...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen safe-top">
+    <div className="min-h-screen safe-top bg-gray-100 dark:bg-gray-950">
       {/* Header - Mobile Optimized */}
-      <header className="bg-gray-900/50 border-b border-gray-800 sticky top-0 z-40 backdrop-blur-sm">
+      <header className="bg-white/80 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3 sm:gap-4">
-              <Link href="/" className="flex items-center gap-1 text-gray-400 hover:text-white text-sm sm:text-base py-2">
+              <Link href="/" className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-900 dark:text-white text-sm sm:text-base py-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
                 <span className="hidden sm:inline">Back</span>
               </Link>
-              <h1 className="text-base sm:text-xl font-bold text-white">Settings</h1>
+              <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-900 dark:text-white">Settings</h1>
             </div>
           </div>
         </div>
@@ -298,7 +298,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Display Settings</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Display Settings</h2>
               <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 Configure dashboard title and visibility options.
               </p>
@@ -311,12 +311,12 @@ export default function Settings() {
                   value={settings.dashboard_title}
                   onChange={(e) => handleTextChange('dashboard_title', e.target.value)}
                   placeholder="Temperature Monitor"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <label className="text-sm text-white">Show Differential Gauge</label>
+                  <label className="text-sm text-gray-900 dark:text-white">Show Differential Gauge</label>
                   <p className="text-xs text-gray-500">Display the temperature differential gauge on the dashboard</p>
                 </div>
                 <ToggleSwitch
@@ -332,16 +332,16 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Sensor Configuration</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Sensor Configuration</h2>
               <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 Enable sensors and set thermocouple types for each MCP9600.
               </p>
             </div>
             <div className="card-body space-y-4">
               {/* Sensor 1 - Always enabled */}
-              <div className="p-3 bg-gray-800/50 rounded-lg">
+              <div className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
                 <div className="flex items-center justify-between gap-4 mb-2">
-                  <label className="text-sm text-white font-medium">Sensor 1 (Main Tank)</label>
+                  <label className="text-sm text-gray-900 dark:text-white font-medium">Sensor 1 (Main Tank)</label>
                   <span className="text-xs text-primary-400">Always On</span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -349,7 +349,7 @@ export default function Settings() {
                   <select
                     value={settings.sensor_1_thermocouple_type}
                     onChange={(e) => handleTextChange('sensor_1_thermocouple_type', e.target.value)}
-                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500"
+                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500"
                   >
                     {THERMOCOUPLE_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -359,9 +359,9 @@ export default function Settings() {
               </div>
 
               {/* Sensor 2 */}
-              <div className="p-3 bg-gray-800/50 rounded-lg">
+              <div className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
                 <div className="flex items-center justify-between gap-4 mb-2">
-                  <label className="text-sm text-white font-medium">Sensor 2 (Tap Changer)</label>
+                  <label className="text-sm text-gray-900 dark:text-white font-medium">Sensor 2 (Tap Changer)</label>
                   <ToggleSwitch
                     enabled={settings.sensor_2_enabled}
                     onChange={() => handleBooleanChange('sensor_2_enabled', !settings.sensor_2_enabled)}
@@ -373,7 +373,7 @@ export default function Settings() {
                     value={settings.sensor_2_thermocouple_type}
                     onChange={(e) => handleTextChange('sensor_2_thermocouple_type', e.target.value)}
                     disabled={!settings.sensor_2_enabled}
-                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
                   >
                     {THERMOCOUPLE_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -383,9 +383,9 @@ export default function Settings() {
               </div>
 
               {/* Sensor 3 */}
-              <div className="p-3 bg-gray-800/50 rounded-lg">
+              <div className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
                 <div className="flex items-center justify-between gap-4 mb-2">
-                  <label className="text-sm text-white font-medium">Sensor 3</label>
+                  <label className="text-sm text-gray-900 dark:text-white font-medium">Sensor 3</label>
                   <ToggleSwitch
                     enabled={settings.sensor_3_enabled}
                     onChange={() => handleBooleanChange('sensor_3_enabled', !settings.sensor_3_enabled)}
@@ -397,7 +397,7 @@ export default function Settings() {
                     value={settings.sensor_3_thermocouple_type}
                     onChange={(e) => handleTextChange('sensor_3_thermocouple_type', e.target.value)}
                     disabled={!settings.sensor_3_enabled}
-                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
                   >
                     {THERMOCOUPLE_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -407,9 +407,9 @@ export default function Settings() {
               </div>
 
               {/* Sensor 4 */}
-              <div className="p-3 bg-gray-800/50 rounded-lg">
+              <div className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
                 <div className="flex items-center justify-between gap-4 mb-2">
-                  <label className="text-sm text-white font-medium">Sensor 4</label>
+                  <label className="text-sm text-gray-900 dark:text-white font-medium">Sensor 4</label>
                   <ToggleSwitch
                     enabled={settings.sensor_4_enabled}
                     onChange={() => handleBooleanChange('sensor_4_enabled', !settings.sensor_4_enabled)}
@@ -421,7 +421,7 @@ export default function Settings() {
                     value={settings.sensor_4_thermocouple_type}
                     onChange={(e) => handleTextChange('sensor_4_thermocouple_type', e.target.value)}
                     disabled={!settings.sensor_4_enabled}
-                    className="px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
                   >
                     {THERMOCOUPLE_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -437,7 +437,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Device Settings</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Device Settings</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure ESP32 device behavior.
               </p>
@@ -451,7 +451,7 @@ export default function Settings() {
                   onChange={(e) => handleNumberChange('report_interval', e.target.value)}
                   min="10"
                   max="3600"
-                  className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-32 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   How often the device uploads temperature readings (10-3600 seconds). Device will apply on next restart.
@@ -465,7 +465,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Signal Filtering</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Signal Filtering</h2>
               <p className="text-xs sm:text-sm text-gray-400 mt-1">
                 Apply smoothing to temperature readings to reduce noise. The filter runs on the database when new readings arrive.
               </p>
@@ -474,7 +474,7 @@ export default function Settings() {
               {/* Enable toggle */}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <label className="text-sm text-white">Enable Signal Filtering</label>
+                  <label className="text-sm text-gray-900 dark:text-white">Enable Signal Filtering</label>
                   <p className="text-xs text-gray-500">Smooth temperature readings using a digital filter</p>
                 </div>
                 <ToggleSwitch
@@ -490,7 +490,7 @@ export default function Settings() {
                   value={settings.filter_type}
                   onChange={(e) => handleTextChange('filter_type', e.target.value)}
                   disabled={!settings.filter_enabled}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                 >
                   <option value="moving_average">Moving Average</option>
                   <option value="exponential">Exponential Smoothing (EMA)</option>
@@ -513,7 +513,7 @@ export default function Settings() {
                     min="2"
                     max="50"
                     disabled={!settings.filter_enabled}
-                    className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    className="w-32 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Number of readings to average (2-50). Higher = smoother but slower to respond.
@@ -533,7 +533,7 @@ export default function Settings() {
                     max="1.0"
                     step="0.05"
                     disabled={!settings.filter_enabled}
-                    className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    className="w-32 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Weight given to the newest reading (0.01-1.0). Lower = smoother, higher = more responsive.
@@ -548,7 +548,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Gauge Labels</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Gauge Labels</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Customize the display labels for each gauge.
               </p>
@@ -560,7 +560,7 @@ export default function Settings() {
                   type="text"
                   value={settings.main_tank_label}
                   onChange={(e) => handleTextChange('main_tank_label', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
               </div>
               <div>
@@ -570,7 +570,7 @@ export default function Settings() {
                   value={settings.tap_changer_label}
                   onChange={(e) => handleTextChange('tap_changer_label', e.target.value)}
                   disabled={!settings.sensor_2_enabled}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                 />
               </div>
               <div>
@@ -580,7 +580,7 @@ export default function Settings() {
                   value={settings.sensor_3_label}
                   onChange={(e) => handleTextChange('sensor_3_label', e.target.value)}
                   disabled={!settings.sensor_3_enabled}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                 />
               </div>
               <div>
@@ -590,7 +590,7 @@ export default function Settings() {
                   value={settings.sensor_4_label}
                   onChange={(e) => handleTextChange('sensor_4_label', e.target.value)}
                   disabled={!settings.sensor_4_enabled}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                 />
               </div>
               <div>
@@ -599,7 +599,7 @@ export default function Settings() {
                   type="text"
                   value={settings.differential_label}
                   onChange={(e) => handleTextChange('differential_label', e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
               </div>
             </div>
@@ -610,7 +610,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Gauge Ranges</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Gauge Ranges</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure the minimum and maximum values displayed on each gauge.
               </p>
@@ -618,7 +618,7 @@ export default function Settings() {
             <div className="card-body space-y-6">
               {/* Main Tank Range */}
               <div>
-                <h3 className="text-md font-medium text-white mb-3">{settings.main_tank_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.main_tank_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
@@ -626,7 +626,7 @@ export default function Settings() {
                       type="number"
                       value={settings.main_tank_min}
                       onChange={(e) => handleNumberChange('main_tank_min', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                   <div>
@@ -635,7 +635,7 @@ export default function Settings() {
                       type="number"
                       value={settings.main_tank_max}
                       onChange={(e) => handleNumberChange('main_tank_max', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                 </div>
@@ -643,7 +643,7 @@ export default function Settings() {
 
               {/* Tap Changer Range */}
               <div className={!settings.sensor_2_enabled ? 'opacity-50' : ''}>
-                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.tap_changer_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
@@ -652,7 +652,7 @@ export default function Settings() {
                       value={settings.tap_changer_min}
                       onChange={(e) => handleNumberChange('tap_changer_min', e.target.value)}
                       disabled={!settings.sensor_2_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                   <div>
@@ -662,7 +662,7 @@ export default function Settings() {
                       value={settings.tap_changer_max}
                       onChange={(e) => handleNumberChange('tap_changer_max', e.target.value)}
                       disabled={!settings.sensor_2_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -670,7 +670,7 @@ export default function Settings() {
 
               {/* Sensor 3 Range */}
               <div className={!settings.sensor_3_enabled ? 'opacity-50' : ''}>
-                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.sensor_3_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
@@ -679,7 +679,7 @@ export default function Settings() {
                       value={settings.sensor_3_min}
                       onChange={(e) => handleNumberChange('sensor_3_min', e.target.value)}
                       disabled={!settings.sensor_3_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                   <div>
@@ -689,7 +689,7 @@ export default function Settings() {
                       value={settings.sensor_3_max}
                       onChange={(e) => handleNumberChange('sensor_3_max', e.target.value)}
                       disabled={!settings.sensor_3_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -697,7 +697,7 @@ export default function Settings() {
 
               {/* Sensor 4 Range */}
               <div className={!settings.sensor_4_enabled ? 'opacity-50' : ''}>
-                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.sensor_4_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
@@ -706,7 +706,7 @@ export default function Settings() {
                       value={settings.sensor_4_min}
                       onChange={(e) => handleNumberChange('sensor_4_min', e.target.value)}
                       disabled={!settings.sensor_4_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                   <div>
@@ -716,7 +716,7 @@ export default function Settings() {
                       value={settings.sensor_4_max}
                       onChange={(e) => handleNumberChange('sensor_4_max', e.target.value)}
                       disabled={!settings.sensor_4_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -724,7 +724,7 @@ export default function Settings() {
 
               {/* Differential Range */}
               <div>
-                <h3 className="text-md font-medium text-white mb-3">{settings.differential_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.differential_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
@@ -732,7 +732,7 @@ export default function Settings() {
                       type="number"
                       value={settings.differential_min}
                       onChange={(e) => handleNumberChange('differential_min', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                   <div>
@@ -741,7 +741,7 @@ export default function Settings() {
                       type="number"
                       value={settings.differential_max}
                       onChange={(e) => handleNumberChange('differential_max', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                 </div>
@@ -754,13 +754,13 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Chart Settings</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Chart Settings</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure the temperature trend chart. Leave blank for auto-scaling.
               </p>
             </div>
             <div className="card-body">
-              <h3 className="text-md font-medium text-white mb-3">Y-Axis Range</h3>
+              <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">Y-Axis Range</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Min (°C)</label>
@@ -769,7 +769,7 @@ export default function Settings() {
                     value={settings.chart_y_min ?? ''}
                     onChange={(e) => handleNullableNumberChange('chart_y_min', e.target.value)}
                     placeholder="Auto"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                   />
                 </div>
                 <div>
@@ -779,7 +779,7 @@ export default function Settings() {
                     value={settings.chart_y_max ?? ''}
                     onChange={(e) => handleNullableNumberChange('chart_y_max', e.target.value)}
                     placeholder="Auto"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                   />
                 </div>
               </div>
@@ -791,7 +791,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Alarm Thresholds</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Alarm Thresholds</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure warning and alarm temperature levels for each sensor.
               </p>
@@ -799,7 +799,7 @@ export default function Settings() {
             <div className="card-body space-y-6">
               {/* Main Tank */}
               <div>
-                <h3 className="text-md font-medium text-white mb-3">{settings.main_tank_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.main_tank_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
@@ -807,7 +807,7 @@ export default function Settings() {
                       type="number"
                       value={settings.main_tank_warning}
                       onChange={(e) => handleNumberChange('main_tank_warning', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                   <div>
@@ -816,7 +816,7 @@ export default function Settings() {
                       type="number"
                       value={settings.main_tank_alarm}
                       onChange={(e) => handleNumberChange('main_tank_alarm', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                 </div>
@@ -824,7 +824,7 @@ export default function Settings() {
 
               {/* Tap Changer */}
               <div className={!settings.sensor_2_enabled ? 'opacity-50' : ''}>
-                <h3 className="text-md font-medium text-white mb-3">{settings.tap_changer_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.tap_changer_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
@@ -833,7 +833,7 @@ export default function Settings() {
                       value={settings.tap_changer_warning}
                       onChange={(e) => handleNumberChange('tap_changer_warning', e.target.value)}
                       disabled={!settings.sensor_2_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                   <div>
@@ -843,7 +843,7 @@ export default function Settings() {
                       value={settings.tap_changer_alarm}
                       onChange={(e) => handleNumberChange('tap_changer_alarm', e.target.value)}
                       disabled={!settings.sensor_2_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -851,7 +851,7 @@ export default function Settings() {
 
               {/* Sensor 3 */}
               <div className={!settings.sensor_3_enabled ? 'opacity-50' : ''}>
-                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_3_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.sensor_3_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
@@ -860,7 +860,7 @@ export default function Settings() {
                       value={settings.sensor_3_warning}
                       onChange={(e) => handleNumberChange('sensor_3_warning', e.target.value)}
                       disabled={!settings.sensor_3_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                   <div>
@@ -870,7 +870,7 @@ export default function Settings() {
                       value={settings.sensor_3_alarm}
                       onChange={(e) => handleNumberChange('sensor_3_alarm', e.target.value)}
                       disabled={!settings.sensor_3_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -878,7 +878,7 @@ export default function Settings() {
 
               {/* Sensor 4 */}
               <div className={!settings.sensor_4_enabled ? 'opacity-50' : ''}>
-                <h3 className="text-md font-medium text-white mb-3">{settings.sensor_4_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.sensor_4_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Warning (°C)</label>
@@ -887,7 +887,7 @@ export default function Settings() {
                       value={settings.sensor_4_warning}
                       onChange={(e) => handleNumberChange('sensor_4_warning', e.target.value)}
                       disabled={!settings.sensor_4_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                   <div>
@@ -897,7 +897,7 @@ export default function Settings() {
                       value={settings.sensor_4_alarm}
                       onChange={(e) => handleNumberChange('sensor_4_alarm', e.target.value)}
                       disabled={!settings.sensor_4_enabled}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500 disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -905,7 +905,7 @@ export default function Settings() {
 
               {/* Differential */}
               <div>
-                <h3 className="text-md font-medium text-white mb-3">{settings.differential_label}</h3>
+                <h3 className="text-md font-medium text-gray-900 dark:text-white mb-3">{settings.differential_label}</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1">Warning (±°C)</label>
@@ -913,7 +913,7 @@ export default function Settings() {
                       type="number"
                       value={settings.differential_warning}
                       onChange={(e) => handleNumberChange('differential_warning', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                   <div>
@@ -922,7 +922,7 @@ export default function Settings() {
                       type="number"
                       value={settings.differential_alarm}
                       onChange={(e) => handleNumberChange('differential_alarm', e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                      className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                     />
                   </div>
                 </div>
@@ -935,7 +935,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Telegram Alerts</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Telegram Alerts</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Receive instant alerts via Telegram when thresholds are exceeded.
               </p>
@@ -944,7 +944,7 @@ export default function Settings() {
               {/* Enable toggle */}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <label className="text-sm text-white">Enable Telegram Alerts</label>
+                  <label className="text-sm text-gray-900 dark:text-white">Enable Telegram Alerts</label>
                   <p className="text-xs text-gray-500">Send notifications when alerts are triggered</p>
                 </div>
                 <ToggleSwitch
@@ -961,7 +961,7 @@ export default function Settings() {
                   value={settings.telegram_bot_token}
                   onChange={(e) => handleTextChange('telegram_bot_token', e.target.value)}
                   placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Get this from @BotFather on Telegram
@@ -976,7 +976,7 @@ export default function Settings() {
                   value={settings.telegram_chat_id}
                   onChange={(e) => handleTextChange('telegram_chat_id', e.target.value)}
                   placeholder="-1001234567890 or 123456789"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Your user ID or group chat ID (use @userinfobot to find it)
@@ -992,9 +992,9 @@ export default function Settings() {
                     id="alert-warning"
                     checked={settings.telegram_alert_on_warning}
                     onChange={(e) => handleBooleanChange('telegram_alert_on_warning', e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-primary-600 focus:ring-primary-500"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary-600 focus:ring-primary-500"
                   />
-                  <label htmlFor="alert-warning" className="text-sm text-white">Warning thresholds</label>
+                  <label htmlFor="alert-warning" className="text-sm text-gray-900 dark:text-white">Warning thresholds</label>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -1002,9 +1002,9 @@ export default function Settings() {
                     id="alert-alarm"
                     checked={settings.telegram_alert_on_alarm}
                     onChange={(e) => handleBooleanChange('telegram_alert_on_alarm', e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-primary-600 focus:ring-primary-500"
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary-600 focus:ring-primary-500"
                   />
-                  <label htmlFor="alert-alarm" className="text-sm text-white">Alarm thresholds</label>
+                  <label htmlFor="alert-alarm" className="text-sm text-gray-900 dark:text-white">Alarm thresholds</label>
                 </div>
               </div>
 
@@ -1017,7 +1017,7 @@ export default function Settings() {
                   onChange={(e) => handleNumberChange('telegram_cooldown_minutes', e.target.value)}
                   min="1"
                   max="60"
-                  className="w-32 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-32 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Minimum time between alerts for the same condition (prevents spam)
@@ -1025,11 +1025,11 @@ export default function Settings() {
               </div>
 
               {/* Test button */}
-              <div className="pt-4 border-t border-gray-700">
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={testTelegram}
                   disabled={testingTelegram || !settings.telegram_bot_token || !settings.telegram_chat_id}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-white rounded transition-colors"
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500 text-gray-900 dark:text-white rounded transition-colors"
                 >
                   {testingTelegram ? 'Sending...' : 'Send Test Message'}
                 </button>
@@ -1047,7 +1047,7 @@ export default function Settings() {
         <section className="mb-4 sm:mb-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Connection Settings</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Connection Settings</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Supabase connection settings for the ESP32 device.
               </p>
@@ -1060,7 +1060,7 @@ export default function Settings() {
                   value={settings.supabase_url}
                   onChange={(e) => handleTextChange('supabase_url', e.target.value)}
                   placeholder="https://your-project.supabase.co"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Your Supabase project URL
@@ -1073,7 +1073,7 @@ export default function Settings() {
                   value={settings.supabase_key}
                   onChange={(e) => handleTextChange('supabase_key', e.target.value)}
                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white focus:outline-none focus:border-primary-500"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Your Supabase anonymous/public key (found in Project Settings → API)
@@ -1085,7 +1085,7 @@ export default function Settings() {
 
         {/* Save Section - Sticky on mobile */}
         <section className="mb-4 sm:mb-8 sticky bottom-0 sm:relative z-30">
-          <div className="card bg-gray-900/95 sm:bg-gray-800/50 backdrop-blur-sm">
+          <div className="card bg-white/95 dark:bg-gray-900/95 sm:bg-gray-50 sm:dark:bg-gray-800/50 backdrop-blur-sm">
             <div className="card-body">
               {/* Error message */}
               {error && (
@@ -1097,13 +1097,13 @@ export default function Settings() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 text-white rounded transition-colors font-medium"
+                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 text-gray-900 dark:text-white rounded transition-colors font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={handleReset}
-                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded transition-colors"
                 >
                   Reset to Defaults
                 </button>
