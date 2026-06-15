@@ -515,7 +515,7 @@ export default function Dashboard() {
           {/* Mobile: stacked layout, Desktop: horizontal */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 sm:py-0 sm:h-16 gap-1 sm:gap-4">
             <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4">
-              <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-900 dark:text-white truncate">{display.title}</h1>
+              <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate">{display.title}</h1>
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
               {activeAlerts.length > 0 && (

@@ -281,13 +281,13 @@ export default function Settings() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center gap-3 sm:gap-4">
-              <Link href="/" className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-900 dark:text-white text-sm sm:text-base py-2">
+              <Link href="/" className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm sm:text-base py-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
                 <span className="hidden sm:inline">Back</span>
               </Link>
-              <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-900 dark:text-white">Settings</h1>
+              <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
             </div>
           </div>
         </div>
@@ -1097,7 +1097,7 @@ export default function Settings() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 text-gray-900 dark:text-white rounded transition-colors font-medium"
+                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-800 text-white rounded transition-colors font-medium"
                 >
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
