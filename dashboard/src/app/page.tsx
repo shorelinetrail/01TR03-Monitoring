@@ -562,10 +562,6 @@ export default function Dashboard() {
         hasAlarms={activeAlerts.some((a) => a.severity === 'critical')}
         lastReading={latestReading ? new Date(latestReading.recorded_at) : null}
         reportInterval={reportInterval}
-        onSensorClick={(sensorId) => {
-          const gaugeSection = document.getElementById('gauges-section');
-          gaugeSection?.scrollIntoView({ behavior: 'smooth' });
-        }}
       />
 
       {/* Error banner */}

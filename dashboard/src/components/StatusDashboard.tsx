@@ -23,7 +23,6 @@ interface StatusDashboardProps {
   hasAlarms: boolean;
   lastReading: Date | null;
   reportInterval: number; // in seconds
-  onSensorClick?: (sensorId: 'sensor1' | 'sensor2' | 'sensor3' | 'sensor4') => void;
 }
 
 const getSensorBadgeClass = (status: SensorStatus): string => {
@@ -49,7 +48,6 @@ export default function StatusDashboard({
   hasAlarms,
   lastReading,
   reportInterval,
-  onSensorClick,
 }: StatusDashboardProps) {
   const [now, setNow] = useState(new Date());
 
@@ -137,14 +135,13 @@ export default function StatusDashboard({
           <div className="flex items-center gap-1.5">
             <span className="text-gray-400 text-xs font-medium hidden sm:inline">Sensors:</span>
             {enabledSensors.map(([id, info]) => (
-              <button
+              <span
                 key={id}
-                onClick={() => onSensorClick?.(id as 'sensor1' | 'sensor2' | 'sensor3' | 'sensor4')}
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border cursor-pointer transition-transform hover:scale-110 ${getSensorBadgeClass(info.status)}`}
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border ${getSensorBadgeClass(info.status)}`}
                 title={`${info.label}: ${info.status.toUpperCase()}`}
               >
                 {id.replace('sensor', 'S')}
-              </button>
+              </span>
             ))}
           </div>
 
