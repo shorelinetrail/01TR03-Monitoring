@@ -581,7 +581,7 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 safe-bottom">
         {/* Temperature Gauges */}
         <section id="gauges-section" className="mb-4 sm:mb-8">
-          <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 px-2 sm:px-0">Current Temperatures</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 px-2 sm:px-0">Live Data</h2>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-6">
             <div className="card card-body">
               <TemperatureGauge
@@ -663,7 +663,7 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-header">
               <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
-                <h2 className="text-base sm:text-lg font-semibold text-white">Temperature Trend</h2>
+                <h2 className="text-base sm:text-lg font-semibold text-white">Trend</h2>
                 <button
                   onClick={() => setShowExportModal(true)}
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
