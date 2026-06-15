@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { TemperatureReading } from '@/lib/supabase';
+import { useTheme } from './ThemeProvider';
 
 interface SensorConfig {
   enabled: boolean;
@@ -116,6 +117,16 @@ export default function TemperatureChart({
     sensor4: { enabled: false, label: 'Sensor 4' },
   }
 }: TemperatureChartProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  // Theme-aware colors for the recharts SVG elements (these are inline
+  // attributes, so they can't use Tailwind dark: variants).
+  const axisColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.55)';
+  const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  const brushStroke = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
+  const brushFill = isDark ? 'rgba(30,30,30,0.8)' : 'rgba(255,255,255,0.8)';
+
   // Store time range (timestamps) instead of indices so zoom persists across data updates
   const [timeRange, setTimeRange] = useState<{ start: number | null; end: number | null }>({
     start: null,
@@ -353,16 +364,16 @@ export default function TemperatureChart({
             data={chartData}
             margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis
               dataKey="time"
               tickFormatter={formatXAxis}
-              stroke="rgba(255,255,255,0.5)"
-              tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+              stroke={axisColor}
+              tick={{ fill: axisColor, fontSize: 12 }}
             />
             <YAxis
-              stroke="rgba(255,255,255,0.5)"
-              tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+              stroke={axisColor}
+              tick={{ fill: axisColor, fontSize: 12 }}
               domain={[yAxisMin ?? 'auto', yAxisMax ?? 'auto']}
               unit="°C"
             />
@@ -494,8 +505,8 @@ export default function TemperatureChart({
             <Brush
               dataKey="time"
               height={30}
-              stroke="rgba(255,255,255,0.3)"
-              fill="rgba(30,30,30,0.8)"
+              stroke={brushStroke}
+              fill={brushFill}
               tickFormatter={formatXAxis}
               startIndex={brushIndices.startIndex}
               endIndex={brushIndices.endIndex}
