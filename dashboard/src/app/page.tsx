@@ -661,7 +661,7 @@ export default function Dashboard() {
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Trend</h2>
                 <button
                   onClick={() => setShowExportModal(true)}
-                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                   title="Export data to CSV"
                 >
                   <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -681,8 +681,8 @@ export default function Dashboard() {
                       }}
                       className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-1 rounded text-xs sm:text-sm transition-colors ${
                         !useCustomDateRange && timeRange === range
-                          ? 'bg-primary-600 text-gray-900 dark:text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     >
                       {range}
@@ -698,7 +698,7 @@ export default function Dashboard() {
                       setCustomStartDate(e.target.value);
                       setUseCustomDateRange(true);
                     }}
-                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                   <span className="text-gray-400 text-sm">to</span>
                   <input
@@ -708,7 +708,7 @@ export default function Dashboard() {
                       setCustomEndDate(e.target.value);
                       setUseCustomDateRange(true);
                     }}
-                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                 </div>
               </div>

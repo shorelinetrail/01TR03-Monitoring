@@ -266,8 +266,8 @@ export default function TemperatureChart({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-lg">
-          <p className="text-gray-400 text-sm mb-2">{formatTooltipTime(label)}</p>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 shadow-lg">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">{formatTooltipTime(label)}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               {entry.name}: {entry.value?.toFixed(1)}°C
@@ -299,8 +299,8 @@ export default function TemperatureChart({
               flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm
               transition-all duration-200
               ${visibleSensors[sensor.key]
-                ? 'bg-gray-700 text-white'
-                : 'bg-gray-800 text-gray-500'}
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}
             `}
           >
             <span
@@ -323,8 +323,8 @@ export default function TemperatureChart({
                 flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm
                 transition-all duration-200
                 ${showRaw
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-800 text-gray-500'}
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}
               `}
             >
               <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
