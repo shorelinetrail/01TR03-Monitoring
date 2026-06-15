@@ -5,6 +5,7 @@ import Link from 'next/link';
 import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
 import ExportModal from '@/components/ExportModal';
+import StatusDashboard from '@/components/StatusDashboard';
 
 import {
   supabase,
@@ -122,6 +123,7 @@ export default function Dashboard() {
   const [chart, setChart] = useState(DEFAULT_CHART);
   const [display, setDisplay] = useState(DEFAULT_DISPLAY);
   const [filter, setFilter] = useState(DEFAULT_FILTER);
+  const [reportInterval, setReportInterval] = useState(30); // Default 30 seconds
   const [showExportModal, setShowExportModal] = useState(false);
   const [useCustomDateRange, setUseCustomDateRange] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(() => {
@@ -211,6 +213,7 @@ export default function Dashboard() {
           window: configData.filter_window ?? DEFAULT_FILTER.window,
           alpha: configData.filter_alpha ?? DEFAULT_FILTER.alpha,
         });
+        setReportInterval(configData.report_interval ?? 30);
       }
       setLatestReading(reading);
       setHistoricalData(readings);
@@ -532,6 +535,42 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* Status Dashboard Strip */}
+      <StatusDashboard
+        isOnline={isDeviceOnline()}
+        lastSeen={device?.last_seen ?? null}
+        sensorStatuses={{
+          sensor1: {
+            status: getMainTankStatus(),
+            label: labels.mainTank,
+            enabled: true,
+          },
+          sensor2: {
+            status: getTapChangerStatus(),
+            label: labels.tapChanger,
+            enabled: display.sensor2Enabled,
+          },
+          sensor3: {
+            status: getSensor3Status(),
+            label: labels.sensor3,
+            enabled: display.sensor3Enabled,
+          },
+          sensor4: {
+            status: getSensor4Status(),
+            label: labels.sensor4,
+            enabled: display.sensor4Enabled,
+          },
+        }}
+        alertCount={activeAlerts.length}
+        hasAlarms={activeAlerts.some((a) => a.severity === 'critical')}
+        lastReading={latestReading ? new Date(latestReading.recorded_at) : null}
+        reportInterval={reportInterval}
+        onSensorClick={(sensorId) => {
+          const gaugeSection = document.getElementById('gauges-section');
+          gaugeSection?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
+
       {/* Error banner */}
       {error && (
         <div className="bg-red-500/20 border-b border-red-500/30 px-4 py-2">
@@ -541,7 +580,7 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 safe-bottom">
         {/* Temperature Gauges */}
-        <section className="mb-4 sm:mb-8">
+        <section id="gauges-section" className="mb-4 sm:mb-8">
           <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 px-2 sm:px-0">Current Temperatures</h2>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-6">
             <div className="card card-body">
