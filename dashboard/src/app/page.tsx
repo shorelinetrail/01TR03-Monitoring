@@ -6,6 +6,7 @@ import TemperatureGauge from '@/components/TemperatureGauge';
 import TemperatureChart from '@/components/TemperatureChart';
 import ExportModal from '@/components/ExportModal';
 import StatusDashboard from '@/components/StatusDashboard';
+import ThemeToggle from '@/components/ThemeToggle';
 
 import {
   supabase,
@@ -509,12 +510,12 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen safe-top">
       {/* Header - Mobile Optimized */}
-      <header className="bg-gray-900/50 border-b border-gray-800 sticky top-0 z-40 backdrop-blur-sm">
+      <header className="bg-white/80 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           {/* Mobile: stacked layout, Desktop: horizontal */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 sm:py-0 sm:h-16 gap-1 sm:gap-4">
             <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4">
-              <h1 className="text-base sm:text-xl font-bold text-white truncate">{display.title}</h1>
+              <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-gray-900 dark:text-white truncate">{display.title}</h1>
             </div>
             <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
               {activeAlerts.length > 0 && (
@@ -523,10 +524,11 @@ export default function Dashboard() {
                 </span>
               )}
               {lastUpdate && (
-                <span className="text-xs sm:text-sm text-gray-400">
+                <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                   {format(lastUpdate, 'HH:mm:ss')}
                 </span>
               )}
+              <ThemeToggle />
             </div>
           </div>
         </div>
@@ -574,7 +576,7 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 safe-bottom">
         {/* Temperature Gauges */}
         <section id="gauges-section" className="mb-4 sm:mb-8">
-          <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 px-2 sm:px-0">Live Data</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 px-2 sm:px-0">Live Data</h2>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-6">
             <div className="card card-body">
               <TemperatureGauge
@@ -656,7 +658,7 @@ export default function Dashboard() {
           <div className="card">
             <div className="card-header">
               <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
-                <h2 className="text-base sm:text-lg font-semibold text-white">Trend</h2>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Trend</h2>
                 <button
                   onClick={() => setShowExportModal(true)}
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
@@ -679,7 +681,7 @@ export default function Dashboard() {
                       }}
                       className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-1 rounded text-xs sm:text-sm transition-colors ${
                         !useCustomDateRange && timeRange === range
-                          ? 'bg-primary-600 text-white'
+                          ? 'bg-primary-600 text-gray-900 dark:text-white'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
@@ -696,7 +698,7 @@ export default function Dashboard() {
                       setCustomStartDate(e.target.value);
                       setUseCustomDateRange(true);
                     }}
-                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                   <span className="text-gray-400 text-sm">to</span>
                   <input
@@ -706,7 +708,7 @@ export default function Dashboard() {
                       setCustomEndDate(e.target.value);
                       setUseCustomDateRange(true);
                     }}
-                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    className="px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -737,7 +739,7 @@ export default function Dashboard() {
 
         {/* Alerts Panel */}
         <section className="mt-4 sm:mt-8">
-          <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 px-2 sm:px-0">Active Alerts</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 px-2 sm:px-0">Active Alerts</h2>
           <div className="card card-body">
             {activeAlerts.length === 0 ? (
               <div className="text-center py-6 sm:py-8 text-gray-500">
@@ -791,25 +793,25 @@ export default function Dashboard() {
         <section className="mt-4 sm:mt-8">
           <div className="card">
             <div className="card-header">
-              <h2 className="text-base sm:text-lg font-semibold text-white">Device Information</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Device Information</h2>
             </div>
             <div className="card-body">
               <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div>
                   <p className="text-gray-400">Device ID</p>
-                  <p className="text-white font-medium">{device?.device_id || DEVICE_ID}</p>
+                  <p className="text-gray-900 dark:text-white font-medium">{device?.device_id || DEVICE_ID}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Firmware</p>
-                  <p className="text-white font-medium">{device?.firmware_version || 'Unknown'}</p>
+                  <p className="text-gray-900 dark:text-white font-medium">{device?.firmware_version || 'Unknown'}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">IP Address</p>
-                  <p className="text-white font-medium truncate">{device?.ip_address || 'Unknown'}</p>
+                  <p className="text-gray-900 dark:text-white font-medium truncate">{device?.ip_address || 'Unknown'}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Last Seen</p>
-                  <p className="text-white font-medium">
+                  <p className="text-gray-900 dark:text-white font-medium">
                     {device?.last_seen
                       ? format(new Date(device.last_seen), 'dd/MM HH:mm')
                       : 'Never'}

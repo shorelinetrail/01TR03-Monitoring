@@ -28,15 +28,15 @@ interface StatusDashboardProps {
 const getSensorBadgeClass = (status: SensorStatus): string => {
   switch (status) {
     case 'normal':
-      return 'bg-green-500/20 text-green-400 border-green-500/30';
+      return 'bg-green-100 text-green-700 border-green-300 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30';
     case 'warning':
-      return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      return 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-500/30';
     case 'alarm':
     case 'error':
-      return 'bg-red-500/20 text-red-400 border-red-500/30';
+      return 'bg-red-100 text-red-700 border-red-300 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30';
     case 'offline':
     default:
-      return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      return 'bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-500/20 dark:text-gray-400 dark:border-gray-500/30';
   }
 };
 
@@ -59,7 +59,7 @@ export default function StatusDashboard({
 
   // Calculate data freshness based on report interval
   const getFreshnessInfo = () => {
-    if (!lastReading) return { text: 'No data', className: 'text-red-400' };
+    if (!lastReading) return { text: 'No data', className: 'text-red-600 dark:text-red-400' };
 
     const ageMs = now.getTime() - lastReading.getTime();
     const ageSec = Math.floor(ageMs / 1000);
@@ -84,11 +84,11 @@ export default function StatusDashboard({
     // Old: beyond 2x interval
     let className: string;
     if (ageSec <= reportInterval) {
-      className = 'text-green-400';
+      className = 'text-green-600 dark:text-green-400';
     } else if (ageSec <= reportInterval * 2) {
-      className = 'text-orange-400';
+      className = 'text-orange-600 dark:text-orange-400';
     } else {
-      className = 'text-red-400';
+      className = 'text-red-600 dark:text-red-400';
     }
 
     return { text, className };
@@ -109,13 +109,13 @@ export default function StatusDashboard({
   };
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700/50">
+    <div className="bg-gray-100/80 dark:bg-gray-800/50 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700/50">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2">
         <div className="flex flex-wrap items-center gap-3 sm:gap-5">
 
           {/* Connection Status */}
           <div className="flex items-center gap-2">
-            <svg className={`w-4 h-4 ${isOnline ? 'text-green-400' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`w-4 h-4 ${isOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
             </svg>
             <span className={`badge ${isOnline ? 'badge-normal' : 'badge-offline'}`}>
@@ -129,11 +129,11 @@ export default function StatusDashboard({
           </div>
 
           {/* Separator */}
-          <div className="hidden sm:block w-px h-4 bg-gray-700" />
+          <div className="hidden sm:block w-px h-4 bg-gray-300 dark:bg-gray-700" />
 
           {/* Sensor Badges */}
           <div className="flex items-center gap-1.5">
-            <span className="text-gray-400 text-xs font-medium hidden sm:inline">Sensors:</span>
+            <span className="text-gray-500 dark:text-gray-400 text-xs font-medium hidden sm:inline">Sensors:</span>
             {enabledSensors.map(([id, info]) => (
               <span
                 key={id}
@@ -146,12 +146,12 @@ export default function StatusDashboard({
           </div>
 
           {/* Separator */}
-          <div className="hidden sm:block w-px h-4 bg-gray-700" />
+          <div className="hidden sm:block w-px h-4 bg-gray-300 dark:bg-gray-700" />
 
           {/* Alerts */}
           {alertCount > 0 ? (
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <span className={`badge ${hasAlarms ? 'badge-alarm alarm-pulse' : 'badge-warning'}`}>
@@ -160,10 +160,10 @@ export default function StatusDashboard({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-green-400 text-xs">No alerts</span>
+              <span className="text-green-600 dark:text-green-400 text-xs">No alerts</span>
             </div>
           )}
 
@@ -172,7 +172,7 @@ export default function StatusDashboard({
             <svg className={`w-4 h-4 ${freshness.className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-gray-400 text-xs hidden sm:inline">Data:</span>
+            <span className="text-gray-500 dark:text-gray-400 text-xs hidden sm:inline">Data:</span>
             <span className={`text-sm font-medium ${freshness.className}`}>{freshness.text}</span>
           </div>
 
