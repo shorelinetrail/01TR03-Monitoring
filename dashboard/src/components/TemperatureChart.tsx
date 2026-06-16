@@ -278,10 +278,20 @@ export default function TemperatureChart({
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      // Sort payload entries to match sensorOrder
+      const sortedPayload = [...payload].sort((a, b) => {
+        // Extract sensor key from dataKey (e.g., 'sensor1' or 'sensor1_filtered' -> 'sensor1')
+        const keyA = a.dataKey?.replace('_filtered', '') || '';
+        const keyB = b.dataKey?.replace('_filtered', '') || '';
+        const idxA = sensorOrder.indexOf(keyA);
+        const idxB = sensorOrder.indexOf(keyB);
+        // If not found in order, put at end
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      });
       return (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 shadow-lg">
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">{formatTooltipTime(label)}</p>
-          {payload.map((entry: any, index: number) => (
+          {sortedPayload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               {entry.name}: {entry.value?.toFixed(1)}°C
             </p>
