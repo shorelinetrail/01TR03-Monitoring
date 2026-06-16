@@ -46,6 +46,7 @@ interface TemperatureChartProps {
     sensor3: SensorConfig;
     sensor4: SensorConfig;
   };
+  sensorOrder?: string[];
 }
 
 // Sensor colors
@@ -115,7 +116,8 @@ export default function TemperatureChart({
     sensor2: { enabled: true, label: 'Tap Changer' },
     sensor3: { enabled: false, label: 'Sensor 3' },
     sensor4: { enabled: false, label: 'Sensor 4' },
-  }
+  },
+  sensorOrder = ['sensor1', 'sensor2', 'sensor3', 'sensor4'],
 }: TemperatureChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -290,13 +292,16 @@ export default function TemperatureChart({
     return null;
   };
 
-  // Get list of enabled sensors that can be toggled
-  const enabledSensors = [
-    { key: 'sensor1' as const, ...sensors.sensor1, color: SENSOR_COLORS.sensor1 },
-    { key: 'sensor2' as const, ...sensors.sensor2, color: SENSOR_COLORS.sensor2 },
-    { key: 'sensor3' as const, ...sensors.sensor3, color: SENSOR_COLORS.sensor3 },
-    { key: 'sensor4' as const, ...sensors.sensor4, color: SENSOR_COLORS.sensor4 },
-  ].filter(s => s.enabled);
+  // Get list of enabled sensors in the specified order
+  const allSensors: Record<string, { key: 'sensor1' | 'sensor2' | 'sensor3' | 'sensor4'; enabled: boolean; label: string; color: string }> = {
+    sensor1: { key: 'sensor1', ...sensors.sensor1, color: SENSOR_COLORS.sensor1 },
+    sensor2: { key: 'sensor2', ...sensors.sensor2, color: SENSOR_COLORS.sensor2 },
+    sensor3: { key: 'sensor3', ...sensors.sensor3, color: SENSOR_COLORS.sensor3 },
+    sensor4: { key: 'sensor4', ...sensors.sensor4, color: SENSOR_COLORS.sensor4 },
+  };
+  const enabledSensors = sensorOrder
+    .filter(key => allSensors[key]?.enabled)
+    .map(key => allSensors[key]);
 
   return (
     <div className="w-full">

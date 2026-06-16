@@ -837,6 +837,7 @@ export default function Dashboard() {
                   sensor3: { enabled: display.sensor3Enabled, label: labels.sensor3 },
                   sensor4: { enabled: display.sensor4Enabled, label: labels.sensor4 },
                 }}
+                sensorOrder={sensorOrder.filter(k => k !== 'differential')}
               />
             </div>
           </div>
