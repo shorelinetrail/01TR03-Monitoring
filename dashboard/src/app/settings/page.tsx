@@ -53,11 +53,15 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () =>
 const DEFAULT_SETTINGS = {
   dashboard_title: 'Temperature Monitor',
   show_differential: true,
-  alerts_enabled: true,
   sensors_enabled: 2,
   sensor_2_enabled: true,
   sensor_3_enabled: false,
   sensor_4_enabled: false,
+  sensor_1_alerts_enabled: true,
+  sensor_2_alerts_enabled: true,
+  sensor_3_alerts_enabled: true,
+  sensor_4_alerts_enabled: true,
+  differential_alerts_enabled: true,
   report_interval: 30,
   // Sensor thresholds
   main_tank_warning: 85,
@@ -127,8 +131,12 @@ export default function Settings() {
         setSettings({
           dashboard_title: config.dashboard_title ?? DEFAULT_SETTINGS.dashboard_title,
           show_differential: config.show_differential ?? DEFAULT_SETTINGS.show_differential,
-          alerts_enabled: config.alerts_enabled ?? DEFAULT_SETTINGS.alerts_enabled,
           sensors_enabled: config.sensors_enabled ?? DEFAULT_SETTINGS.sensors_enabled,
+          sensor_1_alerts_enabled: config.sensor_1_alerts_enabled ?? DEFAULT_SETTINGS.sensor_1_alerts_enabled,
+          sensor_2_alerts_enabled: config.sensor_2_alerts_enabled ?? DEFAULT_SETTINGS.sensor_2_alerts_enabled,
+          sensor_3_alerts_enabled: config.sensor_3_alerts_enabled ?? DEFAULT_SETTINGS.sensor_3_alerts_enabled,
+          sensor_4_alerts_enabled: config.sensor_4_alerts_enabled ?? DEFAULT_SETTINGS.sensor_4_alerts_enabled,
+          differential_alerts_enabled: config.differential_alerts_enabled ?? DEFAULT_SETTINGS.differential_alerts_enabled,
           sensor_2_enabled: config.sensor_2_enabled ?? DEFAULT_SETTINGS.sensor_2_enabled,
           sensor_3_enabled: config.sensor_3_enabled ?? DEFAULT_SETTINGS.sensor_3_enabled,
           sensor_4_enabled: config.sensor_4_enabled ?? DEFAULT_SETTINGS.sensor_4_enabled,
@@ -326,16 +334,6 @@ export default function Settings() {
                   onChange={() => handleBooleanChange('show_differential', !settings.show_differential)}
                 />
               </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <label className="text-sm text-gray-900 dark:text-white">Enable Warnings & Alarms</label>
-                  <p className="text-xs text-gray-500">Show warning/alarm status indicators when thresholds are exceeded</p>
-                </div>
-                <ToggleSwitch
-                  enabled={settings.alerts_enabled}
-                  onChange={() => handleBooleanChange('alerts_enabled', !settings.alerts_enabled)}
-                />
-              </div>
             </div>
           </div>
         </section>
@@ -356,17 +354,26 @@ export default function Settings() {
                   <label className="text-sm text-gray-900 dark:text-white font-medium">Sensor 1 (Main Tank)</label>
                   <span className="text-xs text-primary-400">Always On</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">I2C: 0x60</span>
-                  <select
-                    value={settings.sensor_1_thermocouple_type}
-                    onChange={(e) => handleTextChange('sensor_1_thermocouple_type', e.target.value)}
-                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500"
-                  >
-                    {THERMOCOUPLE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">I2C: 0x60</span>
+                    <select
+                      value={settings.sensor_1_thermocouple_type}
+                      onChange={(e) => handleTextChange('sensor_1_thermocouple_type', e.target.value)}
+                      className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500"
+                    >
+                      {THERMOCOUPLE_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Alerts</span>
+                    <ToggleSwitch
+                      enabled={settings.sensor_1_alerts_enabled}
+                      onChange={() => handleBooleanChange('sensor_1_alerts_enabled', !settings.sensor_1_alerts_enabled)}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -379,18 +386,27 @@ export default function Settings() {
                     onChange={() => handleBooleanChange('sensor_2_enabled', !settings.sensor_2_enabled)}
                   />
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">I2C: 0x61</span>
-                  <select
-                    value={settings.sensor_2_thermocouple_type}
-                    onChange={(e) => handleTextChange('sensor_2_thermocouple_type', e.target.value)}
-                    disabled={!settings.sensor_2_enabled}
-                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
-                  >
-                    {THERMOCOUPLE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">I2C: 0x61</span>
+                    <select
+                      value={settings.sensor_2_thermocouple_type}
+                      onChange={(e) => handleTextChange('sensor_2_thermocouple_type', e.target.value)}
+                      disabled={!settings.sensor_2_enabled}
+                      className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    >
+                      {THERMOCOUPLE_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Alerts</span>
+                    <ToggleSwitch
+                      enabled={settings.sensor_2_alerts_enabled}
+                      onChange={() => handleBooleanChange('sensor_2_alerts_enabled', !settings.sensor_2_alerts_enabled)}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -403,18 +419,27 @@ export default function Settings() {
                     onChange={() => handleBooleanChange('sensor_3_enabled', !settings.sensor_3_enabled)}
                   />
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">I2C: 0x65</span>
-                  <select
-                    value={settings.sensor_3_thermocouple_type}
-                    onChange={(e) => handleTextChange('sensor_3_thermocouple_type', e.target.value)}
-                    disabled={!settings.sensor_3_enabled}
-                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
-                  >
-                    {THERMOCOUPLE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">I2C: 0x65</span>
+                    <select
+                      value={settings.sensor_3_thermocouple_type}
+                      onChange={(e) => handleTextChange('sensor_3_thermocouple_type', e.target.value)}
+                      disabled={!settings.sensor_3_enabled}
+                      className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    >
+                      {THERMOCOUPLE_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Alerts</span>
+                    <ToggleSwitch
+                      enabled={settings.sensor_3_alerts_enabled}
+                      onChange={() => handleBooleanChange('sensor_3_alerts_enabled', !settings.sensor_3_alerts_enabled)}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -427,18 +452,41 @@ export default function Settings() {
                     onChange={() => handleBooleanChange('sensor_4_enabled', !settings.sensor_4_enabled)}
                   />
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">I2C: 0x67</span>
-                  <select
-                    value={settings.sensor_4_thermocouple_type}
-                    onChange={(e) => handleTextChange('sensor_4_thermocouple_type', e.target.value)}
-                    disabled={!settings.sensor_4_enabled}
-                    className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
-                  >
-                    {THERMOCOUPLE_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">I2C: 0x67</span>
+                    <select
+                      value={settings.sensor_4_thermocouple_type}
+                      onChange={(e) => handleTextChange('sensor_4_thermocouple_type', e.target.value)}
+                      disabled={!settings.sensor_4_enabled}
+                      className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white text-sm focus:outline-none focus:border-primary-500 disabled:opacity-50"
+                    >
+                      {THERMOCOUPLE_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Alerts</span>
+                    <ToggleSwitch
+                      enabled={settings.sensor_4_alerts_enabled}
+                      onChange={() => handleBooleanChange('sensor_4_alerts_enabled', !settings.sensor_4_alerts_enabled)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Differential Alerts */}
+              <div className="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm text-gray-900 dark:text-white font-medium">Differential Alerts</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Alerts</span>
+                    <ToggleSwitch
+                      enabled={settings.differential_alerts_enabled}
+                      onChange={() => handleBooleanChange('differential_alerts_enabled', !settings.differential_alerts_enabled)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

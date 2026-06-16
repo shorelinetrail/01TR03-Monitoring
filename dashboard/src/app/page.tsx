@@ -90,7 +90,6 @@ const DEFAULT_FILTER = {
 const DEFAULT_DISPLAY = {
   title: 'Temperature Monitor',
   showDifferential: true,
-  alertsEnabled: true,
   sensor2Enabled: true,
   sensor3Enabled: false,
   sensor4Enabled: false,
@@ -98,6 +97,11 @@ const DEFAULT_DISPLAY = {
   sensor2ThermocoupleType: 'K',
   sensor3ThermocoupleType: 'K',
   sensor4ThermocoupleType: 'K',
+  sensor1AlertsEnabled: true,
+  sensor2AlertsEnabled: true,
+  sensor3AlertsEnabled: true,
+  sensor4AlertsEnabled: true,
+  differentialAlertsEnabled: true,
 };
 
 // Default sensor order
@@ -209,7 +213,6 @@ export default function Dashboard() {
         setDisplay({
           title: configData.dashboard_title ?? DEFAULT_DISPLAY.title,
           showDifferential: configData.show_differential ?? DEFAULT_DISPLAY.showDifferential,
-          alertsEnabled: configData.alerts_enabled ?? DEFAULT_DISPLAY.alertsEnabled,
           sensor2Enabled: configData.sensor_2_enabled ?? DEFAULT_DISPLAY.sensor2Enabled,
           sensor3Enabled: configData.sensor_3_enabled ?? DEFAULT_DISPLAY.sensor3Enabled,
           sensor4Enabled: configData.sensor_4_enabled ?? DEFAULT_DISPLAY.sensor4Enabled,
@@ -217,6 +220,11 @@ export default function Dashboard() {
           sensor2ThermocoupleType: configData.sensor_2_thermocouple_type ?? DEFAULT_DISPLAY.sensor2ThermocoupleType,
           sensor3ThermocoupleType: configData.sensor_3_thermocouple_type ?? DEFAULT_DISPLAY.sensor3ThermocoupleType,
           sensor4ThermocoupleType: configData.sensor_4_thermocouple_type ?? DEFAULT_DISPLAY.sensor4ThermocoupleType,
+          sensor1AlertsEnabled: configData.sensor_1_alerts_enabled ?? DEFAULT_DISPLAY.sensor1AlertsEnabled,
+          sensor2AlertsEnabled: configData.sensor_2_alerts_enabled ?? DEFAULT_DISPLAY.sensor2AlertsEnabled,
+          sensor3AlertsEnabled: configData.sensor_3_alerts_enabled ?? DEFAULT_DISPLAY.sensor3AlertsEnabled,
+          sensor4AlertsEnabled: configData.sensor_4_alerts_enabled ?? DEFAULT_DISPLAY.sensor4AlertsEnabled,
+          differentialAlertsEnabled: configData.differential_alerts_enabled ?? DEFAULT_DISPLAY.differentialAlertsEnabled,
         });
         setFilter({
           enabled: configData.filter_enabled ?? DEFAULT_FILTER.enabled,
@@ -296,7 +304,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined) {
       return 'offline';
     }
-    if (!display.alertsEnabled) return 'normal';
+    if (!display.sensor1AlertsEnabled) return 'normal';
     const temp = latestReading.main_tank_temp;
     if (temp >= thresholds.mainTankAlarm) return 'alarm';
     if (temp >= thresholds.mainTankWarning) return 'warning';
@@ -307,7 +315,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.tap_changer_temp === null || latestReading?.tap_changer_temp === undefined) {
       return 'offline';
     }
-    if (!display.alertsEnabled) return 'normal';
+    if (!display.sensor2AlertsEnabled) return 'normal';
     const temp = latestReading.tap_changer_temp;
     if (temp >= thresholds.tapChangerAlarm) return 'alarm';
     if (temp >= thresholds.tapChangerWarning) return 'warning';
@@ -318,7 +326,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.sensor_3_temp === null || latestReading?.sensor_3_temp === undefined) {
       return 'offline';
     }
-    if (!display.alertsEnabled) return 'normal';
+    if (!display.sensor3AlertsEnabled) return 'normal';
     const temp = latestReading.sensor_3_temp;
     if (temp >= thresholds.sensor3Alarm) return 'alarm';
     if (temp >= thresholds.sensor3Warning) return 'warning';
@@ -329,7 +337,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.sensor_4_temp === null || latestReading?.sensor_4_temp === undefined) {
       return 'offline';
     }
-    if (!display.alertsEnabled) return 'normal';
+    if (!display.sensor4AlertsEnabled) return 'normal';
     const temp = latestReading.sensor_4_temp;
     if (temp >= thresholds.sensor4Alarm) return 'alarm';
     if (temp >= thresholds.sensor4Warning) return 'warning';
@@ -366,7 +374,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || diff === null) {
       return 'offline';
     }
-    if (!display.alertsEnabled) return 'normal';
+    if (!display.differentialAlertsEnabled) return 'normal';
     const absDiff = Math.abs(diff);
     if (absDiff >= thresholds.differentialAlarm) return 'alarm';
     if (absDiff >= thresholds.differentialWarning) return 'warning';
@@ -417,6 +425,8 @@ export default function Dashboard() {
           maxValue: ranges.mainTankMax,
           lastUpdate: latestReading?.recorded_at,
           thermocoupleType: display.sensor1ThermocoupleType,
+          showThresholds: display.sensor1AlertsEnabled,
+          showStatus: display.sensor1AlertsEnabled,
         };
       case 'sensor2':
         return {
@@ -429,6 +439,8 @@ export default function Dashboard() {
           maxValue: ranges.tapChangerMax,
           lastUpdate: latestReading?.recorded_at,
           thermocoupleType: display.sensor2ThermocoupleType,
+          showThresholds: display.sensor2AlertsEnabled,
+          showStatus: display.sensor2AlertsEnabled,
         };
       case 'sensor3':
         return {
@@ -441,6 +453,8 @@ export default function Dashboard() {
           maxValue: ranges.sensor3Max,
           lastUpdate: latestReading?.recorded_at,
           thermocoupleType: display.sensor3ThermocoupleType,
+          showThresholds: display.sensor3AlertsEnabled,
+          showStatus: display.sensor3AlertsEnabled,
         };
       case 'sensor4':
         return {
@@ -453,6 +467,8 @@ export default function Dashboard() {
           maxValue: ranges.sensor4Max,
           lastUpdate: latestReading?.recorded_at,
           thermocoupleType: display.sensor4ThermocoupleType,
+          showThresholds: display.sensor4AlertsEnabled,
+          showStatus: display.sensor4AlertsEnabled,
         };
       case 'differential':
         return {
@@ -464,6 +480,8 @@ export default function Dashboard() {
           minValue: ranges.differentialMin,
           maxValue: ranges.differentialMax,
           lastUpdate: latestReading?.recorded_at,
+          showThresholds: display.differentialAlertsEnabled,
+          showStatus: display.differentialAlertsEnabled,
         };
       default:
         return null;
