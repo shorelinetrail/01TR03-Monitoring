@@ -132,6 +132,8 @@ export interface DeviceConfig {
   // Supabase connection settings
   supabase_url: string | null;
   supabase_key: string | null;
+  // Sensor display order (JSON array of sensor keys)
+  sensor_order: string | null;
 }
 
 export interface Camera {

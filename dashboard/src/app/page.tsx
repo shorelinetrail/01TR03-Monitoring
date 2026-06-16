@@ -17,6 +17,7 @@ import {
   getReadingsByDateRange,
   getDevice,
   getDeviceConfig,
+  updateDeviceConfig,
   subscribeToReadings,
 } from '@/lib/supabase';
 import { format } from 'date-fns';
@@ -98,12 +99,17 @@ const DEFAULT_DISPLAY = {
   sensor4ThermocoupleType: 'K',
 };
 
+// Default sensor order
+const DEFAULT_SENSOR_ORDER = ['sensor1', 'sensor2', 'sensor3', 'sensor4', 'differential'];
+
 // Convert time range to hours
 const getHoursFromRange = (range: string): number => {
   switch (range) {
     case '1h': return 1;
     case '6h': return 6;
     case '24h': return 24;
+    case '2d': return 48;
+    case '5d': return 120;
     case '7d': return 168;
     default: return 24;
   }
@@ -116,7 +122,7 @@ export default function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('24h');
+  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '2d' | '5d' | '7d'>('24h');
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
   const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
@@ -133,6 +139,8 @@ export default function Dashboard() {
     return format(date, "yyyy-MM-dd'T'HH:mm");
   });
   const [customEndDate, setCustomEndDate] = useState(() => format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+  const [sensorOrder, setSensorOrder] = useState<string[]>(DEFAULT_SENSOR_ORDER);
+  const [editMode, setEditMode] = useState(false);
 
   // Track last alert times to implement cooldown
   const lastAlertTimes = useRef<Record<string, number>>({});
@@ -215,6 +223,17 @@ export default function Dashboard() {
           alpha: configData.filter_alpha ?? DEFAULT_FILTER.alpha,
         });
         setReportInterval(configData.report_interval ?? 30);
+        // Load sensor order from config
+        if (configData.sensor_order) {
+          try {
+            const order = JSON.parse(configData.sensor_order);
+            if (Array.isArray(order) && order.length > 0) {
+              setSensorOrder(order);
+            }
+          } catch {
+            // Invalid JSON, use default
+          }
+        }
       }
       setLatestReading(reading);
       setHistoricalData(readings);
@@ -345,6 +364,103 @@ export default function Dashboard() {
     if (absDiff >= thresholds.differentialAlarm) return 'alarm';
     if (absDiff >= thresholds.differentialWarning) return 'warning';
     return 'normal';
+  };
+
+  // Sensor order manipulation
+  const moveSensor = (sensorKey: string, direction: 'up' | 'down') => {
+    setSensorOrder((prev) => {
+      const idx = prev.indexOf(sensorKey);
+      if (idx === -1) return prev;
+      const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (newIdx < 0 || newIdx >= prev.length) return prev;
+      const newOrder = [...prev];
+      [newOrder[idx], newOrder[newIdx]] = [newOrder[newIdx], newOrder[idx]];
+      return newOrder;
+    });
+  };
+
+  const saveSensorOrder = async () => {
+    await updateDeviceConfig(DEVICE_ID, { sensor_order: JSON.stringify(sensorOrder) });
+    setEditMode(false);
+  };
+
+  // Check if a sensor should be visible based on enabled flags
+  const isSensorVisible = (key: string): boolean => {
+    switch (key) {
+      case 'sensor1': return true; // Always visible
+      case 'sensor2': return display.sensor2Enabled;
+      case 'sensor3': return display.sensor3Enabled;
+      case 'sensor4': return display.sensor4Enabled;
+      case 'differential': return display.showDifferential && display.sensor2Enabled;
+      default: return false;
+    }
+  };
+
+  // Get gauge props for a sensor key
+  const getGaugeProps = (key: string) => {
+    switch (key) {
+      case 'sensor1':
+        return {
+          label: labels.mainTank,
+          value: getDisplayTemp(latestReading, 'main_tank'),
+          status: getMainTankStatus(),
+          warningThreshold: thresholds.mainTankWarning,
+          alarmThreshold: thresholds.mainTankAlarm,
+          minValue: ranges.mainTankMin,
+          maxValue: ranges.mainTankMax,
+          lastUpdate: latestReading?.recorded_at,
+          thermocoupleType: display.sensor1ThermocoupleType,
+        };
+      case 'sensor2':
+        return {
+          label: labels.tapChanger,
+          value: getDisplayTemp(latestReading, 'tap_changer'),
+          status: getTapChangerStatus(),
+          warningThreshold: thresholds.tapChangerWarning,
+          alarmThreshold: thresholds.tapChangerAlarm,
+          minValue: ranges.tapChangerMin,
+          maxValue: ranges.tapChangerMax,
+          lastUpdate: latestReading?.recorded_at,
+          thermocoupleType: display.sensor2ThermocoupleType,
+        };
+      case 'sensor3':
+        return {
+          label: labels.sensor3,
+          value: getDisplayTemp(latestReading, 'sensor_3'),
+          status: getSensor3Status(),
+          warningThreshold: thresholds.sensor3Warning,
+          alarmThreshold: thresholds.sensor3Alarm,
+          minValue: ranges.sensor3Min,
+          maxValue: ranges.sensor3Max,
+          lastUpdate: latestReading?.recorded_at,
+          thermocoupleType: display.sensor3ThermocoupleType,
+        };
+      case 'sensor4':
+        return {
+          label: labels.sensor4,
+          value: getDisplayTemp(latestReading, 'sensor_4'),
+          status: getSensor4Status(),
+          warningThreshold: thresholds.sensor4Warning,
+          alarmThreshold: thresholds.sensor4Alarm,
+          minValue: ranges.sensor4Min,
+          maxValue: ranges.sensor4Max,
+          lastUpdate: latestReading?.recorded_at,
+          thermocoupleType: display.sensor4ThermocoupleType,
+        };
+      case 'differential':
+        return {
+          label: labels.differential,
+          value: getDifferential(),
+          status: getDifferentialStatus(),
+          warningThreshold: thresholds.differentialWarning,
+          alarmThreshold: thresholds.differentialAlarm,
+          minValue: ranges.differentialMin,
+          maxValue: ranges.differentialMax,
+          lastUpdate: latestReading?.recorded_at,
+        };
+      default:
+        return null;
+    }
   };
 
   // Generate client-side alerts based on current readings
@@ -576,80 +692,69 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 safe-bottom">
         {/* Temperature Gauges */}
         <section id="gauges-section" className="mb-4 sm:mb-8">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1 sm:mb-2 px-2 sm:px-0">Live Data</h2>
+          <div className="flex items-center justify-between mb-1 sm:mb-2 px-2 sm:px-0">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Live Data</h2>
+            {editMode ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setEditMode(false); setSensorOrder(DEFAULT_SENSOR_ORDER); }}
+                  className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveSensorOrder}
+                  className="px-2 py-1 text-xs rounded bg-primary-600 text-white hover:bg-primary-500"
+                >
+                  Save Order
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditMode(true)}
+                className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                title="Reorder sensors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-6">
-            <div className="card card-body">
-              <TemperatureGauge
-                label={labels.mainTank}
-                value={getDisplayTemp(latestReading, 'main_tank')}
-                status={getMainTankStatus()}
-                warningThreshold={thresholds.mainTankWarning}
-                alarmThreshold={thresholds.mainTankAlarm}
-                minValue={ranges.mainTankMin}
-                maxValue={ranges.mainTankMax}
-                lastUpdate={latestReading?.recorded_at}
-                thermocoupleType={display.sensor1ThermocoupleType}
-              />
-            </div>
-            {display.sensor2Enabled && (
-              <div className="card card-body">
-                <TemperatureGauge
-                  label={labels.tapChanger}
-                  value={getDisplayTemp(latestReading, 'tap_changer')}
-                  status={getTapChangerStatus()}
-                  warningThreshold={thresholds.tapChangerWarning}
-                  alarmThreshold={thresholds.tapChangerAlarm}
-                  minValue={ranges.tapChangerMin}
-                  maxValue={ranges.tapChangerMax}
-                  lastUpdate={latestReading?.recorded_at}
-                  thermocoupleType={display.sensor2ThermocoupleType}
-                />
-              </div>
-            )}
-            {display.sensor3Enabled && (
-              <div className="card card-body">
-                <TemperatureGauge
-                  label={labels.sensor3}
-                  value={getDisplayTemp(latestReading, 'sensor_3')}
-                  status={getSensor3Status()}
-                  warningThreshold={thresholds.sensor3Warning}
-                  alarmThreshold={thresholds.sensor3Alarm}
-                  minValue={ranges.sensor3Min}
-                  maxValue={ranges.sensor3Max}
-                  lastUpdate={latestReading?.recorded_at}
-                  thermocoupleType={display.sensor3ThermocoupleType}
-                />
-              </div>
-            )}
-            {display.sensor4Enabled && (
-              <div className="card card-body">
-                <TemperatureGauge
-                  label={labels.sensor4}
-                  value={getDisplayTemp(latestReading, 'sensor_4')}
-                  status={getSensor4Status()}
-                  warningThreshold={thresholds.sensor4Warning}
-                  alarmThreshold={thresholds.sensor4Alarm}
-                  minValue={ranges.sensor4Min}
-                  maxValue={ranges.sensor4Max}
-                  lastUpdate={latestReading?.recorded_at}
-                  thermocoupleType={display.sensor4ThermocoupleType}
-                />
-              </div>
-            )}
-            {display.showDifferential && display.sensor2Enabled && (
-              <div className="card card-body">
-                <TemperatureGauge
-                  label={labels.differential}
-                  value={getDifferential()}
-                  status={getDifferentialStatus()}
-                  warningThreshold={thresholds.differentialWarning}
-                  alarmThreshold={thresholds.differentialAlarm}
-                  minValue={ranges.differentialMin}
-                  maxValue={ranges.differentialMax}
-                  lastUpdate={latestReading?.recorded_at}
-                />
-              </div>
-            )}
+            {sensorOrder.filter(isSensorVisible).map((sensorKey, idx, visibleList) => {
+              const props = getGaugeProps(sensorKey);
+              if (!props) return null;
+              return (
+                <div key={sensorKey} className="card card-body relative">
+                  {editMode && (
+                    <div className="absolute top-1 right-1 flex flex-col gap-0.5 z-10">
+                      <button
+                        onClick={() => moveSensor(sensorKey, 'up')}
+                        disabled={idx === 0}
+                        className="p-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move up"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => moveSensor(sensorKey, 'down')}
+                        disabled={idx === visibleList.length - 1}
+                        className="p-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move down"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <TemperatureGauge {...props} />
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -672,7 +777,7 @@ export default function Dashboard() {
               </div>
               <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
                 <div className="flex gap-1.5 sm:gap-2">
-                  {(['1h', '6h', '24h', '7d'] as const).map((range) => (
+                  {(['1h', '6h', '24h', '2d', '5d', '7d'] as const).map((range) => (
                     <button
                       key={range}
                       onClick={() => {
