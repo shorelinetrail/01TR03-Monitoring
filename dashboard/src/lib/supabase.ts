@@ -62,6 +62,7 @@ export interface DeviceConfig {
   dashboard_title: string | null;
   show_differential: boolean;
   sensors_enabled: number;
+  alerts_enabled: boolean;
   // Sensor enable flags
   sensor_2_enabled: boolean;
   sensor_3_enabled: boolean;

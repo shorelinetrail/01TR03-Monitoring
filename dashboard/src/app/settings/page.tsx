@@ -53,6 +53,7 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () =>
 const DEFAULT_SETTINGS = {
   dashboard_title: 'Temperature Monitor',
   show_differential: true,
+  alerts_enabled: true,
   sensors_enabled: 2,
   sensor_2_enabled: true,
   sensor_3_enabled: false,
@@ -126,6 +127,7 @@ export default function Settings() {
         setSettings({
           dashboard_title: config.dashboard_title ?? DEFAULT_SETTINGS.dashboard_title,
           show_differential: config.show_differential ?? DEFAULT_SETTINGS.show_differential,
+          alerts_enabled: config.alerts_enabled ?? DEFAULT_SETTINGS.alerts_enabled,
           sensors_enabled: config.sensors_enabled ?? DEFAULT_SETTINGS.sensors_enabled,
           sensor_2_enabled: config.sensor_2_enabled ?? DEFAULT_SETTINGS.sensor_2_enabled,
           sensor_3_enabled: config.sensor_3_enabled ?? DEFAULT_SETTINGS.sensor_3_enabled,
@@ -322,6 +324,16 @@ export default function Settings() {
                 <ToggleSwitch
                   enabled={settings.show_differential}
                   onChange={() => handleBooleanChange('show_differential', !settings.show_differential)}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <label className="text-sm text-gray-900 dark:text-white">Enable Warnings & Alarms</label>
+                  <p className="text-xs text-gray-500">Show warning/alarm status indicators when thresholds are exceeded</p>
+                </div>
+                <ToggleSwitch
+                  enabled={settings.alerts_enabled}
+                  onChange={() => handleBooleanChange('alerts_enabled', !settings.alerts_enabled)}
                 />
               </div>
             </div>

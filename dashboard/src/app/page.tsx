@@ -90,6 +90,7 @@ const DEFAULT_FILTER = {
 const DEFAULT_DISPLAY = {
   title: 'Temperature Monitor',
   showDifferential: true,
+  alertsEnabled: true,
   sensor2Enabled: true,
   sensor3Enabled: false,
   sensor4Enabled: false,
@@ -208,6 +209,7 @@ export default function Dashboard() {
         setDisplay({
           title: configData.dashboard_title ?? DEFAULT_DISPLAY.title,
           showDifferential: configData.show_differential ?? DEFAULT_DISPLAY.showDifferential,
+          alertsEnabled: configData.alerts_enabled ?? DEFAULT_DISPLAY.alertsEnabled,
           sensor2Enabled: configData.sensor_2_enabled ?? DEFAULT_DISPLAY.sensor2Enabled,
           sensor3Enabled: configData.sensor_3_enabled ?? DEFAULT_DISPLAY.sensor3Enabled,
           sensor4Enabled: configData.sensor_4_enabled ?? DEFAULT_DISPLAY.sensor4Enabled,
@@ -294,6 +296,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.main_tank_temp === null || latestReading?.main_tank_temp === undefined) {
       return 'offline';
     }
+    if (!display.alertsEnabled) return 'normal';
     const temp = latestReading.main_tank_temp;
     if (temp >= thresholds.mainTankAlarm) return 'alarm';
     if (temp >= thresholds.mainTankWarning) return 'warning';
@@ -304,6 +307,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.tap_changer_temp === null || latestReading?.tap_changer_temp === undefined) {
       return 'offline';
     }
+    if (!display.alertsEnabled) return 'normal';
     const temp = latestReading.tap_changer_temp;
     if (temp >= thresholds.tapChangerAlarm) return 'alarm';
     if (temp >= thresholds.tapChangerWarning) return 'warning';
@@ -314,6 +318,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.sensor_3_temp === null || latestReading?.sensor_3_temp === undefined) {
       return 'offline';
     }
+    if (!display.alertsEnabled) return 'normal';
     const temp = latestReading.sensor_3_temp;
     if (temp >= thresholds.sensor3Alarm) return 'alarm';
     if (temp >= thresholds.sensor3Warning) return 'warning';
@@ -324,6 +329,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || latestReading?.sensor_4_temp === null || latestReading?.sensor_4_temp === undefined) {
       return 'offline';
     }
+    if (!display.alertsEnabled) return 'normal';
     const temp = latestReading.sensor_4_temp;
     if (temp >= thresholds.sensor4Alarm) return 'alarm';
     if (temp >= thresholds.sensor4Warning) return 'warning';
@@ -360,6 +366,7 @@ export default function Dashboard() {
     if (!isDeviceOnline() || diff === null) {
       return 'offline';
     }
+    if (!display.alertsEnabled) return 'normal';
     const absDiff = Math.abs(diff);
     if (absDiff >= thresholds.differentialAlarm) return 'alarm';
     if (absDiff >= thresholds.differentialWarning) return 'warning';
