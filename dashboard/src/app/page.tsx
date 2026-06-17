@@ -12,6 +12,7 @@ import {
   supabase,
   TemperatureReading,
   Device,
+  ChartNote,
   getLatestReading,
   getReadings,
   getReadingsByDateRange,
@@ -19,6 +20,9 @@ import {
   getDeviceConfig,
   updateDeviceConfig,
   subscribeToReadings,
+  getChartNotes,
+  createChartNote,
+  deleteChartNote,
 } from '@/lib/supabase';
 import { format } from 'date-fns';
 
@@ -146,6 +150,7 @@ export default function Dashboard() {
   const [customEndDate, setCustomEndDate] = useState(() => format(new Date(), "yyyy-MM-dd'T'HH:mm"));
   const [sensorOrder, setSensorOrder] = useState<string[]>(DEFAULT_SENSOR_ORDER);
   const [editMode, setEditMode] = useState(false);
+  const [chartNotes, setChartNotes] = useState<ChartNote[]>([]);
 
   // Track last alert times to implement cooldown
   const lastAlertTimes = useRef<Record<string, number>>({});
@@ -153,16 +158,23 @@ export default function Dashboard() {
   // Fetch all data
   const fetchData = useCallback(async () => {
     try {
+      // Calculate date range for readings and notes
+      const endDate = useCustomDateRange ? new Date(customEndDate) : new Date();
+      const startDate = useCustomDateRange
+        ? new Date(customStartDate)
+        : new Date(Date.now() - getHoursFromRange(timeRange) * 60 * 60 * 1000);
+
       // Fetch readings based on preset or custom date range
       const readingsPromise = useCustomDateRange
-        ? getReadingsByDateRange(DEVICE_ID, new Date(customStartDate), new Date(customEndDate))
+        ? getReadingsByDateRange(DEVICE_ID, startDate, endDate)
         : getReadings(DEVICE_ID, getHoursFromRange(timeRange));
 
-      const [deviceData, configData, reading, readings] = await Promise.all([
+      const [deviceData, configData, reading, readings, notes] = await Promise.all([
         getDevice(DEVICE_ID),
         getDeviceConfig(DEVICE_ID),
         getLatestReading(DEVICE_ID),
         readingsPromise,
+        getChartNotes(DEVICE_ID, startDate, endDate),
       ]);
 
       setDevice(deviceData);
@@ -247,6 +259,7 @@ export default function Dashboard() {
       }
       setLatestReading(reading);
       setHistoricalData(readings);
+      setChartNotes(notes);
       setLastUpdate(new Date());
       setError(null);
     } catch (err) {
@@ -397,6 +410,23 @@ export default function Dashboard() {
   const saveSensorOrder = async () => {
     await updateDeviceConfig(DEVICE_ID, { sensor_order: JSON.stringify(sensorOrder) });
     setEditMode(false);
+  };
+
+  // Chart notes handlers
+  const handleAddNote = async (timestamp: Date, text: string, sensor: ChartNote['sensor']) => {
+    const note = await createChartNote(DEVICE_ID, timestamp, text, sensor);
+    if (note) {
+      setChartNotes((prev) => [...prev, note].sort((a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      ));
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    const success = await deleteChartNote(noteId);
+    if (success) {
+      setChartNotes((prev) => prev.filter((n) => n.id !== noteId));
+    }
   };
 
   // Check if a sensor should be visible based on enabled flags
@@ -868,6 +898,9 @@ export default function Dashboard() {
                   sensor4: { enabled: display.sensor4Enabled, label: labels.sensor4 },
                 }}
                 sensorOrder={sensorOrder.filter(k => k !== 'differential')}
+                notes={chartNotes}
+                onAddNote={handleAddNote}
+                onDeleteNote={handleDeleteNote}
               />
             </div>
           </div>

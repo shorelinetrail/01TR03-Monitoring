@@ -11,9 +11,10 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Brush,
+  Label,
 } from 'recharts';
 import { format } from 'date-fns';
-import { TemperatureReading } from '@/lib/supabase';
+import { TemperatureReading, ChartNote } from '@/lib/supabase';
 import { useTheme } from './ThemeProvider';
 
 interface SensorConfig {
@@ -47,6 +48,9 @@ interface TemperatureChartProps {
     sensor4: SensorConfig;
   };
   sensorOrder?: string[];
+  notes?: ChartNote[];
+  onAddNote?: (timestamp: Date, text: string, sensor: ChartNote['sensor']) => void;
+  onDeleteNote?: (noteId: string) => void;
 }
 
 // Sensor colors
@@ -118,6 +122,9 @@ export default function TemperatureChart({
     sensor4: { enabled: false, label: 'Sensor 4' },
   },
   sensorOrder = ['sensor1', 'sensor2', 'sensor3', 'sensor4'],
+  notes = [],
+  onAddNote,
+  onDeleteNote,
 }: TemperatureChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -145,6 +152,13 @@ export default function TemperatureChart({
 
   // Whether to show raw signals alongside filtered (off by default)
   const [showRaw, setShowRaw] = useState(false);
+
+  // Notes panel state
+  const [showNotesPanel, setShowNotesPanel] = useState(false);
+  const [addNoteMode, setAddNoteMode] = useState(false);
+  const [selectedSensorForNote, setSelectedSensorForNote] = useState<ChartNote['sensor']>('general');
+  const [hoveredNote, setHoveredNote] = useState<string | null>(null);
+  const [pendingNoteText, setPendingNoteText] = useState('');
 
   // Transform data for recharts with client-side filtering
   const chartData = useMemo(() => {
@@ -360,7 +374,106 @@ export default function TemperatureChart({
             </button>
           </>
         )}
+        {onAddNote && (
+          <>
+            <span className="text-gray-600 text-xs hidden sm:inline">|</span>
+            <button
+              onClick={() => setShowNotesPanel(prev => !prev)}
+              className={`
+                flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm
+                transition-all duration-200
+                ${showNotesPanel
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}
+              `}
+            >
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+              <span>Notes{notes.length > 0 ? ` (${notes.length})` : ''}</span>
+            </button>
+          </>
+        )}
       </div>
+
+      {/* Notes Panel */}
+      {showNotesPanel && onAddNote && (
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <input
+              type="text"
+              value={pendingNoteText}
+              onChange={(e) => setPendingNoteText(e.target.value)}
+              placeholder="Note text..."
+              className="flex-1 min-w-[150px] text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white placeholder-gray-400"
+            />
+            <select
+              value={selectedSensorForNote}
+              onChange={(e) => setSelectedSensorForNote(e.target.value as ChartNote['sensor'])}
+              className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white"
+            >
+              <option value="general">General</option>
+              <option value="sensor1">{sensors.sensor1.label}</option>
+              {sensors.sensor2.enabled && <option value="sensor2">{sensors.sensor2.label}</option>}
+              {sensors.sensor3.enabled && <option value="sensor3">{sensors.sensor3.label}</option>}
+              {sensors.sensor4.enabled && <option value="sensor4">{sensors.sensor4.label}</option>}
+            </select>
+            <button
+              onClick={() => {
+                if (pendingNoteText.trim()) {
+                  setAddNoteMode(prev => !prev);
+                }
+              }}
+              disabled={!pendingNoteText.trim()}
+              className={`
+                text-sm px-3 py-1 rounded transition-colors
+                ${addNoteMode
+                  ? 'bg-primary-600 text-white'
+                  : pendingNoteText.trim()
+                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'}
+              `}
+            >
+              {addNoteMode ? 'Click chart to place...' : 'Place on Chart'}
+            </button>
+          </div>
+          {notes.length > 0 && (
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {notes.map((note) => (
+                <div
+                  key={note.id}
+                  className="flex items-center justify-between text-sm bg-white dark:bg-gray-700 rounded px-2 py-1"
+                  onMouseEnter={() => setHoveredNote(note.id)}
+                  onMouseLeave={() => setHoveredNote(null)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
+                      {format(new Date(note.timestamp), 'dd MMM HH:mm')}
+                    </span>
+                    {note.sensor !== 'general' && (
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS] }}
+                      />
+                    )}
+                    <span className="text-gray-900 dark:text-white truncate">{note.text}</span>
+                  </div>
+                  {onDeleteNote && (
+                    <button
+                      onClick={() => onDeleteNote(note.id)}
+                      className="text-gray-400 hover:text-red-500 ml-2 flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Chart */}
       <div className="h-64 sm:h-96">
@@ -378,6 +491,15 @@ export default function TemperatureChart({
           <LineChart
             data={chartData}
             margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            onClick={(e) => {
+              if (addNoteMode && onAddNote && e && e.activeLabel !== undefined && pendingNoteText.trim()) {
+                const timestamp = new Date(Number(e.activeLabel));
+                onAddNote(timestamp, pendingNoteText.trim(), selectedSensorForNote);
+                setAddNoteMode(false);
+                setPendingNoteText('');
+              }
+            }}
+            style={{ cursor: addNoteMode ? 'crosshair' : undefined }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis
@@ -413,6 +535,33 @@ export default function TemperatureChart({
                 />
               </>
             )}
+
+            {/* Note reference lines */}
+            {notes.map((note) => {
+              const noteTime = new Date(note.timestamp).getTime();
+              const noteColor = note.sensor === 'general'
+                ? (isDark ? '#9ca3af' : '#6b7280')
+                : SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS];
+              const isHovered = hoveredNote === note.id;
+              return (
+                <ReferenceLine
+                  key={note.id}
+                  x={noteTime}
+                  stroke={noteColor}
+                  strokeWidth={isHovered ? 2 : 1}
+                  strokeDasharray="3 3"
+                  strokeOpacity={isHovered ? 1 : 0.7}
+                >
+                  <Label
+                    value={note.text.length > 20 ? note.text.slice(0, 20) + '...' : note.text}
+                    position="top"
+                    fill={noteColor}
+                    fontSize={10}
+                    offset={5}
+                  />
+                </ReferenceLine>
+              );
+            })}
 
             {/* Sensor 1 (Main Tank) - Raw */}
             {sensors.sensor1.enabled && visibleSensors.sensor1 && (!filterEnabled || showRaw) && (

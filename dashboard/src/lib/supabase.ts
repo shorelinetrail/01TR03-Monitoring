@@ -160,6 +160,15 @@ export interface DeviceLog {
   created_at: string;
 }
 
+export interface ChartNote {
+  id: string;
+  device_id: string;
+  timestamp: string;
+  text: string;
+  sensor: 'general' | 'sensor1' | 'sensor2' | 'sensor3' | 'sensor4';
+  created_at: string;
+}
+
 // Helper functions
 export async function getLatestReading(deviceId: string): Promise<TemperatureReading | null> {
   const { data, error } = await supabase
@@ -507,4 +516,72 @@ export function subscribeToDeviceLogs(
       }
     )
     .subscribe();
+}
+
+// Chart notes functions
+export async function getChartNotes(
+  deviceId: string,
+  startDate?: Date,
+  endDate?: Date
+): Promise<ChartNote[]> {
+  let query = supabase
+    .from('chart_notes')
+    .select('*')
+    .eq('device_id', deviceId)
+    .order('timestamp', { ascending: true });
+
+  if (startDate) {
+    query = query.gte('timestamp', startDate.toISOString());
+  }
+  if (endDate) {
+    query = query.lte('timestamp', endDate.toISOString());
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching chart notes:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+export async function createChartNote(
+  deviceId: string,
+  timestamp: Date,
+  text: string,
+  sensor: ChartNote['sensor'] = 'general'
+): Promise<ChartNote | null> {
+  const { data, error } = await supabase
+    .from('chart_notes')
+    .insert({
+      device_id: deviceId,
+      timestamp: timestamp.toISOString(),
+      text,
+      sensor,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating chart note:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function deleteChartNote(noteId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('chart_notes')
+    .delete()
+    .eq('id', noteId);
+
+  if (error) {
+    console.error('Error deleting chart note:', error);
+    return false;
+  }
+
+  return true;
 }

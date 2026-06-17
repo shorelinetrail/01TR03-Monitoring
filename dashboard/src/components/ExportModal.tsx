@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { TemperatureReading, getReadingsByDateRange } from '@/lib/supabase';
+import { TemperatureReading, ChartNote, getReadingsByDateRange, getChartNotes } from '@/lib/supabase';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -41,7 +41,10 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
         return;
       }
 
-      const readings = await getReadingsByDateRange(deviceId, start, end);
+      const [readings, notes] = await Promise.all([
+        getReadingsByDateRange(deviceId, start, end),
+        getChartNotes(deviceId, start, end),
+      ]);
 
       if (readings.length === 0) {
         setError('No data found for the selected date range');
@@ -50,7 +53,7 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
       }
 
       // Convert to CSV
-      const csv = convertToCSV(readings);
+      const csv = convertToCSV(readings, notes);
 
       // Download
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -72,7 +75,7 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
     }
   };
 
-  const convertToCSV = (readings: TemperatureReading[]): string => {
+  const convertToCSV = (readings: TemperatureReading[], notes: ChartNote[]): string => {
     const headers = [
       'Timestamp',
       labels.mainTank,
@@ -115,7 +118,31 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
       ];
     });
 
-    return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    // Build CSV with readings data
+    let csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+
+    // Add notes section if there are any
+    if (notes.length > 0) {
+      const sensorLabels: Record<string, string> = {
+        general: 'General',
+        sensor1: labels.mainTank,
+        sensor2: labels.tapChanger,
+        sensor3: labels.sensor3,
+        sensor4: labels.sensor4,
+      };
+
+      csv += '\n\n';
+      csv += 'NOTES\n';
+      csv += 'Timestamp,Sensor,Note\n';
+      notes.forEach((note) => {
+        const escapedText = note.text.includes(',') || note.text.includes('"')
+          ? `"${note.text.replace(/"/g, '""')}"`
+          : note.text;
+        csv += `${format(new Date(note.timestamp), 'yyyy-MM-dd HH:mm:ss')},${sensorLabels[note.sensor] || note.sensor},${escapedText}\n`;
+      });
+    }
+
+    return csv;
   };
 
   if (!isOpen) return null;
