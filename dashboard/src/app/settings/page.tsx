@@ -509,12 +509,12 @@ export default function Settings() {
                   type="number"
                   value={settings.report_interval}
                   onChange={(e) => handleNumberChange('report_interval', e.target.value)}
-                  min="10"
+                  min="5"
                   max="3600"
                   className="w-32 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:outline-none focus:border-primary-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  How often the device uploads temperature readings (10-3600 seconds). Device will apply on next restart.
+                  How often the device uploads temperature readings (5-3600 seconds). Device will apply on next restart.
                 </p>
               </div>
             </div>
