@@ -47,7 +47,6 @@ interface TemperatureChartProps {
     sensor4: SensorConfig;
   };
   sensorOrder?: string[];
-  endTime?: number;
 }
 
 // Sensor colors
@@ -119,7 +118,6 @@ export default function TemperatureChart({
     sensor4: { enabled: false, label: 'Sensor 4' },
   },
   sensorOrder = ['sensor1', 'sensor2', 'sensor3', 'sensor4'],
-  endTime,
 }: TemperatureChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -195,16 +193,6 @@ export default function TemperatureChart({
       sensor4_filtered: sensor4Filtered[i],
     }));
   }, [data, filterConfig]);
-
-  // Calculate X-axis domain - extend to endTime if provided
-  const xAxisDomain = useMemo(() => {
-    if (chartData.length === 0) return ['auto', 'auto'];
-    const dataStart = chartData[0].time;
-    const dataEnd = chartData[chartData.length - 1].time;
-    // If endTime is provided and beyond last data point, extend axis to it
-    const end = endTime && endTime > dataEnd ? endTime : dataEnd;
-    return [dataStart, end];
-  }, [chartData, endTime]);
 
   // Track data changes to restore zoom only when data updates, not during drag
   const prevDataRef = useRef<string>('');
@@ -394,12 +382,9 @@ export default function TemperatureChart({
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis
               dataKey="time"
-              type="number"
-              domain={xAxisDomain}
               tickFormatter={formatXAxis}
               stroke={axisColor}
               tick={{ fill: axisColor, fontSize: 12 }}
-              minTickGap={50}
             />
             <YAxis
               stroke={axisColor}
