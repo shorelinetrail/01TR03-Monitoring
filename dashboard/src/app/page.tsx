@@ -112,9 +112,12 @@ const DEFAULT_DISPLAY = {
 // Default sensor order
 const DEFAULT_SENSOR_ORDER = ['sensor1', 'sensor2', 'sensor3', 'sensor4', 'differential'];
 
-// Convert time range to hours
+// Convert time range to hours (or fraction of hours for short ranges)
 const getHoursFromRange = (range: string): number => {
   switch (range) {
+    case '5s': return 5 / 3600;      // 5 seconds
+    case '1m': return 1 / 60;        // 1 minute
+    case '5m': return 5 / 60;        // 5 minutes
     case '1h': return 1;
     case '6h': return 6;
     case '24h': return 24;
@@ -132,7 +135,7 @@ export default function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '2d' | '5d' | '7d'>('24h');
+  const [timeRange, setTimeRange] = useState<'5s' | '1m' | '5m' | '1h' | '6h' | '24h' | '2d' | '5d' | '7d'>('24h');
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
   const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
@@ -840,7 +843,7 @@ export default function Dashboard() {
               </div>
               <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
                 <div className="flex gap-1.5 sm:gap-2">
-                  {(['1h', '6h', '24h', '2d', '5d', '7d'] as const).map((range) => (
+                  {(['5s', '1m', '5m', '1h', '6h', '24h', '2d', '5d', '7d'] as const).map((range) => (
                     <button
                       key={range}
                       onClick={() => {

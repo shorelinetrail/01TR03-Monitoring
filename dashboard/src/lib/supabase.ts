@@ -191,8 +191,8 @@ export async function getReadings(
   deviceId: string,
   hours: number = 24
 ): Promise<TemperatureReading[]> {
-  const since = new Date();
-  since.setHours(since.getHours() - hours);
+  // Use milliseconds for precision with fractional hours (e.g., 5 seconds = 5/3600 hours)
+  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   const allData: TemperatureReading[] = [];
   const pageSize = 1000;
