@@ -185,19 +185,35 @@ export async function getReadings(
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  const { data, error } = await supabase
-    .from('temperature_readings')
-    .select('*')
-    .eq('device_id', deviceId)
-    .gte('recorded_at', since.toISOString())
-    .order('recorded_at', { ascending: true });
+  const allData: TemperatureReading[] = [];
+  const pageSize = 1000;
+  let offset = 0;
+  let hasMore = true;
 
-  if (error) {
-    console.error('Error fetching readings:', error);
-    return [];
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('temperature_readings')
+      .select('*')
+      .eq('device_id', deviceId)
+      .gte('recorded_at', since.toISOString())
+      .order('recorded_at', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) {
+      console.error('Error fetching readings:', error);
+      return allData;
+    }
+
+    if (data && data.length > 0) {
+      allData.push(...data);
+      offset += data.length;
+      hasMore = data.length === pageSize;
+    } else {
+      hasMore = false;
+    }
   }
 
-  return data || [];
+  return allData;
 }
 
 export async function getReadingsByDateRange(
