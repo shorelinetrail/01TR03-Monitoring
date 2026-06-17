@@ -11,7 +11,6 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Brush,
-  Label,
 } from 'recharts';
 import { format } from 'date-fns';
 import { TemperatureReading, ChartNote } from '@/lib/supabase';
@@ -611,20 +610,7 @@ export default function TemperatureChart({
                   strokeWidth={isEditing ? 3 : isHovered ? 2 : 1}
                   strokeDasharray={isEditing ? undefined : "3 3"}
                   strokeOpacity={isEditing ? 1 : isHovered ? 1 : 0.7}
-                  style={{ cursor: 'pointer' }}
-                  onMouseEnter={() => setHoveredNote(note.id)}
-                  onMouseLeave={() => setHoveredNote(null)}
-                  onClick={() => selectNote(note)}
-                >
-                  <Label
-                    value={note.text.length > 20 ? note.text.slice(0, 20) + '...' : note.text}
-                    position="top"
-                    fill={isEditing ? '#3b82f6' : noteColor}
-                    fontSize={10}
-                    style={{ cursor: 'pointer' }}
-                    offset={5}
-                  />
-                </ReferenceLine>
+                />
               );
             })}
 
