@@ -585,3 +585,23 @@ export async function deleteChartNote(noteId: string): Promise<boolean> {
 
   return true;
 }
+
+export async function updateChartNote(
+  noteId: string,
+  text: string,
+  sensor: ChartNote['sensor']
+): Promise<ChartNote | null> {
+  const { data, error } = await supabase
+    .from('chart_notes')
+    .update({ text, sensor })
+    .eq('id', noteId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating chart note:', error);
+    return null;
+  }
+
+  return data;
+}

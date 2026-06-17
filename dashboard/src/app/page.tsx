@@ -22,6 +22,7 @@ import {
   subscribeToReadings,
   getChartNotes,
   createChartNote,
+  updateChartNote,
   deleteChartNote,
 } from '@/lib/supabase';
 import { format } from 'date-fns';
@@ -426,6 +427,13 @@ export default function Dashboard() {
     const success = await deleteChartNote(noteId);
     if (success) {
       setChartNotes((prev) => prev.filter((n) => n.id !== noteId));
+    }
+  };
+
+  const handleEditNote = async (noteId: string, text: string, sensor: ChartNote['sensor']) => {
+    const updatedNote = await updateChartNote(noteId, text, sensor);
+    if (updatedNote) {
+      setChartNotes((prev) => prev.map((n) => n.id === noteId ? updatedNote : n));
     }
   };
 
@@ -900,6 +908,7 @@ export default function Dashboard() {
                 sensorOrder={sensorOrder.filter(k => k !== 'differential')}
                 notes={chartNotes}
                 onAddNote={handleAddNote}
+                onEditNote={handleEditNote}
                 onDeleteNote={handleDeleteNote}
               />
             </div>
