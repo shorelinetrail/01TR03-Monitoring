@@ -808,6 +808,11 @@ export default function Dashboard() {
                       onClick={() => {
                         setTimeRange(range);
                         setUseCustomDateRange(false);
+                        // Update custom date inputs to reflect the new range
+                        const now = new Date();
+                        const start = new Date(now.getTime() - getHoursFromRange(range) * 60 * 60 * 1000);
+                        setCustomEndDate(format(now, "yyyy-MM-dd'T'HH:mm"));
+                        setCustomStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
                       }}
                       className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-1 rounded text-xs sm:text-sm transition-colors ${
                         !useCustomDateRange && timeRange === range

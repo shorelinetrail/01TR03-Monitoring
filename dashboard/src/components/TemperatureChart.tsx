@@ -391,6 +391,8 @@ export default function TemperatureChart({
               tick={{ fill: axisColor, fontSize: 12 }}
               domain={[yAxisMin ?? 'auto', yAxisMax ?? 'auto']}
               unit="°C"
+              allowDecimals={false}
+              tickCount={6}
             />
             <Tooltip content={<CustomTooltip />} />
 
