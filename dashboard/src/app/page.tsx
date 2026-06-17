@@ -868,6 +868,7 @@ export default function Dashboard() {
                   sensor4: { enabled: display.sensor4Enabled, label: labels.sensor4 },
                 }}
                 sensorOrder={sensorOrder.filter(k => k !== 'differential')}
+                endTime={useCustomDateRange ? new Date(customEndDate).getTime() : Date.now()}
               />
             </div>
           </div>
