@@ -108,6 +108,48 @@ function applyExponentialSmoothing(values: (number | null)[], alpha: number): (n
   return result;
 }
 
+// Downsample data to target number of points using LTTB-like algorithm
+// Preserves visual shape by keeping points that contribute most to the line
+function downsampleData<T extends { time: number }>(
+  data: T[],
+  targetPoints: number,
+  valueKeys: (keyof T)[]
+): T[] {
+  if (data.length <= targetPoints) return data;
+
+  const bucketSize = (data.length - 2) / (targetPoints - 2);
+  const result: T[] = [data[0]]; // Always keep first point
+
+  for (let i = 0; i < targetPoints - 2; i++) {
+    const bucketStart = Math.floor(i * bucketSize) + 1;
+    const bucketEnd = Math.floor((i + 1) * bucketSize) + 1;
+
+    // Find the point in this bucket with the largest deviation from the average
+    let maxDeviation = -1;
+    let selectedPoint = data[bucketStart];
+
+    for (let j = bucketStart; j < bucketEnd && j < data.length - 1; j++) {
+      let deviation = 0;
+      for (const key of valueKeys) {
+        const val = data[j][key];
+        if (typeof val === 'number' && val !== null) {
+          // Use absolute value as a simple deviation measure
+          deviation += Math.abs(val);
+        }
+      }
+      if (deviation > maxDeviation) {
+        maxDeviation = deviation;
+        selectedPoint = data[j];
+      }
+    }
+
+    result.push(selectedPoint);
+  }
+
+  result.push(data[data.length - 1]); // Always keep last point
+  return result;
+}
+
 export default function TemperatureChart({
   data,
   thresholds,
@@ -213,7 +255,7 @@ export default function TemperatureChart({
       sensor4Filtered = data.map(() => null);
     }
 
-    return data.map((reading, i) => ({
+    const fullData = data.map((reading, i) => ({
       time: new Date(reading.recorded_at).getTime(),
       sensor1: reading.main_tank_temp,
       sensor2: reading.tap_changer_temp,
@@ -224,6 +266,18 @@ export default function TemperatureChart({
       sensor3_filtered: sensor3Filtered[i],
       sensor4_filtered: sensor4Filtered[i],
     }));
+
+    // Downsample if too many points for smooth rendering
+    const MAX_POINTS = 800;
+    if (fullData.length > MAX_POINTS) {
+      return downsampleData(
+        fullData,
+        MAX_POINTS,
+        ['sensor1', 'sensor2', 'sensor3', 'sensor4']
+      );
+    }
+
+    return fullData;
   }, [data, filterConfig]);
 
   // Track data changes to restore zoom only when data updates, not during drag
