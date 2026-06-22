@@ -313,19 +313,27 @@ export default function TemperatureChart({
     );
   }, [notes, chartData]);
 
-  // Select a note (view only, zoom chart to show it)
+  // Select a note (view only, zoom chart to show it if in range)
   const selectNote = useCallback((note: ChartNote) => {
     setSelectedNote(note);
-    // Zoom chart to center on note timestamp
+
+    // Only zoom if note is within the loaded data range
     const noteTime = new Date(note.timestamp).getTime();
     if (chartData.length > 1) {
-      const totalTimeSpan = chartData[chartData.length - 1].time - chartData[0].time;
-      // Show a window of ~20% of total span, centered on the note
-      const windowSize = totalTimeSpan * 0.2;
-      const left = noteTime - windowSize / 2;
-      const right = noteTime + windowSize / 2;
-      setZoomDomain({ left, right });
-      setIsZoomed(true);
+      const dataStart = chartData[0].time;
+      const dataEnd = chartData[chartData.length - 1].time;
+
+      // Check if note is within loaded data range
+      if (noteTime >= dataStart && noteTime <= dataEnd) {
+        const totalTimeSpan = dataEnd - dataStart;
+        // Show a window of ~20% of total span, centered on the note
+        const windowSize = totalTimeSpan * 0.2;
+        const left = Math.max(dataStart, noteTime - windowSize / 2);
+        const right = Math.min(dataEnd, noteTime + windowSize / 2);
+        setZoomDomain({ left, right });
+        setIsZoomed(true);
+      }
+      // If note is outside range, just select it without zooming
     }
   }, [chartData]);
 
