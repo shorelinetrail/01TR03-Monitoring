@@ -203,6 +203,7 @@ export default function TemperatureChart({
   const [pendingNoteTime, setPendingNoteTime] = useState('');
   const [editingNote, setEditingNote] = useState<ChartNote | null>(null);
   const [selectedNote, setSelectedNote] = useState<ChartNote | null>(null);
+  const [brushKey, setBrushKey] = useState(0);
 
   // Enter edit mode for the selected note
   const startEditingNote = (note: ChartNote) => {
@@ -324,30 +325,30 @@ export default function TemperatureChart({
       const start = noteTime - windowSize / 2;
       const end = noteTime + windowSize / 2;
       setTimeRange({ start, end });
-      setShouldRestoreZoom(true);
+      // Force Brush to remount with new indices
+      setBrushKey(k => k + 1);
     }
   }, [chartData]);
 
-  // Track data changes to restore zoom only when data updates, not during drag
+  // Track data changes to restore zoom when data updates
   const prevDataRef = useRef<string>('');
-  const [shouldRestoreZoom, setShouldRestoreZoom] = useState(false);
 
-  // Detect when chart data actually changes (new data points)
+  // When chart data changes and we have a stored zoom, force brush to reapply
   useEffect(() => {
     const dataKey = chartData.length > 0
       ? `${chartData[0]?.time}-${chartData[chartData.length - 1]?.time}-${chartData.length}`
       : '';
 
     if (prevDataRef.current && prevDataRef.current !== dataKey && timeRange.start) {
-      // Data changed and we have a stored zoom - restore it
-      setShouldRestoreZoom(true);
+      // Data changed and we have a stored zoom - force Brush remount
+      setBrushKey(k => k + 1);
     }
     prevDataRef.current = dataKey;
   }, [chartData, timeRange.start]);
 
-  // Calculate brush indices - only used for restoration after data changes
+  // Calculate brush indices based on timeRange
   const brushIndices = useMemo(() => {
-    if (!shouldRestoreZoom || !timeRange.start || !timeRange.end || chartData.length === 0) {
+    if (!timeRange.start || !timeRange.end || chartData.length === 0) {
       return { startIndex: undefined, endIndex: undefined };
     }
 
@@ -373,16 +374,7 @@ export default function TemperatureChart({
     }
 
     return { startIndex, endIndex };
-  }, [shouldRestoreZoom, timeRange, chartData]);
-
-  // Clear the restore flag after indices have been applied
-  useEffect(() => {
-    if (shouldRestoreZoom && brushIndices.startIndex !== undefined) {
-      // Small delay to let Brush apply the indices before clearing
-      const timer = setTimeout(() => setShouldRestoreZoom(false), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [shouldRestoreZoom, brushIndices]);
+  }, [timeRange, chartData]);
 
   // Handle brush change - store time range, not indices
   const handleBrushChange = useCallback((newIndex: { startIndex?: number; endIndex?: number }) => {
@@ -687,6 +679,7 @@ export default function TemperatureChart({
 
             {/* X-axis range slider */}
             <Brush
+              key={brushKey}
               dataKey="time"
               height={30}
               stroke={brushStroke}
