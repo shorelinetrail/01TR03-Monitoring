@@ -175,7 +175,7 @@ export default function Dashboard() {
         getDeviceConfig(DEVICE_ID),
         getLatestReading(DEVICE_ID),
         readingsPromise,
-        getChartNotes(DEVICE_ID, startDate, endDate),
+        getChartNotes(DEVICE_ID), // Fetch all notes, not filtered by time range
       ]);
 
       setDevice(deviceData);

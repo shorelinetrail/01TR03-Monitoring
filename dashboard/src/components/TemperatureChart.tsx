@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
   Brush,
 } from 'recharts';
 import { format } from 'date-fns';
@@ -196,21 +197,19 @@ export default function TemperatureChart({
   // Whether to show raw signals alongside filtered (off by default)
   const [showRaw, setShowRaw] = useState(false);
 
-  // Notes panel state
-  const [showNotesPanel, setShowNotesPanel] = useState(false);
-  const [addNoteMode, setAddNoteMode] = useState(false);
+  // Notes modal state
+  const [showNotesModal, setShowNotesModal] = useState(false);
   const [selectedSensorForNote, setSelectedSensorForNote] = useState<ChartNote['sensor']>('general');
-  const [hoveredNote, setHoveredNote] = useState<string | null>(null);
   const [pendingNoteText, setPendingNoteText] = useState('');
+  const [pendingNoteTime, setPendingNoteTime] = useState('');
   const [editingNote, setEditingNote] = useState<ChartNote | null>(null);
 
-  // Select a note for viewing/editing
+  // Select a note for editing
   const selectNote = (note: ChartNote) => {
     setEditingNote(note);
     setPendingNoteText(note.text);
     setSelectedSensorForNote(note.sensor);
-    setShowNotesPanel(true);
-    setAddNoteMode(false);
+    setPendingNoteTime(format(new Date(note.timestamp), "yyyy-MM-dd'T'HH:mm"));
   };
 
   // Clear editing state
@@ -218,7 +217,19 @@ export default function TemperatureChart({
     setEditingNote(null);
     setPendingNoteText('');
     setSelectedSensorForNote('general');
+    setPendingNoteTime('');
   };
+
+  // Group notes by date for display
+  const groupedNotes = useMemo(() => {
+    const groups: Record<string, ChartNote[]> = {};
+    notes.forEach(note => {
+      const dateKey = format(new Date(note.timestamp), 'yyyy-MM-dd');
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(note);
+    });
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0])); // Most recent first
+  }, [notes]);
 
   // Transform data for recharts with client-side filtering
   const chartData = useMemo(() => {
@@ -279,6 +290,21 @@ export default function TemperatureChart({
 
     return fullData;
   }, [data, filterConfig]);
+
+  // Get notes that fall within current chart time range
+  const visibleNoteIds = useMemo(() => {
+    if (chartData.length < 2) return new Set<string>();
+    const minTime = chartData[0].time;
+    const maxTime = chartData[chartData.length - 1].time;
+    return new Set(
+      notes
+        .filter(n => {
+          const t = new Date(n.timestamp).getTime();
+          return t >= minTime && t <= maxTime;
+        })
+        .map(n => n.id)
+    );
+  }, [notes, chartData]);
 
   // Track data changes to restore zoom only when data updates, not during drag
   const prevDataRef = useRef<string>('');
@@ -450,14 +476,8 @@ export default function TemperatureChart({
           <>
             <span className="text-gray-600 text-xs hidden sm:inline">|</span>
             <button
-              onClick={() => setShowNotesPanel(prev => !prev)}
-              className={`
-                flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm
-                transition-all duration-200
-                ${showNotesPanel
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}
-              `}
+              onClick={() => setShowNotesModal(true)}
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
@@ -468,122 +488,138 @@ export default function TemperatureChart({
         )}
       </div>
 
-      {/* Notes Panel */}
-      {showNotesPanel && onAddNote && (
-        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-          {/* Edit/Add form */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            {editingNote && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                Editing: {format(new Date(editingNote.timestamp), 'dd MMM HH:mm')}
-              </span>
-            )}
-            <input
-              type="text"
-              value={pendingNoteText}
-              onChange={(e) => setPendingNoteText(e.target.value)}
-              placeholder={editingNote ? "Edit note text..." : "Note text..."}
-              className="flex-1 min-w-[150px] text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white placeholder-gray-400"
-            />
-            <select
-              value={selectedSensorForNote}
-              onChange={(e) => setSelectedSensorForNote(e.target.value as ChartNote['sensor'])}
-              className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white"
-            >
-              <option value="general">General</option>
-              <option value="sensor1">{sensors.sensor1.label}</option>
-              {sensors.sensor2.enabled && <option value="sensor2">{sensors.sensor2.label}</option>}
-              {sensors.sensor3.enabled && <option value="sensor3">{sensors.sensor3.label}</option>}
-              {sensors.sensor4.enabled && <option value="sensor4">{sensors.sensor4.label}</option>}
-            </select>
-            {editingNote ? (
-              <>
-                <button
-                  onClick={() => {
-                    if (onEditNote && pendingNoteText.trim()) {
-                      onEditNote(editingNote.id, pendingNoteText.trim(), selectedSensorForNote);
-                      clearEditing();
-                    }
-                  }}
-                  disabled={!pendingNoteText.trim()}
-                  className="text-sm px-3 py-1 rounded transition-colors bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-50"
-                >
-                  Save
+      {/* Notes Modal */}
+      {showNotesModal && onAddNote && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black/60" onClick={() => { setShowNotesModal(false); clearEditing(); }} />
+            <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Chart Notes</h3>
+                <button onClick={() => { setShowNotesModal(false); clearEditing(); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-                <button
-                  onClick={clearEditing}
-                  className="text-sm px-3 py-1 rounded transition-colors bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => {
-                  if (pendingNoteText.trim()) {
-                    setAddNoteMode(prev => !prev);
-                  }
-                }}
-                disabled={!pendingNoteText.trim()}
-                className={`
-                  text-sm px-3 py-1 rounded transition-colors
-                  ${addNoteMode
-                    ? 'bg-primary-600 text-white'
-                    : pendingNoteText.trim()
-                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed'}
-                `}
-              >
-                {addNoteMode ? 'Click chart to place...' : 'Place on Chart'}
-              </button>
-            )}
-          </div>
-          {notes.length > 0 && (
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {notes.map((note) => (
-                <div
-                  key={note.id}
-                  className={`flex items-center justify-between text-sm rounded px-2 py-1 cursor-pointer transition-colors ${
-                    editingNote?.id === note.id
-                      ? 'bg-primary-100 dark:bg-primary-900/30 ring-1 ring-primary-500'
-                      : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
-                  }`}
-                  onMouseEnter={() => setHoveredNote(note.id)}
-                  onMouseLeave={() => setHoveredNote(null)}
-                  onClick={() => selectNote(note)}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
-                      {format(new Date(note.timestamp), 'dd MMM HH:mm')}
-                    </span>
-                    {note.sensor !== 'general' && (
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS] }}
-                      />
-                    )}
-                    <span className="text-gray-900 dark:text-white truncate">{note.text}</span>
-                  </div>
-                  {onDeleteNote && (
+              </div>
+
+              {/* Add/Edit form */}
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="datetime-local"
+                    value={pendingNoteTime}
+                    onChange={(e) => setPendingNoteTime(e.target.value)}
+                    className="text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-gray-900 dark:text-white"
+                  />
+                  <select
+                    value={selectedSensorForNote}
+                    onChange={(e) => setSelectedSensorForNote(e.target.value as ChartNote['sensor'])}
+                    className="text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-gray-900 dark:text-white"
+                  >
+                    <option value="general">General</option>
+                    <option value="sensor1">{sensors.sensor1.label}</option>
+                    {sensors.sensor2.enabled && <option value="sensor2">{sensors.sensor2.label}</option>}
+                    {sensors.sensor3.enabled && <option value="sensor3">{sensors.sensor3.label}</option>}
+                    {sensors.sensor4.enabled && <option value="sensor4">{sensors.sensor4.label}</option>}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={pendingNoteText}
+                    onChange={(e) => setPendingNoteText(e.target.value)}
+                    placeholder="Note text..."
+                    className="flex-1 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-gray-900 dark:text-white placeholder-gray-400"
+                  />
+                  {editingNote ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          if (onEditNote && pendingNoteText.trim()) {
+                            onEditNote(editingNote.id, pendingNoteText.trim(), selectedSensorForNote);
+                            clearEditing();
+                          }
+                        }}
+                        disabled={!pendingNoteText.trim()}
+                        className="text-sm px-3 py-1.5 rounded bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button onClick={clearEditing} className="text-sm px-3 py-1.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteNote(note.id);
-                        if (editingNote?.id === note.id) {
-                          clearEditing();
+                      onClick={() => {
+                        if (pendingNoteText.trim() && pendingNoteTime) {
+                          onAddNote(new Date(pendingNoteTime), pendingNoteText.trim(), selectedSensorForNote);
+                          setPendingNoteText('');
+                          setPendingNoteTime('');
                         }
                       }}
-                      className="text-gray-400 hover:text-red-500 ml-2 flex-shrink-0"
+                      disabled={!pendingNoteText.trim() || !pendingNoteTime}
+                      className="text-sm px-3 py-1.5 rounded bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      Add
                     </button>
                   )}
                 </div>
-              ))}
+              </div>
+
+              {/* Notes list grouped by date */}
+              <div className="p-4 max-h-64 overflow-y-auto">
+                {groupedNotes.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">No notes yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {groupedNotes.map(([dateKey, dateNotes]) => (
+                      <div key={dateKey}>
+                        <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          {format(new Date(dateKey), 'EEEE, d MMMM yyyy')}
+                        </h4>
+                        <div className="space-y-1">
+                          {dateNotes.map((note) => (
+                            <div
+                              key={note.id}
+                              onClick={() => selectNote(note)}
+                              className={`flex items-center justify-between text-sm rounded px-2 py-1.5 cursor-pointer transition-colors ${
+                                editingNote?.id === note.id
+                                  ? 'bg-primary-100 dark:bg-primary-900/30 ring-1 ring-primary-500'
+                                  : visibleNoteIds.has(note.id)
+                                    ? 'bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30'
+                                    : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
+                                  {format(new Date(note.timestamp), 'HH:mm')}
+                                </span>
+                                {note.sensor !== 'general' && (
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS] }} />
+                                )}
+                                <span className="text-gray-900 dark:text-white truncate">{note.text}</span>
+                                {visibleNoteIds.has(note.id) && (
+                                  <span className="text-xs text-green-600 dark:text-green-400">visible</span>
+                                )}
+                              </div>
+                              {onDeleteNote && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); if (editingNote?.id === note.id) clearEditing(); }}
+                                  className="text-gray-400 hover:text-red-500 ml-2 flex-shrink-0"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -603,15 +639,6 @@ export default function TemperatureChart({
           <LineChart
             data={chartData}
             margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-            onClick={(e) => {
-              if (addNoteMode && onAddNote && e && e.activeLabel !== undefined && pendingNoteText.trim()) {
-                const timestamp = new Date(Number(e.activeLabel));
-                onAddNote(timestamp, pendingNoteText.trim(), selectedSensorForNote);
-                setAddNoteMode(false);
-                setPendingNoteText('');
-              }
-            }}
-            style={{ cursor: addNoteMode ? 'crosshair' : undefined }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis
@@ -648,22 +675,24 @@ export default function TemperatureChart({
               </>
             )}
 
-            {/* Note reference lines */}
-            {notes.map((note) => {
+            {/* Note markers - only show notes within visible time range */}
+            {notes.filter(n => visibleNoteIds.has(n.id)).map((note) => {
               const noteTime = new Date(note.timestamp).getTime();
               const noteColor = note.sensor === 'general'
-                ? (isDark ? '#9ca3af' : '#6b7280')
+                ? (isDark ? '#9ca3af' : '#4b5563')
                 : SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS];
-              const isHovered = hoveredNote === note.id;
               const isEditing = editingNote?.id === note.id;
+              // Use ReferenceArea with small x range for more reliable rendering
+              const halfWidth = (chartData.length > 1 ? (chartData[chartData.length-1].time - chartData[0].time) / 200 : 60000);
               return (
-                <ReferenceLine
+                <ReferenceArea
                   key={note.id}
-                  x={noteTime}
+                  x1={noteTime - halfWidth}
+                  x2={noteTime + halfWidth}
+                  fill={isEditing ? '#3b82f6' : noteColor}
+                  fillOpacity={isEditing ? 0.4 : 0.25}
                   stroke={isEditing ? '#3b82f6' : noteColor}
-                  strokeWidth={isEditing ? 3 : isHovered ? 2 : 1}
-                  strokeDasharray={isEditing ? undefined : "3 3"}
-                  strokeOpacity={isEditing ? 1 : isHovered ? 1 : 0.7}
+                  strokeOpacity={0.8}
                 />
               );
             })}
