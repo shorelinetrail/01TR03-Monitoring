@@ -11,7 +11,6 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Brush,
-  Customized,
 } from 'recharts';
 import { format } from 'date-fns';
 import { TemperatureReading, ChartNote } from '@/lib/supabase';
@@ -354,6 +353,18 @@ export default function TemperatureChart({
             startPoint: fullData[fullData.length - 1],
             endPoint: point,
           });
+          // Insert null point to break the solid line
+          fullData.push({
+            time: prevTime + 1,
+            sensor1: null,
+            sensor2: null,
+            sensor3: null,
+            sensor4: null,
+            sensor1_filtered: null,
+            sensor2_filtered: null,
+            sensor3_filtered: null,
+            sensor4_filtered: null,
+          });
         }
       }
 
@@ -369,6 +380,36 @@ export default function TemperatureChart({
 
     return { chartData: result, gapSegments: gaps };
   }, [data, filterConfig]);
+
+  // Create gap line data for rendering dashed lines across gaps
+  const gapLineData = useMemo(() => {
+    // For each gap and each sensor, create an array with just two points
+    const gapLines: Array<{
+      id: string;
+      sensor: 'sensor1' | 'sensor2' | 'sensor3' | 'sensor4';
+      data: Array<{ time: number; value: number | null }>;
+    }> = [];
+
+    gapSegments.forEach((gap, idx) => {
+      const sensorKeys = ['sensor1', 'sensor2', 'sensor3', 'sensor4'] as const;
+      sensorKeys.forEach((sensorKey) => {
+        const startVal = gap.startPoint[sensorKey];
+        const endVal = gap.endPoint[sensorKey];
+        if (startVal !== null && endVal !== null) {
+          gapLines.push({
+            id: `gap-${idx}-${sensorKey}`,
+            sensor: sensorKey,
+            data: [
+              { time: gap.startPoint.time, value: startVal },
+              { time: gap.endPoint.time, value: endVal },
+            ],
+          });
+        }
+      });
+    });
+
+    return gapLines;
+  }, [gapSegments]);
 
   // Get notes that fall within current chart time range
   const visibleNoteIds = useMemo(() => {
@@ -817,52 +858,25 @@ export default function TemperatureChart({
             )}
 
             {/* Gap lines - dashed lines connecting data across gaps */}
-            <Customized
-              component={({ xAxisMap, yAxisMap }: any) => {
-                if (!xAxisMap || !yAxisMap) return null;
-                const xAxis = xAxisMap[0];
-                const yAxis = yAxisMap[0];
-                if (!xAxis || !yAxis) return null;
-
-                return (
-                  <g className="gap-lines">
-                    {gapSegments.map((gap, idx) => {
-                      const sensorKeys = ['sensor1', 'sensor2', 'sensor3', 'sensor4'] as const;
-                      return sensorKeys.map((sensorKey) => {
-                        const sensorNum = sensorKey.replace('sensor', '');
-                        const sensorConfig = sensors[sensorKey as keyof typeof sensors];
-                        if (!sensorConfig?.enabled || !visibleSensors[sensorKey]) return null;
-
-                        const startVal = gap.startPoint[sensorKey];
-                        const endVal = gap.endPoint[sensorKey];
-                        if (startVal === null || endVal === null) return null;
-
-                        const x1 = xAxis.scale(gap.startTime);
-                        const x2 = xAxis.scale(gap.endTime);
-                        const y1 = yAxis.scale(startVal);
-                        const y2 = yAxis.scale(endVal);
-
-                        if (isNaN(x1) || isNaN(x2) || isNaN(y1) || isNaN(y2)) return null;
-
-                        return (
-                          <line
-                            key={`gap-${idx}-${sensorKey}`}
-                            x1={x1}
-                            y1={y1}
-                            x2={x2}
-                            y2={y2}
-                            stroke={SENSOR_COLORS_LIGHT[sensorKey]}
-                            strokeWidth={1.5}
-                            strokeDasharray="6 4"
-                            strokeOpacity={0.7}
-                          />
-                        );
-                      });
-                    })}
-                  </g>
-                );
-              }}
-            />
+            {gapLineData.map((gapLine) => {
+              const sensorConfig = sensors[gapLine.sensor as keyof typeof sensors];
+              if (!sensorConfig?.enabled || !visibleSensors[gapLine.sensor]) return null;
+              return (
+                <Line
+                  key={gapLine.id}
+                  type="linear"
+                  data={gapLine.data}
+                  dataKey="value"
+                  stroke={SENSOR_COLORS_LIGHT[gapLine.sensor]}
+                  strokeWidth={1.5}
+                  strokeDasharray="6 4"
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                  legendType="none"
+                />
+              );
+            })}
 
             {/* X-axis range slider */}
             <Brush
