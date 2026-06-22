@@ -111,6 +111,7 @@ function applyExponentialSmoothing(values: (number | null)[], alpha: number): (n
 
 // Downsample data to target number of points using LTTB-like algorithm
 // Preserves visual shape by keeping points that contribute most to the line
+// Always preserves null points (gap markers)
 function downsampleData<T extends { time: number }>(
   data: T[],
   targetPoints: number,
@@ -118,23 +119,45 @@ function downsampleData<T extends { time: number }>(
 ): T[] {
   if (data.length <= targetPoints) return data;
 
-  const bucketSize = (data.length - 2) / (targetPoints - 2);
+  // First, identify and extract null points (gap markers)
+  const nullIndices = new Set<number>();
+  data.forEach((point, i) => {
+    const isNull = valueKeys.every(key => point[key] === null);
+    if (isNull) nullIndices.add(i);
+  });
+
+  // If too many null points, just return as-is
+  if (nullIndices.size > targetPoints / 2) return data;
+
+  // Adjust target to account for null points we'll keep
+  const adjustedTarget = targetPoints - nullIndices.size;
+  if (adjustedTarget < 3) return data;
+
+  const bucketSize = (data.length - 2) / (adjustedTarget - 2);
   const result: T[] = [data[0]]; // Always keep first point
 
-  for (let i = 0; i < targetPoints - 2; i++) {
+  for (let i = 0; i < adjustedTarget - 2; i++) {
     const bucketStart = Math.floor(i * bucketSize) + 1;
     const bucketEnd = Math.floor((i + 1) * bucketSize) + 1;
 
-    // Find the point in this bucket with the largest deviation from the average
+    // Always include any null points in this bucket
+    for (let j = bucketStart; j < bucketEnd && j < data.length - 1; j++) {
+      if (nullIndices.has(j)) {
+        result.push(data[j]);
+      }
+    }
+
+    // Find the best non-null point in this bucket
     let maxDeviation = -1;
-    let selectedPoint = data[bucketStart];
+    let selectedPoint: T | null = null;
 
     for (let j = bucketStart; j < bucketEnd && j < data.length - 1; j++) {
+      if (nullIndices.has(j)) continue;
+
       let deviation = 0;
       for (const key of valueKeys) {
         const val = data[j][key];
         if (typeof val === 'number' && val !== null) {
-          // Use absolute value as a simple deviation measure
           deviation += Math.abs(val);
         }
       }
@@ -144,11 +167,15 @@ function downsampleData<T extends { time: number }>(
       }
     }
 
-    result.push(selectedPoint);
+    if (selectedPoint) {
+      result.push(selectedPoint);
+    }
   }
 
   result.push(data[data.length - 1]); // Always keep last point
-  return result;
+
+  // Sort by time to maintain order
+  return result.sort((a, b) => a.time - b.time);
 }
 
 export default function TemperatureChart({
@@ -364,33 +391,61 @@ export default function TemperatureChart({
     );
   }, [notes, chartData]);
 
-  // Select a note (view only, zoom chart to show it if in range, or load data)
+  // Select a note (view only, scroll to show it if needed)
   const selectNote = useCallback((note: ChartNote) => {
     setSelectedNote(note);
 
     const noteTime = new Date(note.timestamp).getTime();
-    if (chartData.length > 1) {
-      const dataStart = chartData[0].time;
-      const dataEnd = chartData[chartData.length - 1].time;
-
-      // Check if note is within loaded data range
-      if (noteTime >= dataStart && noteTime <= dataEnd) {
-        const totalTimeSpan = dataEnd - dataStart;
-        // Show a window of ~20% of total span, centered on the note
-        const windowSize = totalTimeSpan * 0.2;
-        const left = Math.max(dataStart, noteTime - windowSize / 2);
-        const right = Math.min(dataEnd, noteTime + windowSize / 2);
-        setZoomDomain({ left, right });
-        setIsZoomed(true);
-      } else if (onRequestTimeRange) {
-        // Note is outside range - request data for that time period
+    if (chartData.length < 2) {
+      // No data loaded - request data for the note's time
+      if (onRequestTimeRange) {
         onRequestTimeRange(new Date(note.timestamp));
       }
-    } else if (onRequestTimeRange) {
-      // No data loaded - request data for the note's time
-      onRequestTimeRange(new Date(note.timestamp));
+      return;
     }
-  }, [chartData, onRequestTimeRange]);
+
+    const dataStart = chartData[0].time;
+    const dataEnd = chartData[chartData.length - 1].time;
+    const totalTimeSpan = dataEnd - dataStart;
+
+    // Check if note is within loaded data range
+    if (noteTime < dataStart || noteTime > dataEnd) {
+      // Note is outside loaded data - request data centered on note
+      if (onRequestTimeRange) {
+        onRequestTimeRange(new Date(note.timestamp));
+      }
+      return;
+    }
+
+    // Note is within loaded data - check if already in current view
+    const currentLeft = typeof zoomDomain.left === 'number' ? zoomDomain.left : dataStart;
+    const currentRight = typeof zoomDomain.right === 'number' ? zoomDomain.right : dataEnd;
+
+    if (noteTime >= currentLeft && noteTime <= currentRight) {
+      // Note is already in view - don't change zoom
+      return;
+    }
+
+    // Note is in loaded data but not in current view
+    // Maintain current window size, center on note
+    const currentWindowSize = currentRight - currentLeft;
+    const halfWindow = currentWindowSize / 2;
+    let left = noteTime - halfWindow;
+    let right = noteTime + halfWindow;
+
+    // Clamp to data bounds
+    if (left < dataStart) {
+      left = dataStart;
+      right = Math.min(dataEnd, dataStart + currentWindowSize);
+    }
+    if (right > dataEnd) {
+      right = dataEnd;
+      left = Math.max(dataStart, dataEnd - currentWindowSize);
+    }
+
+    setZoomDomain({ left, right });
+    setIsZoomed(true);
+  }, [chartData, onRequestTimeRange, zoomDomain]);
 
   // Reset zoom to show all data
   const resetZoom = useCallback(() => {
