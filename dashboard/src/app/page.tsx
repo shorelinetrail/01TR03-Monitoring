@@ -271,6 +271,18 @@ export default function Dashboard() {
     }
   }, [timeRange, useCustomDateRange, customStartDate, customEndDate]);
 
+  // Handle request to load data around a specific timestamp (e.g., for a note)
+  const handleRequestTimeRange = useCallback((centerTimestamp: Date) => {
+    // Set a 24-hour window centered on the timestamp
+    const halfDay = 12 * 60 * 60 * 1000; // 12 hours in ms
+    const start = new Date(centerTimestamp.getTime() - halfDay);
+    const end = new Date(centerTimestamp.getTime() + halfDay);
+
+    setCustomStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+    setCustomEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
+    setUseCustomDateRange(true);
+  }, []);
+
   // Initial data fetch and polling
   useEffect(() => {
     fetchData();
@@ -910,6 +922,7 @@ export default function Dashboard() {
                 onAddNote={handleAddNote}
                 onEditNote={handleEditNote}
                 onDeleteNote={handleDeleteNote}
+                onRequestTimeRange={handleRequestTimeRange}
               />
             </div>
           </div>

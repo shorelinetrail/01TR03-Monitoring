@@ -51,6 +51,7 @@ interface TemperatureChartProps {
   onAddNote?: (timestamp: Date, text: string, sensor: ChartNote['sensor']) => void;
   onEditNote?: (noteId: string, text: string, sensor: ChartNote['sensor']) => void;
   onDeleteNote?: (noteId: string) => void;
+  onRequestTimeRange?: (centerTimestamp: Date) => void;
 }
 
 // Sensor colors
@@ -168,6 +169,7 @@ export default function TemperatureChart({
   onAddNote,
   onEditNote,
   onDeleteNote,
+  onRequestTimeRange,
 }: TemperatureChartProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -273,17 +275,66 @@ export default function TemperatureChart({
       sensor4Filtered = data.map(() => null);
     }
 
-    const fullData = data.map((reading, i) => ({
-      time: new Date(reading.recorded_at).getTime(),
-      sensor1: reading.main_tank_temp,
-      sensor2: reading.tap_changer_temp,
-      sensor3: reading.sensor_3_temp,
-      sensor4: reading.sensor_4_temp,
-      sensor1_filtered: sensor1Filtered[i],
-      sensor2_filtered: sensor2Filtered[i],
-      sensor3_filtered: sensor3Filtered[i],
-      sensor4_filtered: sensor4Filtered[i],
-    }));
+    // Build data with gap detection - insert null points to break lines
+    const fullData: Array<{
+      time: number;
+      sensor1: number | null;
+      sensor2: number | null;
+      sensor3: number | null;
+      sensor4: number | null;
+      sensor1_filtered: number | null;
+      sensor2_filtered: number | null;
+      sensor3_filtered: number | null;
+      sensor4_filtered: number | null;
+    }> = [];
+
+    // Calculate median interval to detect gaps
+    const intervals: number[] = [];
+    for (let i = 1; i < data.length && i < 100; i++) {
+      const t1 = new Date(data[i - 1].recorded_at).getTime();
+      const t2 = new Date(data[i].recorded_at).getTime();
+      intervals.push(t2 - t1);
+    }
+    intervals.sort((a, b) => a - b);
+    const medianInterval = intervals.length > 0 ? intervals[Math.floor(intervals.length / 2)] : 60000;
+    // Gap threshold: 5x the median interval (or at least 5 minutes)
+    const gapThreshold = Math.max(medianInterval * 5, 5 * 60 * 1000);
+
+    for (let i = 0; i < data.length; i++) {
+      const reading = data[i];
+      const time = new Date(reading.recorded_at).getTime();
+
+      // Check for gap before this point
+      if (i > 0) {
+        const prevTime = new Date(data[i - 1].recorded_at).getTime();
+        if (time - prevTime > gapThreshold) {
+          // Insert a null point to break the line
+          fullData.push({
+            time: prevTime + 1,
+            sensor1: null,
+            sensor2: null,
+            sensor3: null,
+            sensor4: null,
+            sensor1_filtered: null,
+            sensor2_filtered: null,
+            sensor3_filtered: null,
+            sensor4_filtered: null,
+          });
+        }
+      }
+
+      fullData.push({
+        time,
+        sensor1: reading.main_tank_temp,
+        sensor2: reading.tap_changer_temp,
+        sensor3: reading.sensor_3_temp,
+        sensor4: reading.sensor_4_temp,
+        sensor1_filtered: sensor1Filtered[i],
+        sensor2_filtered: sensor2Filtered[i],
+        sensor3_filtered: sensor3Filtered[i],
+        sensor4_filtered: sensor4Filtered[i],
+      });
+    }
 
     // Downsample if too many points for smooth rendering
     const MAX_POINTS = 800;
@@ -313,11 +364,10 @@ export default function TemperatureChart({
     );
   }, [notes, chartData]);
 
-  // Select a note (view only, zoom chart to show it if in range)
+  // Select a note (view only, zoom chart to show it if in range, or load data)
   const selectNote = useCallback((note: ChartNote) => {
     setSelectedNote(note);
 
-    // Only zoom if note is within the loaded data range
     const noteTime = new Date(note.timestamp).getTime();
     if (chartData.length > 1) {
       const dataStart = chartData[0].time;
@@ -332,10 +382,15 @@ export default function TemperatureChart({
         const right = Math.min(dataEnd, noteTime + windowSize / 2);
         setZoomDomain({ left, right });
         setIsZoomed(true);
+      } else if (onRequestTimeRange) {
+        // Note is outside range - request data for that time period
+        onRequestTimeRange(new Date(note.timestamp));
       }
-      // If note is outside range, just select it without zooming
+    } else if (onRequestTimeRange) {
+      // No data loaded - request data for the note's time
+      onRequestTimeRange(new Date(note.timestamp));
     }
-  }, [chartData]);
+  }, [chartData, onRequestTimeRange]);
 
   // Reset zoom to show all data
   const resetZoom = useCallback(() => {
