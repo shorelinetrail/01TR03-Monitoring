@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Brush,
+  Customized,
 } from 'recharts';
 import { format } from 'date-fns';
 import { TemperatureReading, ChartNote } from '@/lib/supabase';
@@ -267,8 +268,20 @@ export default function TemperatureChart({
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0])); // Most recent first
   }, [notes]);
 
-  // Transform data for recharts with client-side filtering
-  const chartData = useMemo(() => {
+  // Transform data for recharts with client-side filtering and gap detection
+  const { chartData, gapSegments } = useMemo(() => {
+    type ChartPoint = {
+      time: number;
+      sensor1: number | null;
+      sensor2: number | null;
+      sensor3: number | null;
+      sensor4: number | null;
+      sensor1_filtered: number | null;
+      sensor2_filtered: number | null;
+      sensor3_filtered: number | null;
+      sensor4_filtered: number | null;
+    };
+
     // Extract raw values for each sensor
     const sensor1Raw = data.map(r => r.main_tank_temp);
     const sensor2Raw = data.map(r => r.tap_changer_temp);
@@ -288,32 +301,17 @@ export default function TemperatureChart({
         sensor3Filtered = applyMovingAverage(sensor3Raw, filterConfig.window);
         sensor4Filtered = applyMovingAverage(sensor4Raw, filterConfig.window);
       } else {
-        // exponential smoothing
         sensor1Filtered = applyExponentialSmoothing(sensor1Raw, filterConfig.alpha);
         sensor2Filtered = applyExponentialSmoothing(sensor2Raw, filterConfig.alpha);
         sensor3Filtered = applyExponentialSmoothing(sensor3Raw, filterConfig.alpha);
         sensor4Filtered = applyExponentialSmoothing(sensor4Raw, filterConfig.alpha);
       }
     } else {
-      // Filtering disabled - no filtered values
       sensor1Filtered = data.map(() => null);
       sensor2Filtered = data.map(() => null);
       sensor3Filtered = data.map(() => null);
       sensor4Filtered = data.map(() => null);
     }
-
-    // Build data with gap detection - insert null points to break lines
-    const fullData: Array<{
-      time: number;
-      sensor1: number | null;
-      sensor2: number | null;
-      sensor3: number | null;
-      sensor4: number | null;
-      sensor1_filtered: number | null;
-      sensor2_filtered: number | null;
-      sensor3_filtered: number | null;
-      sensor4_filtered: number | null;
-    }> = [];
 
     // Calculate median interval to detect gaps
     const intervals: number[] = [];
@@ -324,33 +322,16 @@ export default function TemperatureChart({
     }
     intervals.sort((a, b) => a - b);
     const medianInterval = intervals.length > 0 ? intervals[Math.floor(intervals.length / 2)] : 60000;
-    // Gap threshold: 5x the median interval (or at least 5 minutes)
     const gapThreshold = Math.max(medianInterval * 5, 5 * 60 * 1000);
+
+    const fullData: ChartPoint[] = [];
+    const gaps: Array<{ startTime: number; endTime: number; startPoint: ChartPoint; endPoint: ChartPoint }> = [];
 
     for (let i = 0; i < data.length; i++) {
       const reading = data[i];
       const time = new Date(reading.recorded_at).getTime();
 
-      // Check for gap before this point
-      if (i > 0) {
-        const prevTime = new Date(data[i - 1].recorded_at).getTime();
-        if (time - prevTime > gapThreshold) {
-          // Insert a null point to break the line
-          fullData.push({
-            time: prevTime + 1,
-            sensor1: null,
-            sensor2: null,
-            sensor3: null,
-            sensor4: null,
-            sensor1_filtered: null,
-            sensor2_filtered: null,
-            sensor3_filtered: null,
-            sensor4_filtered: null,
-          });
-        }
-      }
-
-      fullData.push({
+      const point: ChartPoint = {
         time,
         sensor1: reading.main_tank_temp,
         sensor2: reading.tap_changer_temp,
@@ -360,20 +341,33 @@ export default function TemperatureChart({
         sensor2_filtered: sensor2Filtered[i],
         sensor3_filtered: sensor3Filtered[i],
         sensor4_filtered: sensor4Filtered[i],
-      });
+      };
+
+      // Check for gap before this point
+      if (i > 0 && fullData.length > 0) {
+        const prevTime = new Date(data[i - 1].recorded_at).getTime();
+        if (time - prevTime > gapThreshold) {
+          // Record this gap for dashed line rendering
+          gaps.push({
+            startTime: prevTime,
+            endTime: time,
+            startPoint: fullData[fullData.length - 1],
+            endPoint: point,
+          });
+        }
+      }
+
+      fullData.push(point);
     }
 
-    // Downsample if too many points for smooth rendering
+    // Downsample if too many points
     const MAX_POINTS = 800;
+    let result = fullData;
     if (fullData.length > MAX_POINTS) {
-      return downsampleData(
-        fullData,
-        MAX_POINTS,
-        ['sensor1', 'sensor2', 'sensor3', 'sensor4']
-      );
+      result = downsampleData(fullData, MAX_POINTS, ['sensor1', 'sensor2', 'sensor3', 'sensor4']);
     }
 
-    return fullData;
+    return { chartData: result, gapSegments: gaps };
   }, [data, filterConfig]);
 
   // Get notes that fall within current chart time range
@@ -478,6 +472,54 @@ export default function TemperatureChart({
 
   const formatTooltipTime = (timestamp: number) => {
     return format(new Date(timestamp), 'dd MMM HH:mm:ss');
+  };
+
+  // Generate even tick values for X axis based on chart duration
+  const xAxisTicks = useMemo(() => {
+    if (chartData.length < 2) return undefined;
+
+    const startTime = chartData[0].time;
+    const endTime = chartData[chartData.length - 1].time;
+    const duration = endTime - startTime;
+
+    // Choose interval based on duration
+    let intervalMs: number;
+    if (duration <= 2 * 60 * 60 * 1000) {
+      // <= 2 hours: every 15 minutes
+      intervalMs = 15 * 60 * 1000;
+    } else if (duration <= 6 * 60 * 60 * 1000) {
+      // <= 6 hours: every 30 minutes
+      intervalMs = 30 * 60 * 1000;
+    } else if (duration <= 24 * 60 * 60 * 1000) {
+      // <= 24 hours: every hour
+      intervalMs = 60 * 60 * 1000;
+    } else if (duration <= 3 * 24 * 60 * 60 * 1000) {
+      // <= 3 days: every 3 hours
+      intervalMs = 3 * 60 * 60 * 1000;
+    } else if (duration <= 7 * 24 * 60 * 60 * 1000) {
+      // <= 7 days: every 6 hours
+      intervalMs = 6 * 60 * 60 * 1000;
+    } else {
+      // > 7 days: every 12 hours
+      intervalMs = 12 * 60 * 60 * 1000;
+    }
+
+    // Round start time down to nearest interval
+    const firstTick = Math.ceil(startTime / intervalMs) * intervalMs;
+    const ticks: number[] = [];
+    for (let t = firstTick; t <= endTime; t += intervalMs) {
+      ticks.push(t);
+    }
+
+    return ticks.length > 0 ? ticks : undefined;
+  }, [chartData]);
+
+  // Lighter versions of sensor colors for gap lines
+  const SENSOR_COLORS_LIGHT = {
+    sensor1: '#90caf9', // Light blue
+    sensor2: '#ce93d8', // Light purple
+    sensor3: '#a5d6a7', // Light green
+    sensor4: '#ffcc80', // Light orange
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -622,6 +664,7 @@ export default function TemperatureChart({
               allowDataOverflow={true}
               type="number"
               scale="time"
+              ticks={xAxisTicks}
             />
             <YAxis
               stroke={axisColor}
@@ -772,6 +815,54 @@ export default function TemperatureChart({
                 activeDot={{ r: 6 }}
               />
             )}
+
+            {/* Gap lines - dashed lines connecting data across gaps */}
+            <Customized
+              component={({ xAxisMap, yAxisMap }: any) => {
+                if (!xAxisMap || !yAxisMap) return null;
+                const xAxis = xAxisMap[0];
+                const yAxis = yAxisMap[0];
+                if (!xAxis || !yAxis) return null;
+
+                return (
+                  <g className="gap-lines">
+                    {gapSegments.map((gap, idx) => {
+                      const sensorKeys = ['sensor1', 'sensor2', 'sensor3', 'sensor4'] as const;
+                      return sensorKeys.map((sensorKey) => {
+                        const sensorNum = sensorKey.replace('sensor', '');
+                        const sensorConfig = sensors[sensorKey as keyof typeof sensors];
+                        if (!sensorConfig?.enabled || !visibleSensors[sensorKey]) return null;
+
+                        const startVal = gap.startPoint[sensorKey];
+                        const endVal = gap.endPoint[sensorKey];
+                        if (startVal === null || endVal === null) return null;
+
+                        const x1 = xAxis.scale(gap.startTime);
+                        const x2 = xAxis.scale(gap.endTime);
+                        const y1 = yAxis.scale(startVal);
+                        const y2 = yAxis.scale(endVal);
+
+                        if (isNaN(x1) || isNaN(x2) || isNaN(y1) || isNaN(y2)) return null;
+
+                        return (
+                          <line
+                            key={`gap-${idx}-${sensorKey}`}
+                            x1={x1}
+                            y1={y1}
+                            x2={x2}
+                            y2={y2}
+                            stroke={SENSOR_COLORS_LIGHT[sensorKey]}
+                            strokeWidth={1.5}
+                            strokeDasharray="6 4"
+                            strokeOpacity={0.7}
+                          />
+                        );
+                      });
+                    })}
+                  </g>
+                );
+              }}
+            />
 
             {/* X-axis range slider */}
             <Brush
