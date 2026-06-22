@@ -179,11 +179,12 @@ export default function TemperatureChart({
   const brushStroke = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
   const brushFill = isDark ? 'rgba(30,30,30,0.8)' : 'rgba(255,255,255,0.8)';
 
-  // Store time range (timestamps) instead of indices so zoom persists across data updates
-  const [timeRange, setTimeRange] = useState<{ start: number | null; end: number | null }>({
-    start: null,
-    end: null,
+  // Store zoom domain for XAxis - null means show all data
+  const [zoomDomain, setZoomDomain] = useState<{ left: number | 'dataMin'; right: number | 'dataMax' }>({
+    left: 'dataMin',
+    right: 'dataMax',
   });
+  const [isZoomed, setIsZoomed] = useState(false);
 
   // Track which sensors are visible on the chart (local toggle state)
   const [visibleSensors, setVisibleSensors] = useState({
@@ -203,7 +204,6 @@ export default function TemperatureChart({
   const [pendingNoteTime, setPendingNoteTime] = useState('');
   const [editingNote, setEditingNote] = useState<ChartNote | null>(null);
   const [selectedNote, setSelectedNote] = useState<ChartNote | null>(null);
-  const [brushKey, setBrushKey] = useState(0);
 
   // Enter edit mode for the selected note
   const startEditingNote = (note: ChartNote) => {
@@ -313,76 +313,36 @@ export default function TemperatureChart({
     );
   }, [notes, chartData]);
 
-  // Select a note (view only, scroll chart to show it)
+  // Select a note (view only, zoom chart to show it)
   const selectNote = useCallback((note: ChartNote) => {
     setSelectedNote(note);
-    // Scroll chart to center on note timestamp
+    // Zoom chart to center on note timestamp
     const noteTime = new Date(note.timestamp).getTime();
     if (chartData.length > 1) {
       const totalTimeSpan = chartData[chartData.length - 1].time - chartData[0].time;
-      // Show a window of 1/4 the total span, centered on the note
-      const windowSize = totalTimeSpan / 4;
-      const start = noteTime - windowSize / 2;
-      const end = noteTime + windowSize / 2;
-      setTimeRange({ start, end });
-      // Force Brush to remount with new indices
-      setBrushKey(k => k + 1);
+      // Show a window of ~20% of total span, centered on the note
+      const windowSize = totalTimeSpan * 0.2;
+      const left = noteTime - windowSize / 2;
+      const right = noteTime + windowSize / 2;
+      setZoomDomain({ left, right });
+      setIsZoomed(true);
     }
   }, [chartData]);
 
-  // Track data changes to restore zoom when data updates
-  const prevDataRef = useRef<string>('');
+  // Reset zoom to show all data
+  const resetZoom = useCallback(() => {
+    setZoomDomain({ left: 'dataMin', right: 'dataMax' });
+    setIsZoomed(false);
+  }, []);
 
-  // When chart data changes and we have a stored zoom, force brush to reapply
-  useEffect(() => {
-    const dataKey = chartData.length > 0
-      ? `${chartData[0]?.time}-${chartData[chartData.length - 1]?.time}-${chartData.length}`
-      : '';
-
-    if (prevDataRef.current && prevDataRef.current !== dataKey && timeRange.start) {
-      // Data changed and we have a stored zoom - force Brush remount
-      setBrushKey(k => k + 1);
-    }
-    prevDataRef.current = dataKey;
-  }, [chartData, timeRange.start]);
-
-  // Calculate brush indices based on timeRange
-  const brushIndices = useMemo(() => {
-    if (!timeRange.start || !timeRange.end || chartData.length === 0) {
-      return { startIndex: undefined, endIndex: undefined };
-    }
-
-    const startTime = timeRange.start;
-    const endTime = timeRange.end;
-
-    // Find the index of the first point >= start time
-    let startIndex = chartData.findIndex(d => d.time >= startTime);
-    if (startIndex === -1) startIndex = 0;
-
-    // Find the index of the last point <= end time
-    let endIndex = chartData.length - 1;
-    for (let i = chartData.length - 1; i >= 0; i--) {
-      if (chartData[i].time <= endTime) {
-        endIndex = i;
-        break;
-      }
-    }
-
-    // Ensure valid range
-    if (startIndex > endIndex) {
-      startIndex = endIndex;
-    }
-
-    return { startIndex, endIndex };
-  }, [timeRange, chartData]);
-
-  // Handle brush change - store time range, not indices
+  // Handle brush change - update zoom domain
   const handleBrushChange = useCallback((newIndex: { startIndex?: number; endIndex?: number }) => {
     if (newIndex.startIndex !== undefined && newIndex.endIndex !== undefined && chartData.length > 0) {
       const startTime = chartData[newIndex.startIndex]?.time;
       const endTime = chartData[newIndex.endIndex]?.time;
-      if (startTime && endTime) {
-        setTimeRange({ start: startTime, end: endTime });
+      if (startTime && endTime && startTime !== endTime) {
+        setZoomDomain({ left: startTime, right: endTime });
+        setIsZoomed(true);
       }
     }
   }, [chartData]);
@@ -500,6 +460,20 @@ export default function TemperatureChart({
             </button>
           </>
         )}
+        {isZoomed && (
+          <>
+            <span className="text-gray-600 text-xs hidden sm:inline">|</span>
+            <button
+              onClick={resetZoom}
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm transition-all duration-200 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+            >
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+              </svg>
+              <span>Reset Zoom</span>
+            </button>
+          </>
+        )}
       </div>
 
 
@@ -526,6 +500,10 @@ export default function TemperatureChart({
               tickFormatter={formatXAxis}
               stroke={axisColor}
               tick={{ fill: axisColor, fontSize: 12 }}
+              domain={[zoomDomain.left, zoomDomain.right]}
+              allowDataOverflow={true}
+              type="number"
+              scale="time"
             />
             <YAxis
               stroke={axisColor}
@@ -679,14 +657,11 @@ export default function TemperatureChart({
 
             {/* X-axis range slider */}
             <Brush
-              key={brushKey}
               dataKey="time"
               height={30}
               stroke={brushStroke}
               fill={brushFill}
               tickFormatter={formatXAxis}
-              startIndex={brushIndices.startIndex}
-              endIndex={brushIndices.endIndex}
               onChange={handleBrushChange}
               travellerWidth={10}
             />
