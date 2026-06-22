@@ -202,9 +202,10 @@ export default function TemperatureChart({
   const [pendingNoteText, setPendingNoteText] = useState('');
   const [pendingNoteTime, setPendingNoteTime] = useState('');
   const [editingNote, setEditingNote] = useState<ChartNote | null>(null);
+  const [selectedNote, setSelectedNote] = useState<ChartNote | null>(null);
 
-  // Select a note for editing
-  const selectNote = (note: ChartNote) => {
+  // Enter edit mode for the selected note
+  const startEditingNote = (note: ChartNote) => {
     setEditingNote(note);
     setPendingNoteText(note.text);
     setSelectedSensorForNote(note.sensor);
@@ -217,6 +218,12 @@ export default function TemperatureChart({
     setPendingNoteText('');
     setSelectedSensorForNote('general');
     setPendingNoteTime('');
+  };
+
+  // Clear selection
+  const clearSelection = () => {
+    setSelectedNote(null);
+    clearEditing();
   };
 
   // Group notes by date for display
@@ -304,6 +311,22 @@ export default function TemperatureChart({
         .map(n => n.id)
     );
   }, [notes, chartData]);
+
+  // Select a note (view only, scroll chart to show it)
+  const selectNote = useCallback((note: ChartNote) => {
+    setSelectedNote(note);
+    // Scroll chart to center on note timestamp
+    const noteTime = new Date(note.timestamp).getTime();
+    if (chartData.length > 1) {
+      const totalTimeSpan = chartData[chartData.length - 1].time - chartData[0].time;
+      // Show a window of 1/4 the total span, centered on the note
+      const windowSize = totalTimeSpan / 4;
+      const start = noteTime - windowSize / 2;
+      const end = noteTime + windowSize / 2;
+      setTimeRange({ start, end });
+      setShouldRestoreZoom(true);
+    }
+  }, [chartData]);
 
   // Track data changes to restore zoom only when data updates, not during drag
   const prevDataRef = useRef<string>('');
@@ -546,14 +569,14 @@ export default function TemperatureChart({
               const noteColor = note.sensor === 'general'
                 ? (isDark ? '#a855f7' : '#7c3aed')
                 : SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS];
-              const isEditing = editingNote?.id === note.id;
+              const isSelected = selectedNote?.id === note.id;
               return (
                 <ReferenceLine
                   key={note.id}
                   x={noteTime}
-                  stroke={isEditing ? '#3b82f6' : noteColor}
-                  strokeWidth={isEditing ? 3 : 2}
-                  strokeDasharray="4 2"
+                  stroke={isSelected ? '#3b82f6' : noteColor}
+                  strokeWidth={isSelected ? 3 : 2}
+                  strokeDasharray={isSelected ? undefined : "4 2"}
                 />
               );
             })}
@@ -745,6 +768,50 @@ export default function TemperatureChart({
             </div>
           </div>
 
+          {/* Selected note detail */}
+          {selectedNote && !editingNote && (
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    <span>{format(new Date(selectedNote.timestamp), 'EEEE d MMMM yyyy, HH:mm')}</span>
+                    {selectedNote.sensor !== 'general' && (
+                      <>
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SENSOR_COLORS[selectedNote.sensor as keyof typeof SENSOR_COLORS] }} />
+                        <span>{sensors[selectedNote.sensor as keyof typeof sensors]?.label || selectedNote.sensor}</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-900 dark:text-white">{selectedNote.text}</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {onEditNote && (
+                    <button
+                      onClick={() => startEditingNote(selectedNote)}
+                      className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {onDeleteNote && (
+                    <button
+                      onClick={() => { onDeleteNote(selectedNote.id); clearSelection(); }}
+                      className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  <button
+                    onClick={clearSelection}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-white"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Notes list - compact horizontal scroll or wrap */}
           <div className="p-3 max-h-40 overflow-y-auto">
             {notes.length === 0 ? (
@@ -756,8 +823,8 @@ export default function TemperatureChart({
                     key={note.id}
                     onClick={() => selectNote(note)}
                     className={`inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 cursor-pointer transition-colors ${
-                      editingNote?.id === note.id
-                        ? 'bg-primary-100 dark:bg-primary-900/30 ring-1 ring-primary-500'
+                      selectedNote?.id === note.id
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 ring-1 ring-blue-500'
                         : visibleNoteIds.has(note.id)
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -770,14 +837,6 @@ export default function TemperatureChart({
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS] }} />
                     )}
                     <span className="max-w-[150px] truncate">{note.text}</span>
-                    {onDeleteNote && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDeleteNote(note.id); if (editingNote?.id === note.id) clearEditing(); }}
-                        className="text-gray-400 hover:text-red-500 -mr-1"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
