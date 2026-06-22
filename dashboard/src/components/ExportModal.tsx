@@ -75,6 +75,12 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
     }
   };
 
+  // Escape a value for safe inclusion in a CSV cell
+  const escapeCSV = (value: string): string =>
+    value.includes(',') || value.includes('"') || value.includes('\n')
+      ? `"${value.replace(/"/g, '""')}"`
+      : value;
+
   const convertToCSV = (readings: TemperatureReading[], notes: ChartNote[]): string => {
     const headers = [
       'Timestamp',
@@ -91,14 +97,41 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
       `${labels.sensor4} (Filtered)`,
       `${labels.sensor4} Status`,
       labels.differential,
+      'General Comment',
     ];
 
-    const rows = readings.map((reading) => {
+    // Match each general note to the reading with the closest timestamp so the
+    // comment appears inline alongside the temperature data.
+    const generalCommentByRow: Record<number, string[]> = {};
+    if (readings.length > 0) {
+      const readingTimes = readings.map((r) => new Date(r.recorded_at).getTime());
+      notes
+        .filter((n) => n.sensor === 'general')
+        .forEach((note) => {
+          const noteTime = new Date(note.timestamp).getTime();
+          let closestIdx = 0;
+          let closestDist = Infinity;
+          for (let i = 0; i < readingTimes.length; i++) {
+            const dist = Math.abs(readingTimes[i] - noteTime);
+            if (dist < closestDist) {
+              closestDist = dist;
+              closestIdx = i;
+            }
+          }
+          if (!generalCommentByRow[closestIdx]) generalCommentByRow[closestIdx] = [];
+          generalCommentByRow[closestIdx].push(note.text);
+        });
+    }
+
+    const rows = readings.map((reading, index) => {
       const mainTemp = reading.main_tank_temp;
       const tapTemp = reading.tap_changer_temp;
       const sensor3Temp = reading.sensor_3_temp;
       const sensor4Temp = reading.sensor_4_temp;
       const differential = mainTemp != null && tapTemp != null ? mainTemp - tapTemp : null;
+      const comment = generalCommentByRow[index]
+        ? escapeCSV(generalCommentByRow[index].join('; '))
+        : '';
 
       return [
         format(new Date(reading.recorded_at), 'yyyy-MM-dd HH:mm:ss'),
@@ -115,6 +148,7 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
         reading.sensor_4_temp_filtered != null ? reading.sensor_4_temp_filtered.toFixed(2) : '',
         reading.sensor_4_status,
         differential != null ? differential.toFixed(2) : '',
+        comment,
       ];
     });
 
@@ -135,9 +169,7 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
       csv += 'NOTES\n';
       csv += 'Timestamp,Sensor,Note\n';
       notes.forEach((note) => {
-        const escapedText = note.text.includes(',') || note.text.includes('"')
-          ? `"${note.text.replace(/"/g, '""')}"`
-          : note.text;
+        const escapedText = escapeCSV(note.text);
         csv += `${format(new Date(note.timestamp), 'yyyy-MM-dd HH:mm:ss')},${sensorLabels[note.sensor] || note.sensor},${escapedText}\n`;
       });
     }
@@ -200,6 +232,7 @@ export default function ExportModal({ isOpen, onClose, deviceId, labels }: Expor
 
             <p className="text-xs text-gray-500">
               The exported CSV will include timestamps, temperatures, and status for all readings in the selected range.
+              General comments are included inline in a &quot;General Comment&quot; column, and all notes are listed in a separate section.
             </p>
           </div>
 
