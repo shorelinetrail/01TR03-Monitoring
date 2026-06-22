@@ -268,7 +268,7 @@ export default function TemperatureChart({
   }, [notes]);
 
   // Transform data for recharts with client-side filtering and gap detection
-  const { chartData, gapSegments } = useMemo(() => {
+  const { chartData, gapLineKeys } = useMemo(() => {
     type ChartPoint = {
       time: number;
       sensor1: number | null;
@@ -279,6 +279,7 @@ export default function TemperatureChart({
       sensor2_filtered: number | null;
       sensor3_filtered: number | null;
       sensor4_filtered: number | null;
+      [key: string]: number | null;
     };
 
     // Extract raw values for each sensor
@@ -324,7 +325,6 @@ export default function TemperatureChart({
     const gapThreshold = Math.max(medianInterval * 5, 5 * 60 * 1000);
 
     const fullData: ChartPoint[] = [];
-    const gaps: Array<{ startTime: number; endTime: number; startPoint: ChartPoint; endPoint: ChartPoint }> = [];
 
     for (let i = 0; i < data.length; i++) {
       const reading = data[i];
@@ -342,18 +342,10 @@ export default function TemperatureChart({
         sensor4_filtered: sensor4Filtered[i],
       };
 
-      // Check for gap before this point
+      // Check for gap before this point - insert null point to break solid line
       if (i > 0 && fullData.length > 0) {
         const prevTime = new Date(data[i - 1].recorded_at).getTime();
         if (time - prevTime > gapThreshold) {
-          // Record this gap for dashed line rendering
-          gaps.push({
-            startTime: prevTime,
-            endTime: time,
-            startPoint: fullData[fullData.length - 1],
-            endPoint: point,
-          });
-          // Insert null point to break the solid line
           fullData.push({
             time: prevTime + 1,
             sensor1: null,
@@ -378,59 +370,42 @@ export default function TemperatureChart({
       result = downsampleData(fullData, MAX_POINTS, ['sensor1', 'sensor2', 'sensor3', 'sensor4']);
     }
 
-    return { chartData: result, gapSegments: gaps };
-  }, [data, filterConfig]);
-
-  // Create gap line data for rendering dashed lines across gaps.
-  // Derived from the FINAL (downsampled) chartData so that the dashed lines
-  // connect to exactly the points where the solid lines actually end.
-  const gapLineData = useMemo(() => {
-    const gapLines: Array<{
-      id: string;
-      sensor: 'sensor1' | 'sensor2' | 'sensor3' | 'sensor4';
-      data: Array<{ time: number; value: number | null }>;
-    }> = [];
-
+    // Detect gaps in the FINAL (downsampled) data and add dashed gap-line
+    // values as unique per-gap keys directly on the main data points. This
+    // keeps the chart's coordinate system intact (tooltip/click work) while
+    // connecting exactly to where the solid lines end.
     const sensorKeys = ['sensor1', 'sensor2', 'sensor3', 'sensor4'] as const;
+    const gapKeys: Array<{ key: string; sensor: typeof sensorKeys[number] }> = [];
+    let gapCounter = 0;
 
-    // Find null points (gap markers) in the rendered data
-    for (let i = 0; i < chartData.length; i++) {
-      const isGapMarker = sensorKeys.every(k => chartData[i][k] === null);
+    for (let i = 0; i < result.length; i++) {
+      const isGapMarker = sensorKeys.every(k => result[i][k] === null);
       if (!isGapMarker) continue;
+      gapCounter++;
 
-      // For each sensor, find the last non-null point before the gap
-      // and the first non-null point after the gap
       sensorKeys.forEach((sensorKey) => {
-        let before: { time: number; value: number } | null = null;
+        // Find last non-null point before the gap
+        let beforeIdx = -1;
         for (let j = i - 1; j >= 0; j--) {
-          const v = chartData[j][sensorKey];
-          if (v !== null) {
-            before = { time: chartData[j].time, value: v };
-            break;
-          }
+          if (result[j][sensorKey] !== null) { beforeIdx = j; break; }
+        }
+        // Find first non-null point after the gap
+        let afterIdx = -1;
+        for (let j = i + 1; j < result.length; j++) {
+          if (result[j][sensorKey] !== null) { afterIdx = j; break; }
         }
 
-        let after: { time: number; value: number } | null = null;
-        for (let j = i + 1; j < chartData.length; j++) {
-          const v = chartData[j][sensorKey];
-          if (v !== null) {
-            after = { time: chartData[j].time, value: v };
-            break;
-          }
-        }
-
-        if (before && after) {
-          gapLines.push({
-            id: `gap-${i}-${sensorKey}`,
-            sensor: sensorKey,
-            data: [before, after],
-          });
+        if (beforeIdx >= 0 && afterIdx >= 0) {
+          const key = `gap_${gapCounter}_${sensorKey}`;
+          result[beforeIdx][key] = result[beforeIdx][sensorKey];
+          result[afterIdx][key] = result[afterIdx][sensorKey];
+          gapKeys.push({ key, sensor: sensorKey });
         }
       });
     }
 
-    return gapLines;
-  }, [chartData]);
+    return { chartData: result, gapLineKeys: gapKeys };
+  }, [data, filterConfig]);
 
   // Get notes that fall within current chart time range
   const visibleNoteIds = useMemo(() => {
@@ -623,8 +598,16 @@ export default function TemperatureChart({
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      // Exclude gap-line series (dataKey starts with 'gap_') and null values
+      const realPayload = payload.filter((p: any) =>
+        typeof p.dataKey === 'string' &&
+        !p.dataKey.startsWith('gap_') &&
+        p.value !== null && p.value !== undefined
+      );
+      if (realPayload.length === 0) return null;
+
       // Sort payload entries to match sensorOrder
-      const sortedPayload = [...payload].sort((a, b) => {
+      const sortedPayload = [...realPayload].sort((a, b) => {
         // Extract sensor key from dataKey (e.g., 'sensor1' or 'sensor1_filtered' -> 'sensor1')
         const keyA = a.dataKey?.replace('_filtered', '') || '';
         const keyB = b.dataKey?.replace('_filtered', '') || '';
@@ -916,21 +899,23 @@ export default function TemperatureChart({
               />
             )}
 
-            {/* Gap lines - dashed lines connecting data across gaps */}
-            {gapLineData.map((gapLine) => {
+            {/* Gap lines - dashed lines connecting data across gaps.
+                These use unique keys on the main chart data (only defined at
+                the two gap endpoints) with connectNulls to draw one segment. */}
+            {gapLineKeys.map((gapLine) => {
               const sensorConfig = sensors[gapLine.sensor as keyof typeof sensors];
               if (!sensorConfig?.enabled || !visibleSensors[gapLine.sensor]) return null;
               return (
                 <Line
-                  key={gapLine.id}
+                  key={gapLine.key}
                   type="linear"
-                  data={gapLine.data}
-                  dataKey="value"
+                  dataKey={gapLine.key}
                   stroke={SENSOR_COLORS_LIGHT[gapLine.sensor]}
                   strokeWidth={1.5}
                   strokeDasharray="6 4"
                   dot={false}
                   activeDot={false}
+                  connectNulls={true}
                   isAnimationActive={false}
                   legendType="none"
                 />
