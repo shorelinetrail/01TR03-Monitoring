@@ -189,86 +189,41 @@ export async function getLatestReading(deviceId: string): Promise<TemperatureRea
 
 export async function getReadings(
   deviceId: string,
-  hours: number = 24,
-  maxRows: number = 1500
+  hours: number = 24
 ): Promise<TemperatureReading[]> {
   const since = new Date();
   since.setHours(since.getHours() - hours);
 
-  // For performance, limit total rows fetched
-  // First, get a count to determine if we need sampling
-  const { count } = await supabase
-    .from('temperature_readings')
-    .select('*', { count: 'exact', head: true })
-    .eq('device_id', deviceId)
-    .gte('recorded_at', since.toISOString());
+  // Fetch all data with pagination to avoid Supabase's 1000 row default limit
+  const allData: TemperatureReading[] = [];
+  const pageSize = 1000;
+  let offset = 0;
+  let hasMore = true;
 
-  const totalRows = count || 0;
-
-  // If data fits in maxRows, fetch all; otherwise fetch limited set
-  if (totalRows <= maxRows) {
+  while (hasMore) {
     const { data, error } = await supabase
       .from('temperature_readings')
       .select('*')
       .eq('device_id', deviceId)
       .gte('recorded_at', since.toISOString())
-      .order('recorded_at', { ascending: true });
+      .order('recorded_at', { ascending: true })
+      .range(offset, offset + pageSize - 1);
 
     if (error) {
       console.error('Error fetching readings:', error);
-      return [];
+      return allData;
     }
-    return data || [];
+
+    if (data && data.length > 0) {
+      allData.push(...data);
+      offset += data.length;
+      hasMore = data.length === pageSize;
+    } else {
+      hasMore = false;
+    }
   }
 
-  // Too many rows - fetch evenly spaced samples by getting chunks
-  // Fetch first chunk, last chunk, and samples from middle
-  const chunkSize = Math.floor(maxRows / 3);
-  const allData: TemperatureReading[] = [];
-
-  // First chunk (oldest)
-  const { data: firstChunk } = await supabase
-    .from('temperature_readings')
-    .select('*')
-    .eq('device_id', deviceId)
-    .gte('recorded_at', since.toISOString())
-    .order('recorded_at', { ascending: true })
-    .limit(chunkSize);
-
-  if (firstChunk) allData.push(...firstChunk);
-
-  // Last chunk (newest)
-  const { data: lastChunk } = await supabase
-    .from('temperature_readings')
-    .select('*')
-    .eq('device_id', deviceId)
-    .gte('recorded_at', since.toISOString())
-    .order('recorded_at', { ascending: false })
-    .limit(chunkSize);
-
-  if (lastChunk) allData.push(...lastChunk.reverse());
-
-  // Middle samples - offset into the middle
-  const middleOffset = Math.floor(totalRows / 2) - Math.floor(chunkSize / 2);
-  const { data: middleChunk } = await supabase
-    .from('temperature_readings')
-    .select('*')
-    .eq('device_id', deviceId)
-    .gte('recorded_at', since.toISOString())
-    .order('recorded_at', { ascending: true })
-    .range(middleOffset, middleOffset + chunkSize - 1);
-
-  if (middleChunk) allData.push(...middleChunk);
-
-  // Sort by time and dedupe
-  const seen = new Set<number>();
-  return allData
-    .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime())
-    .filter(r => {
-      if (seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
+  return allData;
 }
 
 export async function getReadingsByDateRange(
