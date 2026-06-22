@@ -236,6 +236,10 @@ export default function TemperatureChart({
   const [editingNote, setEditingNote] = useState<ChartNote | null>(null);
   const [selectedNote, setSelectedNote] = useState<ChartNote | null>(null);
 
+  // Popup state for showing note text on chart
+  const [notePopup, setNotePopup] = useState<{ note: ChartNote; x: number; y: number } | null>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
   // Enter edit mode for the selected note
   const startEditingNote = (note: ChartNote) => {
     setEditingNote(note);
@@ -480,9 +484,13 @@ export default function TemperatureChart({
     setIsZoomed(true);
   }, [chartData, onRequestTimeRange, zoomDomain]);
 
-  // Handle clicking on the chart - open nearest note if click is close to one
+  // Handle clicking on the chart - show popup for nearest note if click is close to one
   const handleChartClick = useCallback((e: any) => {
-    if (!e || e.activeLabel === undefined || e.activeLabel === null) return;
+    if (!e || e.activeLabel === undefined || e.activeLabel === null) {
+      // Click outside chart area - dismiss popup
+      setNotePopup(null);
+      return;
+    }
     const clickTime = Number(e.activeLabel);
     if (isNaN(clickTime)) return;
 
@@ -511,9 +519,13 @@ export default function TemperatureChart({
     });
 
     if (closest && closestDist <= threshold) {
-      // Open the notes panel (if not already) and select the note
-      setShowNotesModal(true);
-      setSelectedNote(closest);
+      // Show popup near click position
+      const chartX = e.chartX ?? 100;
+      const chartY = e.chartY ?? 50;
+      setNotePopup({ note: closest, x: chartX, y: chartY });
+    } else {
+      // Clicked away from any note - dismiss popup
+      setNotePopup(null);
     }
   }, [chartData, zoomDomain, notes, visibleNoteIds]);
 
@@ -521,7 +533,13 @@ export default function TemperatureChart({
   const resetZoom = useCallback(() => {
     setZoomDomain({ left: 'dataMin', right: 'dataMax' });
     setIsZoomed(false);
+    setNotePopup(null);
   }, []);
+
+  // Dismiss popup when data changes (new time range loaded)
+  useEffect(() => {
+    setNotePopup(null);
+  }, [data]);
 
   // Handle brush change - update zoom domain
   const handleBrushChange = useCallback((newIndex: { startIndex?: number; endIndex?: number }) => {
@@ -531,6 +549,7 @@ export default function TemperatureChart({
       if (startTime && endTime && startTime !== endTime) {
         setZoomDomain({ left: startTime, right: endTime });
         setIsZoomed(true);
+        setNotePopup(null); // Dismiss popup on zoom change
       }
     }
   }, [chartData]);
@@ -694,7 +713,7 @@ export default function TemperatureChart({
           <>
             <span className="text-gray-600 text-xs hidden sm:inline">|</span>
             <button
-              onClick={() => setShowNotesModal(true)}
+              onClick={() => { setShowNotesModal(true); setNotePopup(null); }}
               className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -722,7 +741,7 @@ export default function TemperatureChart({
 
 
       {/* Chart */}
-      <div className="h-64 sm:h-96 relative">
+      <div className="h-64 sm:h-96 relative" ref={chartContainerRef}>
         {/* Loading overlay shown while fetching new chart data */}
         {isFetching && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-[1px]">
@@ -948,6 +967,41 @@ export default function TemperatureChart({
             />
           </LineChart>
         </ResponsiveContainer>
+        )}
+
+        {/* Note popup - shows when clicking near a note line */}
+        {notePopup && (
+          <div
+            className="absolute z-20 max-w-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 pointer-events-auto"
+            style={{
+              left: Math.min(notePopup.x, (chartContainerRef.current?.clientWidth ?? 300) - 200),
+              top: Math.max(10, notePopup.y - 60),
+            }}
+          >
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <span>{format(new Date(notePopup.note.timestamp), 'dd MMM HH:mm')}</span>
+                {notePopup.note.sensor !== 'general' && (
+                  <>
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: SENSOR_COLORS[notePopup.note.sensor as keyof typeof SENSOR_COLORS] }}
+                    />
+                    <span>{sensors[notePopup.note.sensor as keyof typeof sensors]?.label}</span>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={() => setNotePopup(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-white flex-shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{notePopup.note.text}</p>
+          </div>
         )}
       </div>
 
