@@ -713,8 +713,12 @@ export default function TemperatureChart({
           <>
             <span className="text-gray-600 text-xs hidden sm:inline">|</span>
             <button
-              onClick={() => { setShowNotesModal(true); setNotePopup(null); }}
-              className="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+              onClick={() => { setShowNotesModal(prev => !prev); setNotePopup(null); }}
+              className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm transition-all duration-200 ${
+                showNotesModal
+                  ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
             >
               <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
@@ -739,6 +743,46 @@ export default function TemperatureChart({
         )}
       </div>
 
+      {/* Note icons strip - clickable markers above chart */}
+      {notes.length > 0 && chartData.length > 0 && (
+        <div className="relative h-5 mb-1 mx-10">
+          {(() => {
+            const dataStart = chartData[0].time;
+            const dataEnd = chartData[chartData.length - 1].time;
+            const viewLeft = typeof zoomDomain.left === 'number' ? zoomDomain.left : dataStart;
+            const viewRight = typeof zoomDomain.right === 'number' ? zoomDomain.right : dataEnd;
+            const viewSpan = viewRight - viewLeft;
+            if (viewSpan <= 0) return null;
+
+            return notes.filter(n => visibleNoteIds.has(n.id)).map((note) => {
+              const noteTime = new Date(note.timestamp).getTime();
+              const pct = ((noteTime - viewLeft) / viewSpan) * 100;
+              if (pct < 0 || pct > 100) return null;
+              const noteColor = note.sensor === 'general'
+                ? (isDark ? '#a855f7' : '#7c3aed')
+                : SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS];
+              const isHighlighted = notePopup?.note.id === note.id;
+              return (
+                <button
+                  key={note.id}
+                  onClick={() => setNotePopup({ note, x: (pct / 100) * (chartContainerRef.current?.clientWidth ?? 300), y: 40 })}
+                  className="absolute -translate-x-1/2 top-0 p-0.5 rounded hover:scale-125 transition-transform"
+                  style={{ left: `${pct}%` }}
+                  title={note.text}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill={isHighlighted ? '#3b82f6' : noteColor}
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                  </svg>
+                </button>
+              );
+            });
+          })()}
+        </div>
+      )}
 
       {/* Chart */}
       <div className="h-64 sm:h-96 relative" ref={chartContainerRef}>
@@ -816,14 +860,14 @@ export default function TemperatureChart({
               const noteColor = note.sensor === 'general'
                 ? (isDark ? '#a855f7' : '#7c3aed')
                 : SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS];
-              const isSelected = selectedNote?.id === note.id;
+              const isHighlighted = selectedNote?.id === note.id || notePopup?.note.id === note.id;
               return (
                 <ReferenceLine
                   key={note.id}
                   x={noteTime}
-                  stroke={isSelected ? '#3b82f6' : noteColor}
-                  strokeWidth={isSelected ? 3 : 2}
-                  strokeDasharray={isSelected ? undefined : "4 2"}
+                  stroke={isHighlighted ? '#3b82f6' : noteColor}
+                  strokeWidth={isHighlighted ? 3 : 2}
+                  strokeDasharray={isHighlighted ? undefined : "4 2"}
                 />
               );
             })}
