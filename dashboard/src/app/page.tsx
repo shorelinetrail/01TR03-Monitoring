@@ -131,6 +131,7 @@ export default function Dashboard() {
   const [historicalData, setHistoricalData] = useState<TemperatureReading[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isChartFetching, setIsChartFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '2d' | '5d' | '7d'>('24h');
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
@@ -157,7 +158,8 @@ export default function Dashboard() {
   const lastAlertTimes = useRef<Record<string, number>>({});
 
   // Fetch all data
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (showChartLoading = false) => {
+    if (showChartLoading) setIsChartFetching(true);
     try {
       // Calculate date range for readings and notes
       const endDate = useCustomDateRange ? new Date(customEndDate) : new Date();
@@ -268,6 +270,7 @@ export default function Dashboard() {
       setError('Failed to fetch data from server');
     } finally {
       setIsLoading(false);
+      if (showChartLoading) setIsChartFetching(false);
     }
   }, [timeRange, useCustomDateRange, customStartDate, customEndDate]);
 
@@ -294,9 +297,11 @@ export default function Dashboard() {
   }, [useCustomDateRange, customStartDate, customEndDate, timeRange]);
 
   // Initial data fetch and polling
+  // The immediate fetch (on mount or time-range change) shows the chart
+  // loading indicator; background polls do not.
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, REFRESH_INTERVAL);
+    fetchData(true);
+    const interval = setInterval(() => fetchData(false), REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -933,6 +938,7 @@ export default function Dashboard() {
                 onEditNote={handleEditNote}
                 onDeleteNote={handleDeleteNote}
                 onRequestTimeRange={handleRequestTimeRange}
+                isFetching={isChartFetching}
               />
             </div>
           </div>
