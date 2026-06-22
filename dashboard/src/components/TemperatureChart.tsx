@@ -381,35 +381,56 @@ export default function TemperatureChart({
     return { chartData: result, gapSegments: gaps };
   }, [data, filterConfig]);
 
-  // Create gap line data for rendering dashed lines across gaps
+  // Create gap line data for rendering dashed lines across gaps.
+  // Derived from the FINAL (downsampled) chartData so that the dashed lines
+  // connect to exactly the points where the solid lines actually end.
   const gapLineData = useMemo(() => {
-    // For each gap and each sensor, create an array with just two points
     const gapLines: Array<{
       id: string;
       sensor: 'sensor1' | 'sensor2' | 'sensor3' | 'sensor4';
       data: Array<{ time: number; value: number | null }>;
     }> = [];
 
-    gapSegments.forEach((gap, idx) => {
-      const sensorKeys = ['sensor1', 'sensor2', 'sensor3', 'sensor4'] as const;
+    const sensorKeys = ['sensor1', 'sensor2', 'sensor3', 'sensor4'] as const;
+
+    // Find null points (gap markers) in the rendered data
+    for (let i = 0; i < chartData.length; i++) {
+      const isGapMarker = sensorKeys.every(k => chartData[i][k] === null);
+      if (!isGapMarker) continue;
+
+      // For each sensor, find the last non-null point before the gap
+      // and the first non-null point after the gap
       sensorKeys.forEach((sensorKey) => {
-        const startVal = gap.startPoint[sensorKey];
-        const endVal = gap.endPoint[sensorKey];
-        if (startVal !== null && endVal !== null) {
+        let before: { time: number; value: number } | null = null;
+        for (let j = i - 1; j >= 0; j--) {
+          const v = chartData[j][sensorKey];
+          if (v !== null) {
+            before = { time: chartData[j].time, value: v };
+            break;
+          }
+        }
+
+        let after: { time: number; value: number } | null = null;
+        for (let j = i + 1; j < chartData.length; j++) {
+          const v = chartData[j][sensorKey];
+          if (v !== null) {
+            after = { time: chartData[j].time, value: v };
+            break;
+          }
+        }
+
+        if (before && after) {
           gapLines.push({
-            id: `gap-${idx}-${sensorKey}`,
+            id: `gap-${i}-${sensorKey}`,
             sensor: sensorKey,
-            data: [
-              { time: gap.startPoint.time, value: startVal },
-              { time: gap.endPoint.time, value: endVal },
-            ],
+            data: [before, after],
           });
         }
       });
-    });
+    }
 
     return gapLines;
-  }, [gapSegments]);
+  }, [chartData]);
 
   // Get notes that fall within current chart time range
   const visibleNoteIds = useMemo(() => {
@@ -481,6 +502,43 @@ export default function TemperatureChart({
     setZoomDomain({ left, right });
     setIsZoomed(true);
   }, [chartData, onRequestTimeRange, zoomDomain]);
+
+  // Handle clicking on the chart - open nearest note if click is close to one
+  const handleChartClick = useCallback((e: any) => {
+    if (!e || e.activeLabel === undefined || e.activeLabel === null) return;
+    const clickTime = Number(e.activeLabel);
+    if (isNaN(clickTime)) return;
+
+    // Determine current visible time span to set a sensible click threshold
+    const dataStart = chartData.length > 0 ? chartData[0].time : 0;
+    const dataEnd = chartData.length > 0 ? chartData[chartData.length - 1].time : 0;
+    const currentLeft = typeof zoomDomain.left === 'number' ? zoomDomain.left : dataStart;
+    const currentRight = typeof zoomDomain.right === 'number' ? zoomDomain.right : dataEnd;
+    const visibleSpan = currentRight - currentLeft;
+    if (visibleSpan <= 0) return;
+
+    // Threshold: within ~2% of the visible time span counts as "near" the note line
+    const threshold = visibleSpan * 0.02;
+
+    // Find the closest visible note to the click
+    let closest: ChartNote | null = null;
+    let closestDist = Infinity;
+    notes.forEach((note) => {
+      if (!visibleNoteIds.has(note.id)) return;
+      const noteTime = new Date(note.timestamp).getTime();
+      const dist = Math.abs(noteTime - clickTime);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = note;
+      }
+    });
+
+    if (closest && closestDist <= threshold) {
+      // Open the notes panel (if not already) and select the note
+      setShowNotesModal(true);
+      setSelectedNote(closest);
+    }
+  }, [chartData, zoomDomain, notes, visibleNoteIds]);
 
   // Reset zoom to show all data
   const resetZoom = useCallback(() => {
@@ -694,6 +752,7 @@ export default function TemperatureChart({
           <LineChart
             data={chartData}
             margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            onClick={handleChartClick}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             <XAxis
