@@ -129,6 +129,7 @@ export default function Dashboard() {
   const [durationValue, setDurationValue] = useState(24);
   const [durationUnit, setDurationUnit] = useState<'hours' | 'days'>('hours');
   const [durationInputValue, setDurationInputValue] = useState('24'); // Local input state
+  const [durationInputUnit, setDurationInputUnit] = useState<'hours' | 'days'>('hours'); // Local unit state
   const [windowEnd, setWindowEnd] = useState<Date | null>(null);
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
@@ -284,6 +285,7 @@ export default function Dashboard() {
     setDurationValue(value);
     setDurationUnit(unit);
     setDurationInputValue(String(value));
+    setDurationInputUnit(unit);
     setUseCustomDateRange(false);
     setWindowEnd(null); // Go live when changing duration
     const durMs = getDurationMs(value, unit);
@@ -291,16 +293,17 @@ export default function Dashboard() {
     syncDisplayInputs(endMs, durMs);
   }, [syncDisplayInputs]);
 
-  // Commit the duration input (on Enter or blur)
+  // Commit the duration input (on Enter or blur from either the value or unit field)
   const commitDurationInput = useCallback(() => {
     const v = parseInt(durationInputValue, 10);
-    if (!isNaN(v) && v > 0) {
-      applyDuration(v, durationUnit);
-    } else {
-      // Reset to current value if invalid
+    if (!isNaN(v) && v > 0 && (v !== durationValue || durationInputUnit !== durationUnit)) {
+      applyDuration(v, durationInputUnit);
+    } else if (isNaN(v) || v <= 0) {
+      // Reset to current values if invalid
       setDurationInputValue(String(durationValue));
+      setDurationInputUnit(durationUnit);
     }
-  }, [durationInputValue, durationUnit, durationValue, applyDuration]);
+  }, [durationInputValue, durationInputUnit, durationValue, durationUnit, applyDuration]);
 
   // Shift the trend window backward/forward by its current duration. Forward is
   // clamped to "now" (snaps back to live when it reaches the present).
@@ -945,8 +948,10 @@ export default function Dashboard() {
                     className="w-16 px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                   <select
-                    value={durationUnit}
-                    onChange={(e) => applyDuration(durationValue, e.target.value as 'hours' | 'days')}
+                    value={durationInputUnit}
+                    onChange={(e) => setDurationInputUnit(e.target.value as 'hours' | 'days')}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitDurationInput(); }}
+                    onBlur={commitDurationInput}
                     className="px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   >
                     <option value="hours">Hours</option>
