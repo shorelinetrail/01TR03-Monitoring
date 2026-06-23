@@ -232,7 +232,7 @@ export default function TemperatureChart({
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [selectedSensorForNote, setSelectedSensorForNote] = useState<ChartNote['sensor']>('general');
   const [pendingNoteText, setPendingNoteText] = useState('');
-  const [pendingNoteTime, setPendingNoteTime] = useState('');
+  const [addNoteMode, setAddNoteMode] = useState(false); // Click-chart-to-place mode
   const [editingNote, setEditingNote] = useState<ChartNote | null>(null);
   const [selectedNote, setSelectedNote] = useState<ChartNote | null>(null);
 
@@ -245,7 +245,7 @@ export default function TemperatureChart({
     setEditingNote(note);
     setPendingNoteText(note.text);
     setSelectedSensorForNote(note.sensor);
-    setPendingNoteTime(format(new Date(note.timestamp), "yyyy-MM-dd'T'HH:mm"));
+    setAddNoteMode(false);
   };
 
   // Clear editing state
@@ -253,7 +253,7 @@ export default function TemperatureChart({
     setEditingNote(null);
     setPendingNoteText('');
     setSelectedSensorForNote('general');
-    setPendingNoteTime('');
+    setAddNoteMode(false);
   };
 
   // Clear selection
@@ -484,7 +484,8 @@ export default function TemperatureChart({
     setIsZoomed(true);
   }, [chartData, onRequestTimeRange, zoomDomain]);
 
-  // Handle clicking on the chart - show popup for nearest note if click is close to one
+  // Handle clicking on the chart - place a note (in add mode) or show popup for
+  // the nearest note if the click is close to one.
   const handleChartClick = useCallback((e: any) => {
     if (!e || e.activeLabel === undefined || e.activeLabel === null) {
       // Click outside chart area - dismiss popup
@@ -493,6 +494,14 @@ export default function TemperatureChart({
     }
     const clickTime = Number(e.activeLabel);
     if (isNaN(clickTime)) return;
+
+    // Add-note mode: place the note at the clicked timestamp
+    if (addNoteMode && onAddNote && pendingNoteText.trim()) {
+      onAddNote(new Date(clickTime), pendingNoteText.trim(), selectedSensorForNote);
+      setPendingNoteText('');
+      setAddNoteMode(false);
+      return;
+    }
 
     // Determine current visible time span to set a sensible click threshold
     const dataStart = chartData.length > 0 ? chartData[0].time : 0;
@@ -527,7 +536,7 @@ export default function TemperatureChart({
       // Clicked away from any note - dismiss popup
       setNotePopup(null);
     }
-  }, [chartData, zoomDomain, notes, visibleNoteIds]);
+  }, [chartData, zoomDomain, notes, visibleNoteIds, addNoteMode, onAddNote, pendingNoteText, selectedSensorForNote]);
 
   // Reset zoom to show all data
   const resetZoom = useCallback(() => {
@@ -785,7 +794,7 @@ export default function TemperatureChart({
       )}
 
       {/* Chart */}
-      <div className="h-64 sm:h-96 relative" ref={chartContainerRef}>
+      <div className={`h-64 sm:h-96 relative ${addNoteMode ? 'cursor-crosshair' : ''}`} ref={chartContainerRef}>
         {/* Loading overlay shown while fetching new chart data */}
         {isFetching && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-gray-900/60 backdrop-blur-[1px]">
@@ -1056,12 +1065,6 @@ export default function TemperatureChart({
           {/* Add/Edit form - compact inline */}
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <div className="flex flex-wrap gap-2 items-center">
-              <input
-                type="datetime-local"
-                value={pendingNoteTime}
-                onChange={(e) => setPendingNoteTime(e.target.value)}
-                className="text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-gray-900 dark:text-white"
-              />
               <select
                 value={selectedSensorForNote}
                 onChange={(e) => setSelectedSensorForNote(e.target.value as ChartNote['sensor'])}
@@ -1101,19 +1104,26 @@ export default function TemperatureChart({
               ) : (
                 <button
                   onClick={() => {
-                    if (pendingNoteText.trim() && pendingNoteTime) {
-                      onAddNote(new Date(pendingNoteTime), pendingNoteText.trim(), selectedSensorForNote);
-                      setPendingNoteText('');
-                      setPendingNoteTime('');
+                    if (pendingNoteText.trim()) {
+                      setAddNoteMode((prev) => !prev);
                     }
                   }}
-                  disabled={!pendingNoteText.trim() || !pendingNoteTime}
-                  className="text-sm px-3 py-1 rounded bg-primary-600 text-white hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!pendingNoteText.trim()}
+                  className={`text-sm px-3 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                    addNoteMode
+                      ? 'bg-blue-600 text-white hover:bg-blue-500 animate-pulse'
+                      : 'bg-primary-600 text-white hover:bg-primary-500'
+                  }`}
                 >
-                  Add
+                  {addNoteMode ? 'Click chart to place…' : 'Place on Trend'}
                 </button>
               )}
             </div>
+            {addNoteMode && (
+              <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                Click anywhere on the trend to place the note at that time, or click “Click chart to place…” again to cancel.
+              </p>
+            )}
           </div>
 
           {/* Selected note detail */}
