@@ -536,6 +536,51 @@ export default function TemperatureChart({
     setNotePopup(null);
   }, []);
 
+  // Resolve the current visible window and whether we can pan in each direction.
+  // Panning shifts the view by the currently selected x-axis duration, clamped
+  // to the loaded data bounds (so a partial shift happens near an edge).
+  const panState = useMemo(() => {
+    if (chartData.length < 2) {
+      return { canBack: false, canForward: false, dataStart: 0, dataEnd: 0, left: 0, right: 0 };
+    }
+    const dataStart = chartData[0].time;
+    const dataEnd = chartData[chartData.length - 1].time;
+    const left = typeof zoomDomain.left === 'number' ? zoomDomain.left : dataStart;
+    const right = typeof zoomDomain.right === 'number' ? zoomDomain.right : dataEnd;
+    // Small epsilon to avoid float jitter enabling a no-op pan
+    const epsilon = 1000; // 1 second
+    return {
+      canBack: left > dataStart + epsilon,
+      canForward: right < dataEnd - epsilon,
+      dataStart,
+      dataEnd,
+      left,
+      right,
+    };
+  }, [chartData, zoomDomain]);
+
+  // Shift the visible window forward or back by its current duration, clamped
+  // to the loaded data bounds.
+  const shiftView = useCallback((direction: 'back' | 'forward') => {
+    const { dataStart, dataEnd, left, right } = panState;
+    const duration = right - left;
+    if (duration <= 0) return;
+
+    let newLeft: number;
+    let newRight: number;
+    if (direction === 'forward') {
+      newRight = Math.min(right + duration, dataEnd);
+      newLeft = newRight - duration;
+    } else {
+      newLeft = Math.max(left - duration, dataStart);
+      newRight = newLeft + duration;
+    }
+
+    setZoomDomain({ left: newLeft, right: newRight });
+    setIsZoomed(true);
+    setNotePopup(null);
+  }, [panState]);
+
   // Dismiss popup when data changes (new time range loaded)
   useEffect(() => {
     setNotePopup(null);
@@ -725,6 +770,41 @@ export default function TemperatureChart({
               </svg>
               <span>Notes{notes.length > 0 ? ` (${notes.length})` : ''}</span>
             </button>
+          </>
+        )}
+        {(panState.canBack || panState.canForward) && (
+          <>
+            <span className="text-gray-600 text-xs hidden sm:inline">|</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => shiftView('back')}
+                disabled={!panState.canBack}
+                title="Shift back"
+                className={`flex items-center justify-center p-1 sm:p-1.5 rounded-md transition-all duration-200 ${
+                  panState.canBack
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    : 'bg-gray-50 dark:bg-gray-900 text-gray-300 dark:text-gray-700 cursor-not-allowed'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => shiftView('forward')}
+                disabled={!panState.canForward}
+                title="Shift forward"
+                className={`flex items-center justify-center p-1 sm:p-1.5 rounded-md transition-all duration-200 ${
+                  panState.canForward
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    : 'bg-gray-50 dark:bg-gray-900 text-gray-300 dark:text-gray-700 cursor-not-allowed'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
           </>
         )}
         {isZoomed && (
