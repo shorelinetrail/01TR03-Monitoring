@@ -772,7 +772,7 @@ export default function TemperatureChart({
             </button>
           </>
         )}
-        {(panState.canBack || panState.canForward) && (
+        {chartData.length > 0 && (
           <>
             <span className="text-gray-600 text-xs hidden sm:inline">|</span>
             <div className="flex items-center gap-1">
