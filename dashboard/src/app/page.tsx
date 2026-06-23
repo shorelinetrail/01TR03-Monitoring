@@ -943,14 +943,14 @@ export default function Dashboard() {
                     min={1}
                     value={durationInputValue}
                     onChange={(e) => setDurationInputValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitDurationInput(); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                     onBlur={commitDurationInput}
                     className="w-16 px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                   <select
                     value={durationInputUnit}
                     onChange={(e) => setDurationInputUnit(e.target.value as 'hours' | 'days')}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitDurationInput(); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLSelectElement).blur(); } }}
                     onBlur={commitDurationInput}
                     className="px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   >
