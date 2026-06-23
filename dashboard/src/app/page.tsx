@@ -128,6 +128,7 @@ export default function Dashboard() {
   // windowEnd === null means the window is live (ends at "now").
   const [durationValue, setDurationValue] = useState(24);
   const [durationUnit, setDurationUnit] = useState<'hours' | 'days'>('hours');
+  const [durationInputValue, setDurationInputValue] = useState('24'); // Local input state
   const [windowEnd, setWindowEnd] = useState<Date | null>(null);
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
@@ -282,11 +283,24 @@ export default function Dashboard() {
   const applyDuration = useCallback((value: number, unit: 'hours' | 'days') => {
     setDurationValue(value);
     setDurationUnit(unit);
+    setDurationInputValue(String(value));
     setUseCustomDateRange(false);
+    setWindowEnd(null); // Go live when changing duration
     const durMs = getDurationMs(value, unit);
-    const endMs = windowEnd ? windowEnd.getTime() : Date.now();
+    const endMs = Date.now();
     syncDisplayInputs(endMs, durMs);
-  }, [windowEnd, syncDisplayInputs]);
+  }, [syncDisplayInputs]);
+
+  // Commit the duration input (on Enter or blur)
+  const commitDurationInput = useCallback(() => {
+    const v = parseInt(durationInputValue, 10);
+    if (!isNaN(v) && v > 0) {
+      applyDuration(v, durationUnit);
+    } else {
+      // Reset to current value if invalid
+      setDurationInputValue(String(durationValue));
+    }
+  }, [durationInputValue, durationUnit, durationValue, applyDuration]);
 
   // Shift the trend window backward/forward by its current duration. Forward is
   // clamped to "now" (snaps back to live when it reaches the present).
@@ -924,11 +938,10 @@ export default function Dashboard() {
                   <input
                     type="number"
                     min={1}
-                    value={durationValue}
-                    onChange={(e) => {
-                      const v = parseInt(e.target.value, 10);
-                      if (!isNaN(v) && v > 0) applyDuration(v, durationUnit);
-                    }}
+                    value={durationInputValue}
+                    onChange={(e) => setDurationInputValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitDurationInput(); }}
+                    onBlur={commitDurationInput}
                     className="w-16 px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
                   />
                   <select
