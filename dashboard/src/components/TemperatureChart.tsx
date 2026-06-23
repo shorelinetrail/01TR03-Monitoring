@@ -745,7 +745,7 @@ export default function TemperatureChart({
 
       {/* Note icons strip - clickable markers above chart */}
       {notes.length > 0 && chartData.length > 0 && (
-        <div className="relative h-5 mb-1 mx-10">
+        <div className="relative h-5 mb-1" style={{ marginLeft: '45px', marginRight: '10px' }}>
           {(() => {
             const dataStart = chartData[0].time;
             const dataEnd = chartData[chartData.length - 1].time;
@@ -833,6 +833,7 @@ export default function TemperatureChart({
               unit="°C"
               allowDecimals={false}
               tickCount={6}
+              width={45}
             />
             <Tooltip content={<CustomTooltip />} />
 
