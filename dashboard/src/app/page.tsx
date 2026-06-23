@@ -112,18 +112,9 @@ const DEFAULT_DISPLAY = {
 // Default sensor order
 const DEFAULT_SENSOR_ORDER = ['sensor1', 'sensor2', 'sensor3', 'sensor4', 'differential'];
 
-// Convert time range to hours
-const getHoursFromRange = (range: string): number => {
-  switch (range) {
-    case '1h': return 1;
-    case '6h': return 6;
-    case '24h': return 24;
-    case '2d': return 48;
-    case '5d': return 120;
-    case '7d': return 168;
-    default: return 24;
-  }
-};
+// Convert a duration value + unit into milliseconds
+const getDurationMs = (value: number, unit: 'hours' | 'days'): number =>
+  value * (unit === 'days' ? 24 : 1) * 60 * 60 * 1000;
 
 export default function Dashboard() {
   const [device, setDevice] = useState<Device | null>(null);
@@ -133,7 +124,11 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isChartFetching, setIsChartFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '2d' | '5d' | '7d'>('24h');
+  // Trend window: a duration (value + unit) ending at `windowEnd`.
+  // windowEnd === null means the window is live (ends at "now").
+  const [durationValue, setDurationValue] = useState(24);
+  const [durationUnit, setDurationUnit] = useState<'hours' | 'days'>('hours');
+  const [windowEnd, setWindowEnd] = useState<Date | null>(null);
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
   const [telegram, setTelegram] = useState(DEFAULT_TELEGRAM);
@@ -161,16 +156,18 @@ export default function Dashboard() {
   const fetchData = useCallback(async (showChartLoading = false) => {
     if (showChartLoading) setIsChartFetching(true);
     try {
-      // Calculate date range for readings and notes
-      const endDate = useCustomDateRange ? new Date(customEndDate) : new Date();
+      // Calculate date range for readings based on the trend window
+      const durationMs = getDurationMs(durationValue, durationUnit);
+      const endDate = useCustomDateRange ? new Date(customEndDate) : (windowEnd ?? new Date());
       const startDate = useCustomDateRange
         ? new Date(customStartDate)
-        : new Date(Date.now() - getHoursFromRange(timeRange) * 60 * 60 * 1000);
+        : new Date(endDate.getTime() - durationMs);
 
-      // Fetch readings based on preset or custom date range
-      const readingsPromise = useCustomDateRange
-        ? getReadingsByDateRange(DEVICE_ID, startDate, endDate)
-        : getReadings(DEVICE_ID, getHoursFromRange(timeRange));
+      // Live window uses the relative helper; historical/custom windows use an
+      // explicit date range.
+      const readingsPromise = (!useCustomDateRange && windowEnd === null)
+        ? getReadings(DEVICE_ID, durationMs / (60 * 60 * 1000))
+        : getReadingsByDateRange(DEVICE_ID, startDate, endDate);
 
       const [deviceData, configData, reading, readings, notes] = await Promise.all([
         getDevice(DEVICE_ID),
@@ -272,7 +269,45 @@ export default function Dashboard() {
       setIsLoading(false);
       if (showChartLoading) setIsChartFetching(false);
     }
-  }, [timeRange, useCustomDateRange, customStartDate, customEndDate]);
+  }, [durationValue, durationUnit, windowEnd, useCustomDateRange, customStartDate, customEndDate]);
+
+  // Sync the displayed custom date inputs to a given window (informational
+  // while in duration mode).
+  const syncDisplayInputs = useCallback((endMs: number, durMs: number) => {
+    setCustomEndDate(format(new Date(endMs), "yyyy-MM-dd'T'HH:mm"));
+    setCustomStartDate(format(new Date(endMs - durMs), "yyyy-MM-dd'T'HH:mm"));
+  }, []);
+
+  // Apply a new duration (value + unit), keeping the current window end.
+  const applyDuration = useCallback((value: number, unit: 'hours' | 'days') => {
+    setDurationValue(value);
+    setDurationUnit(unit);
+    setUseCustomDateRange(false);
+    const durMs = getDurationMs(value, unit);
+    const endMs = windowEnd ? windowEnd.getTime() : Date.now();
+    syncDisplayInputs(endMs, durMs);
+  }, [windowEnd, syncDisplayInputs]);
+
+  // Shift the trend window backward/forward by its current duration. Forward is
+  // clamped to "now" (snaps back to live when it reaches the present).
+  const handleShiftWindow = useCallback((direction: 'back' | 'forward') => {
+    const durationMs = getDurationMs(durationValue, durationUnit);
+    const now = Date.now();
+    const baseEnd = useCustomDateRange
+      ? new Date(customEndDate).getTime()
+      : (windowEnd ? windowEnd.getTime() : now);
+    const newEndMs = direction === 'back' ? baseEnd - durationMs : baseEnd + durationMs;
+
+    setUseCustomDateRange(false);
+    if (newEndMs >= now) {
+      // Reached the present - go live
+      setWindowEnd(null);
+      syncDisplayInputs(now, durationMs);
+    } else {
+      setWindowEnd(new Date(newEndMs));
+      syncDisplayInputs(newEndMs, durationMs);
+    }
+  }, [durationValue, durationUnit, useCustomDateRange, customEndDate, windowEnd, syncDisplayInputs]);
 
   // Handle request to load data around a specific timestamp (e.g., for a note)
   const handleRequestTimeRange = useCallback((centerTimestamp: Date) => {
@@ -283,7 +318,7 @@ export default function Dashboard() {
       const currentEnd = new Date(customEndDate).getTime();
       durationMs = currentEnd - currentStart;
     } else {
-      durationMs = getHoursFromRange(timeRange) * 60 * 60 * 1000;
+      durationMs = getDurationMs(durationValue, durationUnit);
     }
 
     // Center on the requested timestamp with same duration
@@ -294,7 +329,14 @@ export default function Dashboard() {
     setCustomStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
     setCustomEndDate(format(end, "yyyy-MM-dd'T'HH:mm"));
     setUseCustomDateRange(true);
-  }, [useCustomDateRange, customStartDate, customEndDate, timeRange]);
+  }, [useCustomDateRange, customStartDate, customEndDate, durationValue, durationUnit]);
+
+  // Whether the forward arrow is enabled (we are viewing the past).
+  const currentWindowEndMs = useCustomDateRange
+    ? new Date(customEndDate).getTime()
+    : (windowEnd ? windowEnd.getTime() : Date.now());
+  const canGoForward = currentWindowEndMs < Date.now() - 60 * 1000;
+  const isLiveWindow = !useCustomDateRange && windowEnd === null;
 
   // Initial data fetch and polling
   // The immediate fetch (on mount or time-range change) shows the chart
@@ -866,28 +908,73 @@ export default function Dashboard() {
                 </button>
               </div>
               <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
-                <div className="flex gap-1.5 sm:gap-2">
-                  {(['1h', '6h', '24h', '2d', '5d', '7d'] as const).map((range) => (
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Shift window back */}
+                  <button
+                    onClick={() => handleShiftWindow('back')}
+                    title="Shift back by the selected duration"
+                    className="flex items-center justify-center p-1.5 rounded transition-colors bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Duration value + unit */}
+                  <input
+                    type="number"
+                    min={1}
+                    value={durationValue}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (!isNaN(v) && v > 0) applyDuration(v, durationUnit);
+                    }}
+                    className="w-16 px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                  <select
+                    value={durationUnit}
+                    onChange={(e) => applyDuration(durationValue, e.target.value as 'hours' | 'days')}
+                    className="px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  >
+                    <option value="hours">Hours</option>
+                    <option value="days">Days</option>
+                  </select>
+
+                  {/* Shift window forward (disabled when live / at present) */}
+                  <button
+                    onClick={() => handleShiftWindow('forward')}
+                    disabled={!canGoForward}
+                    title="Shift forward by the selected duration"
+                    className={`flex items-center justify-center p-1.5 rounded transition-colors ${
+                      canGoForward
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-700 cursor-not-allowed'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+
+                  {/* Live indicator / jump to now */}
+                  {isLiveWindow ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      Live
+                    </span>
+                  ) : (
                     <button
-                      key={range}
                       onClick={() => {
-                        setTimeRange(range);
+                        setWindowEnd(null);
                         setUseCustomDateRange(false);
-                        // Update custom date inputs to reflect the new range
-                        const now = new Date();
-                        const start = new Date(now.getTime() - getHoursFromRange(range) * 60 * 60 * 1000);
-                        setCustomEndDate(format(now, "yyyy-MM-dd'T'HH:mm"));
-                        setCustomStartDate(format(start, "yyyy-MM-dd'T'HH:mm"));
+                        syncDisplayInputs(Date.now(), getDurationMs(durationValue, durationUnit));
                       }}
-                      className={`flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-1 rounded text-xs sm:text-sm transition-colors ${
-                        !useCustomDateRange && timeRange === range
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                      }`}
+                      title="Jump to now"
+                      className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
                     >
-                      {range}
+                      Now
                     </button>
-                  ))}
+                  )}
                 </div>
                 <span className="hidden sm:inline text-gray-500 text-sm">or</span>
                 <div className="hidden sm:flex items-center gap-2">
