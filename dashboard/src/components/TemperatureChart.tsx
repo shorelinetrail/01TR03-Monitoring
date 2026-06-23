@@ -238,6 +238,8 @@ export default function TemperatureChart({
 
   // Popup state for showing note text on chart
   const [notePopup, setNotePopup] = useState<{ note: ChartNote; x: number; y: number } | null>(null);
+  // Cluster popup for showing multiple notes at the same location
+  const [clusterPopup, setClusterPopup] = useState<{ notes: ChartNote[]; x: number; y: number } | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   // Enter edit mode for the selected note
@@ -488,8 +490,9 @@ export default function TemperatureChart({
   // the nearest note if the click is close to one.
   const handleChartClick = useCallback((e: any) => {
     if (!e || e.activeLabel === undefined || e.activeLabel === null) {
-      // Click outside chart area - dismiss popup
+      // Click outside chart area - dismiss popups
       setNotePopup(null);
+      setClusterPopup(null);
       return;
     }
     const clickTime = Number(e.activeLabel);
@@ -543,11 +546,13 @@ export default function TemperatureChart({
     setZoomDomain({ left: 'dataMin', right: 'dataMax' });
     setIsZoomed(false);
     setNotePopup(null);
+    setClusterPopup(null);
   }, []);
 
-  // Dismiss popup when data changes (new time range loaded)
+  // Dismiss popups when data changes (new time range loaded)
   useEffect(() => {
     setNotePopup(null);
+    setClusterPopup(null);
   }, [data]);
 
   // Handle brush change - update zoom domain
@@ -558,7 +563,8 @@ export default function TemperatureChart({
       if (startTime && endTime && startTime !== endTime) {
         setZoomDomain({ left: startTime, right: endTime });
         setIsZoomed(true);
-        setNotePopup(null); // Dismiss popup on zoom change
+        setNotePopup(null);
+        setClusterPopup(null);
       }
     }
   }, [chartData]);
@@ -722,7 +728,7 @@ export default function TemperatureChart({
           <>
             <span className="text-gray-600 text-xs hidden sm:inline">|</span>
             <button
-              onClick={() => { setShowNotesModal(prev => !prev); setNotePopup(null); }}
+              onClick={() => { setShowNotesModal(prev => !prev); setNotePopup(null); setClusterPopup(null); }}
               className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm transition-all duration-200 ${
                 showNotesModal
                   ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
@@ -752,9 +758,9 @@ export default function TemperatureChart({
         )}
       </div>
 
-      {/* Note icons strip - clickable markers above chart */}
+      {/* Note icons strip - clustered markers above chart */}
       {notes.length > 0 && chartData.length > 0 && (
-        <div className="relative h-5 mb-1" style={{ marginLeft: '45px', marginRight: '10px' }}>
+        <div className="relative h-6 mb-1" style={{ marginLeft: '45px', marginRight: '10px' }}>
           {(() => {
             const dataStart = chartData[0].time;
             const dataEnd = chartData[chartData.length - 1].time;
@@ -763,29 +769,75 @@ export default function TemperatureChart({
             const viewSpan = viewRight - viewLeft;
             if (viewSpan <= 0) return null;
 
-            return notes.filter(n => visibleNoteIds.has(n.id)).map((note) => {
-              const noteTime = new Date(note.timestamp).getTime();
-              const pct = ((noteTime - viewLeft) / viewSpan) * 100;
-              if (pct < 0 || pct > 100) return null;
-              const noteColor = note.sensor === 'general'
-                ? (isDark ? '#a855f7' : '#7c3aed')
-                : SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS];
-              const isHighlighted = notePopup?.note.id === note.id;
+            // Calculate positions and cluster nearby notes (within 3% of each other)
+            const CLUSTER_THRESHOLD = 3; // percent
+            const visibleNotes = notes
+              .filter(n => visibleNoteIds.has(n.id))
+              .map(note => ({
+                note,
+                pct: ((new Date(note.timestamp).getTime() - viewLeft) / viewSpan) * 100,
+              }))
+              .filter(n => n.pct >= 0 && n.pct <= 100)
+              .sort((a, b) => a.pct - b.pct);
+
+            // Group into clusters
+            const clusters: Array<{ notes: ChartNote[]; pct: number }> = [];
+            for (const item of visibleNotes) {
+              const lastCluster = clusters[clusters.length - 1];
+              if (lastCluster && Math.abs(item.pct - lastCluster.pct) < CLUSTER_THRESHOLD) {
+                lastCluster.notes.push(item.note);
+                // Update cluster position to average
+                lastCluster.pct = (lastCluster.pct * (lastCluster.notes.length - 1) + item.pct) / lastCluster.notes.length;
+              } else {
+                clusters.push({ notes: [item.note], pct: item.pct });
+              }
+            }
+
+            return clusters.map((cluster, idx) => {
+              const isMultiple = cluster.notes.length > 1;
+              const isHighlighted = cluster.notes.some(n => notePopup?.note.id === n.id) ||
+                clusterPopup?.notes.some(n => cluster.notes.some(cn => cn.id === n.id));
+              const primaryColor = isDark ? '#a855f7' : '#7c3aed';
+
               return (
                 <button
-                  key={note.id}
-                  onClick={() => setNotePopup({ note, x: (pct / 100) * (chartContainerRef.current?.clientWidth ?? 300), y: 40 })}
-                  className="absolute -translate-x-1/2 top-0 p-0.5 rounded hover:scale-125 transition-transform"
-                  style={{ left: `${pct}%` }}
-                  title={note.text}
+                  key={idx}
+                  onClick={() => {
+                    const x = (cluster.pct / 100) * (chartContainerRef.current?.clientWidth ?? 300);
+                    if (isMultiple) {
+                      setClusterPopup({ notes: cluster.notes, x, y: 24 });
+                      setNotePopup(null);
+                    } else {
+                      setNotePopup({ note: cluster.notes[0], x, y: 40 });
+                      setClusterPopup(null);
+                    }
+                  }}
+                  className={`absolute -translate-x-1/2 top-0 rounded hover:scale-110 transition-transform ${
+                    isMultiple ? 'flex items-center justify-center' : 'p-0.5'
+                  }`}
+                  style={{ left: `${cluster.pct}%` }}
+                  title={isMultiple ? `${cluster.notes.length} notes` : cluster.notes[0].text}
                 >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill={isHighlighted ? '#3b82f6' : noteColor}
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-                  </svg>
+                  {isMultiple ? (
+                    <span
+                      className="flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full text-white shadow-sm"
+                      style={{ backgroundColor: isHighlighted ? '#3b82f6' : primaryColor }}
+                    >
+                      {cluster.notes.length}
+                    </span>
+                  ) : (
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill={isHighlighted ? '#3b82f6' : (
+                        cluster.notes[0].sensor === 'general'
+                          ? primaryColor
+                          : SENSOR_COLORS[cluster.notes[0].sensor as keyof typeof SENSOR_COLORS]
+                      )}
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                    </svg>
+                  )}
                 </button>
               );
             });
@@ -1055,6 +1107,54 @@ export default function TemperatureChart({
               </button>
             </div>
             <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{notePopup.note.text}</p>
+          </div>
+        )}
+
+        {/* Cluster popup - shows list of notes when clicking a cluster marker */}
+        {clusterPopup && (
+          <div
+            className="absolute z-20 w-64 max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg pointer-events-auto"
+            style={{
+              left: Math.min(Math.max(10, clusterPopup.x - 128), (chartContainerRef.current?.clientWidth ?? 300) - 270),
+              top: clusterPopup.y,
+            }}
+          >
+            <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 rounded-t-lg">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                {clusterPopup.notes.length} notes at this time
+              </span>
+              <button
+                onClick={() => setClusterPopup(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-white"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              {clusterPopup.notes.map((note) => (
+                <button
+                  key={note.id}
+                  onClick={() => {
+                    setNotePopup({ note, x: clusterPopup.x, y: 80 });
+                    setClusterPopup(null);
+                  }}
+                  className="w-full text-left p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">
+                    <span>{format(new Date(note.timestamp), 'HH:mm:ss')}</span>
+                    {note.sensor !== 'general' && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: SENSOR_COLORS[note.sensor as keyof typeof SENSOR_COLORS] }}
+                      />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-900 dark:text-white truncate">{note.text}</p>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
